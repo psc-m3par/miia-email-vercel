@@ -3,13 +3,48 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface ParsedContact {
-  'First Name': string;
-  'Last Name': string;
-  'Company Name': string;
-  Email: string;
-  'Mobile Phone': string;
-  'Person Linkedin Url': string;
-  [key: string]: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  email: string;
+  mobilePhone: string;
+  linkedinUrl: string;
+}
+
+function parseApolloCSV(text: string): ParsedContact[] {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length < 2) return [];
+
+  const contacts: ParsedContact[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    let line = lines[i];
+    if (!line) continue;
+
+    if (line.startsWith('"') && line.endsWith('"')) {
+      line = line.substring(1, line.length - 1);
+    }
+
+    line = line.replace(/""/g, '');
+
+    const parts = line.split(',').map(p => p.trim().replace(/^'/, ''));
+
+    if (parts.length < 5) continue;
+
+    const email = parts[4] || '';
+    if (!email || !email.includes('@')) continue;
+
+    contacts.push({
+      firstName: parts[0] || '',
+      lastName: parts[1] || '',
+      companyName: parts[3] || '',
+      email: email,
+      mobilePhone: (parts[6] || '').replace(/^'/, ''),
+      linkedinUrl: parts[7] || '',
+    });
+  }
+
+  return contacts;
 }
 
 export default function UploadPage() {
@@ -24,7 +59,6 @@ export default function UploadPage() {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load categories from Painel
   useEffect(() => {
     fetch('/api/sheets?type=painel')
       .then(r => r.json())
@@ -44,21 +78,28 @@ export default function UploadPage() {
       const text = await f.text();
 
       if (f.name.endsWith('.csv')) {
-        // Parse CSV
-        const Papa = (await import('papaparse')).default;
-        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-        const data = parsed.data as ParsedContact[];
-        setContacts(data.filter(r => r.Email || r.email));
+        const parsed = parseApolloCSV(text);
+        setContacts(parsed);
+        if (parsed.length === 0) {
+          setError('Nenhum contato com email valido encontrado.');
+        }
       } else if (f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) {
-        // Parse XLSX
         const XLSX = await import('xlsx');
         const arrayBuffer = await f.arrayBuffer();
         const wb = XLSX.read(arrayBuffer, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(ws) as ParsedContact[];
-        setContacts(data.filter(r => r.Email || r.email));
+        const data = XLSX.utils.sheet_to_json(ws) as any[];
+        const parsed = data.filter(r => r.Email || r.email).map(r => ({
+          firstName: r['First Name'] || '',
+          lastName: r['Last Name'] || '',
+          companyName: r['Company Name'] || '',
+          email: r.Email || r.email || '',
+          mobilePhone: r['Mobile Phone'] || '',
+          linkedinUrl: r['Person Linkedin Url'] || '',
+        }));
+        setContacts(parsed);
       } else {
-        setError('Formato não suportado. Use .csv ou .xlsx');
+        setError('Formato nao suportado. Use .csv ou .xlsx');
       }
     } catch (e: any) {
       setError('Erro ao processar arquivo: ' + e.message);
@@ -115,14 +156,13 @@ export default function UploadPage() {
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-slate-800">Upload Apollo</h1>
-        <p className="text-slate-500 mt-1">Faça upload da base exportada do Apollo (.csv ou .xlsx)</p>
+        <p className="text-slate-500 mt-1">Faca upload da base exportada do Apollo (.csv ou .xlsx)</p>
       </div>
 
       {result ? (
         <SuccessState result={result} onReset={reset} />
       ) : (
         <>
-          {/* Dropzone */}
           <div
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -163,10 +203,8 @@ export default function UploadPage() {
             )}
           </div>
 
-          {/* Preview */}
           {contacts.length > 0 && (
             <div className="animate-slide-up">
-              {/* Preview table */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-6">
                 <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center">
                   <h3 className="font-semibold text-slate-700">Preview ({contacts.length} contatos)</h3>
@@ -179,16 +217,16 @@ export default function UploadPage() {
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Nome</th>
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Empresa</th>
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Email</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">LinkedIn</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Telefone</th>
                       </tr>
                     </thead>
                     <tbody>
                       {contacts.slice(0, 5).map((c, i) => (
                         <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/50">
-                          <td className="px-4 py-2.5 text-slate-700">{c['First Name']} {c['Last Name']}</td>
-                          <td className="px-4 py-2.5 text-slate-500">{c['Company Name']}</td>
-                          <td className="px-4 py-2.5 text-slate-500 font-mono text-xs">{c.Email || c.email}</td>
-                          <td className="px-4 py-2.5 text-slate-400 text-xs truncate max-w-[200px]">{c['Person Linkedin Url'] ? '✓' : '-'}</td>
+                          <td className="px-4 py-2.5 text-slate-700">{c.firstName} {c.lastName}</td>
+                          <td className="px-4 py-2.5 text-slate-500">{c.companyName}</td>
+                          <td className="px-4 py-2.5 text-slate-500 font-mono text-xs">{c.email}</td>
+                          <td className="px-4 py-2.5 text-slate-400 text-xs">{c.mobilePhone || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -196,10 +234,8 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Category selector */}
               <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
                 <h3 className="font-semibold text-slate-700 mb-4">Selecionar Category</h3>
-
                 {categories.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {categories.map(cat => (
@@ -217,7 +253,6 @@ export default function UploadPage() {
                     ))}
                   </div>
                 )}
-
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-slate-400">ou</span>
                   <input
@@ -230,28 +265,19 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Upload button */}
               <button
                 onClick={handleUpload}
                 disabled={uploading || (!selectedCategory && !newCategory)}
-                className="w-full py-4 bg-miia-500 text-white rounded-2xl font-semibold text-lg hover:bg-miia-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-miia-500/25 transition-all hover:shadow-xl hover:shadow-miia-500/30"
+                className="w-full py-4 bg-miia-500 text-white rounded-2xl font-semibold text-lg hover:bg-miia-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-miia-500/25"
               >
-                {uploading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                    Enviando para planilha...
-                  </span>
-                ) : (
-                  `Enviar ${contacts.length} contatos → Planilha`
-                )}
+                {uploading ? 'Enviando para planilha...' : 'Enviar ' + contacts.length + ' contatos para Planilha'}
               </button>
             </div>
           )}
 
-          {/* Error */}
           {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 animate-fade-in">
-              ❌ {error}
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              {error}
             </div>
           )}
         </>
@@ -262,20 +288,19 @@ export default function UploadPage() {
 
 function SuccessState({ result, onReset }: { result: any; onReset: () => void }) {
   return (
-    <div className="text-center py-16 animate-slide-up">
+    <div className="text-center py-16">
       <div className="text-7xl mb-6">🎉</div>
-      <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">Upload concluído!</h2>
+      <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">Upload concluido!</h2>
       <div className="bg-green-50 border border-green-200 rounded-2xl p-6 max-w-md mx-auto mt-6 text-left">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between"><span className="text-slate-500">Category:</span><strong>{result.category}</strong></div>
           <div className="flex justify-between"><span className="text-slate-500">Total processados:</span><strong>{result.total}</strong></div>
-          <div className="flex justify-between"><span className="text-slate-500">Válidos enviados:</span><strong className="text-green-600">{result.valid}</strong></div>
+          <div className="flex justify-between"><span className="text-slate-500">Validos enviados:</span><strong className="text-green-600">{result.valid}</strong></div>
           {result.invalid > 0 && (
-            <div className="flex justify-between"><span className="text-slate-500">Inválidos (sem email):</span><strong className="text-red-500">{result.invalid}</strong></div>
+            <div className="flex justify-between"><span className="text-slate-500">Invalidos:</span><strong className="text-red-500">{result.invalid}</strong></div>
           )}
         </div>
       </div>
-      <p className="text-sm text-slate-400 mt-4">Os contatos já estão na planilha. O script vai começar a enviar automaticamente.</p>
       <button onClick={onReset} className="mt-6 px-8 py-3 bg-miia-500 text-white rounded-xl font-medium hover:bg-miia-600">
         Fazer novo upload
       </button>
