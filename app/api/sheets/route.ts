@@ -65,8 +65,3 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-```
-
-**Ctrl+S**. Agora verifica que salvou certo:
-```
-Select-String "className" app/api/sheets/route.ts
