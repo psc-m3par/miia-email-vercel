@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXGYYkwrYIfQO_gsy0Lg1RU70Ea8-t_eIEFHbcW3ha24BH2qJuWwQvpTm1vGS5gmlM6w/exec';
+
 interface PainelRow {
   category: string; responsavel: string; nomeRemetente: string;
   emailsHora: number; diasFup1: number; diasFup2: number;
@@ -22,15 +24,18 @@ export default function SettingsPage() {
   const [confirmClear, setConfirmClear] = useState<string>('');
   const [triggerLoading, setTriggerLoading] = useState('');
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true);
     Promise.all([
       fetch('/api/sheets?type=painel').then(r => r.json()),
-      fetch('/api/dashboard').then(r => r.json()),
+      fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
     ]).then(([painelData, dashData]) => {
       if (Array.isArray(painelData)) setPainel(painelData);
       if (dashData.stats) setStats(dashData.stats);
     }).finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   const toggleAtivo = async (idx: number) => {
     const updated = [...painel];
@@ -84,11 +89,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMessage(data.deleted + ' contatos de "' + category + '" removidos!');
-      setStats(prev => {
-        const updated = { ...prev };
-        delete updated[category];
-        return updated;
-      });
+      loadData();
     } catch (e: any) {
       setMessage('Erro: ' + e.message);
     } finally {
@@ -98,24 +99,14 @@ export default function SettingsPage() {
 
   const handleTrigger = async (action: string) => {
     setTriggerLoading(action);
-    setMessage('');
-    try {
-      const res = await fetch('/api/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setMessage(action === 'enviar' ? 'Emails enviados!' : 'FUPs enviados!');
-      } else {
-        setMessage('Erro ao executar');
-      }
-    } catch (e: any) {
-      setMessage(e.message);
-    } finally {
+    setMessage('Executando...');
+    const url = APPS_SCRIPT_URL + '?action=' + action;
+    window.open(url, '_blank', 'width=400,height=200');
+    setTimeout(() => {
+      setMessage(action === 'enviar' ? 'Emails enviados! Atualizando...' : 'FUPs enviados! Atualizando...');
       setTriggerLoading('');
-    }
+      setTimeout(() => loadData(), 5000);
+    }, 3000);
   };
 
   if (loading) return <div className="animate-pulse"><div className="h-8 bg-slate-200 rounded w-48 mb-8" />{[1,2,3].map(i => <div key={i} className="h-40 bg-slate-200 rounded-2xl mb-4" />)}</div>;
@@ -139,7 +130,7 @@ export default function SettingsPage() {
           {triggerLoading === 'fups' ? <Spinner /> : <span>↩️</span>}
           {triggerLoading === 'fups' ? 'Enviando...' : 'Enviar FUPs Agora'}
         </button>
-        <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+        <button onClick={() => loadData()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
           Atualizar
         </button>
       </div>
