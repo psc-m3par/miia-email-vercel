@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readTemplates, writeSheet, readContatos } from '@/lib/sheets';
+import { readPainel, readTemplates, readContatos, writeSheet, readSheet, clearContactsByCategory } from '@/lib/sheets';
 
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get('type');
@@ -43,6 +43,23 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Type inválido' }, { status: 400 });
   } catch (error: any) {
     console.error('Sheets write error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { category } = body;
+
+    if (!category) {
+      return NextResponse.json({ error: 'Category obrigatória' }, { status: 400 });
+    }
+
+    const deleted = await clearContactsByCategory(category);
+    return NextResponse.json({ success: true, deleted });
+  } catch (error: any) {
+    console.error('Delete error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
