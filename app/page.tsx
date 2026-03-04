@@ -40,10 +40,18 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-slate-800">Dashboard</h1>
         <p className="text-slate-500 mt-1">Visão geral dos envios de email</p>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-3 mb-8">
+        <TriggerButton action="enviar" label="Enviar Emails Agora" icon="🚀" />
+        <TriggerButton action="fups" label="Enviar FUPs Agora" icon="↩️" />
+        <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+          🔄 Atualizar dados
+        </button>
       </div>
 
       {/* Today's activity */}
@@ -78,7 +86,6 @@ export default function DashboardPage() {
 
           return (
             <div key={cat} className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-slide-up shadow-sm hover:shadow-md">
-              {/* Category header */}
               <div className="bg-miia-500 px-5 py-3 flex justify-between items-center">
                 <div>
                   <h3 className="text-white font-semibold">{cat}</h3>
@@ -90,7 +97,6 @@ export default function DashboardPage() {
               </div>
 
               <div className="p-5">
-                {/* Progress bar */}
                 <div className="mb-4">
                   <div className="flex justify-between text-xs text-slate-500 mb-1.5">
                     <span>Progresso da base</span>
@@ -101,7 +107,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Mini stats */}
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   <MiniStat label="Pendentes" value={s.pendentes} color="text-slate-600" />
                   <MiniStat label="Email 1" value={s.email1} color="text-blue-600" />
@@ -111,7 +116,6 @@ export default function DashboardPage() {
                   <MiniStat label="Erros" value={s.erros} color="text-red-600" />
                 </div>
 
-                {/* Footer */}
                 <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
                   <span>📈 Taxa de resposta: <strong className="text-miia-500">{taxaResposta}%</strong></span>
                   {s.semThread > 0 && (
@@ -124,6 +128,50 @@ export default function DashboardPage() {
         })}
       </div>
     </div>
+  );
+}
+
+function TriggerButton({ action, label, icon }: { action: string; label: string; icon: string }) {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState('');
+
+  const handleClick = async () => {
+    setLoading(true);
+    setResult('');
+    try {
+      const res = await fetch('/api/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setResult('✅');
+        setTimeout(() => { setResult(''); window.location.reload(); }, 3000);
+      } else {
+        setResult('❌');
+      }
+    } catch {
+      setResult('❌');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="px-5 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600 disabled:opacity-50 shadow-lg shadow-miia-500/20 flex items-center gap-2"
+    >
+      {loading ? (
+        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+      ) : (
+        <span>{icon}</span>
+      )}
+      {loading ? 'Executando...' : label}
+      {result && <span>{result}</span>}
+    </button>
   );
 }
 
@@ -190,3 +238,14 @@ function ErrorState({ error }: { error: string }) {
     </div>
   );
 }
+```
+
+Salva com **Ctrl+S**. Depois no terminal:
+```
+git add .
+```
+```
+git commit -m "Add trigger buttons"
+```
+```
+git push
