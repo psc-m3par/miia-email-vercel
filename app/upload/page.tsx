@@ -11,10 +11,23 @@ interface ParsedContact {
   linkedinUrl: string;
 }
 
-function parseApolloCSV(text: string): ParsedContact[] {
+function parseCSV(text: string): ParsedContact[] {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length < 2) return [];
 
+  const headerLine = lines[0];
+  const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
+
+  const isApolloFormat = lines[1].startsWith('"') && lines[1].endsWith('"');
+
+  if (isApolloFormat) {
+    return parseApolloFormat(lines);
+  } else {
+    return parseNormalFormat(lines, headers);
+  }
+}
+
+function parseApolloFormat(lines: string[]): ParsedContact[] {
   const contacts: ParsedContact[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -24,11 +37,9 @@ function parseApolloCSV(text: string): ParsedContact[] {
     if (line.startsWith('"') && line.endsWith('"')) {
       line = line.substring(1, line.length - 1);
     }
-
     line = line.replace(/""/g, '');
 
     const parts = line.split(',').map(p => p.trim().replace(/^'/, ''));
-
     if (parts.length < 5) continue;
 
     const email = parts[4] || '';
@@ -41,6 +52,45 @@ function parseApolloCSV(text: string): ParsedContact[] {
       email: email,
       mobilePhone: (parts[6] || '').replace(/^'/, ''),
       linkedinUrl: parts[7] || '',
+    });
+  }
+
+  return contacts;
+}
+
+function parseNormalFormat(lines: string[], headers: string[]): ParsedContact[] {
+  const col = (name: string) => {
+    const variations = [name, name.replace(/ /g, '')];
+    for (const v of variations) {
+      const idx = headers.indexOf(v);
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
+  const iFirst = col('first name');
+  const iLast = col('last name');
+  const iCompany = col('company name');
+  const iEmail = col('email');
+  const iPhone = col('mobile phone');
+  const iLinkedin = col('person linkedin url');
+
+  if (iEmail === -1) return [];
+
+  const contacts: ParsedContact[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(',').map(p => p.trim());
+    const email = parts[iEmail] || '';
+    if (!email || !email.includes('@')) continue;
+
+    contacts.push({
+      firstName: iFirst >= 0 ? (parts[iFirst] || '') : '',
+      lastName: iLast >= 0 ? (parts[iLast] || '') : '',
+      companyName: iCompany >= 0 ? (parts[iCompany] || '') : '',
+      email: email,
+      mobilePhone: iPhone >= 0 ? (parts[iPhone] || '') : '',
+      linkedinUrl: iLinkedin >= 0 ? (parts[iLinkedin] || '') : '',
     });
   }
 
@@ -78,7 +128,7 @@ export default function UploadPage() {
       const text = await f.text();
 
       if (f.name.endsWith('.csv')) {
-        const parsed = parseApolloCSV(text);
+        const parsed = parseCSV(text);
         setContacts(parsed);
         if (parsed.length === 0) {
           setError('Nenhum contato com email valido encontrado.');
