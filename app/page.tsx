@@ -42,31 +42,20 @@ export default function DashboardPage() {
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-slate-500 mt-1">Visão geral dos envios de email</p>
+        <p className="text-slate-500 mt-1">Visao geral dos envios de email</p>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3 mb-8">
-        <TriggerButton action="enviar" label="Enviar Emails Agora" icon="🚀" />
-        <TriggerButton action="fups" label="Enviar FUPs Agora" icon="↩️" />
-        <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
-          🔄 Atualizar dados
-        </button>
-      </div>
-
-      {/* Today's activity */}
       <div className="bg-gradient-to-br from-miia-500 to-miia-700 rounded-2xl p-6 mb-8 text-white shadow-xl shadow-miia-500/20">
         <h2 className="text-sm font-medium text-white/70 mb-4">ATIVIDADE DE HOJE</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <MetricCard label="Emails enviados" value={totalGeral.hojeEmail1} light />
-          <MetricCard label="FUP1 enviados" value={totalGeral.hojeFup1} light />
-          <MetricCard label="FUP2 enviados" value={totalGeral.hojeFup2} light />
-          <MetricCard label="Respondidos" value={totalGeral.respondidos} light accent="green" />
-          <MetricCard label="Pendentes" value={totalGeral.pendentes} light accent="amber" />
+          <MetricCard label="Emails enviados" value={totalGeral.hojeEmail1} />
+          <MetricCard label="FUP1 enviados" value={totalGeral.hojeFup1} />
+          <MetricCard label="FUP2 enviados" value={totalGeral.hojeFup2} />
+          <MetricCard label="Respondidos" value={totalGeral.respondidos} accent="green" />
+          <MetricCard label="Pendentes" value={totalGeral.pendentes} accent="amber" />
         </div>
       </div>
 
-      {/* General stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
         <StatBox label="Total na base" value={totalGeral.total} color="slate" />
         <StatBox label="Email 1 enviado" value={totalGeral.email1} color="blue" />
@@ -76,7 +65,6 @@ export default function DashboardPage() {
         <StatBox label="Erros" value={totalGeral.erros} color="red" />
       </div>
 
-      {/* Per category */}
       <h2 className="font-display text-xl font-bold text-slate-800 mb-4">Por Categoria</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {Object.entries(stats).map(([cat, s]) => {
@@ -92,7 +80,7 @@ export default function DashboardPage() {
                   <p className="text-white/60 text-xs">{s.total} contatos</p>
                 </div>
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${painelCat?.ativo ? 'bg-green-400/20 text-green-100' : 'bg-red-400/20 text-red-100'}`}>
-                  {painelCat?.ativo ? '● Ativo' : '○ Inativo'}
+                  {painelCat?.ativo ? 'Ativo' : 'Inativo'}
                 </span>
               </div>
 
@@ -103,7 +91,7 @@ export default function DashboardPage() {
                     <span className="font-semibold text-miia-500">{progresso}%</span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-miia-400 to-miia-600 rounded-full transition-all duration-500" style={{ width: `${progresso}%` }} />
+                    <div className="h-full bg-gradient-to-r from-miia-400 to-miia-600 rounded-full transition-all duration-500" style={{ width: progresso + '%' }} />
                   </div>
                 </div>
 
@@ -117,9 +105,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
-                  <span>📈 Taxa de resposta: <strong className="text-miia-500">{taxaResposta}%</strong></span>
+                  <span>Taxa de resposta: <strong className="text-miia-500">{taxaResposta}%</strong></span>
                   {s.semThread > 0 && (
-                    <span className="text-amber-500">⚠️ {s.semThread} sem thread</span>
+                    <span className="text-amber-500">{s.semThread} sem thread</span>
                   )}
                 </div>
               </div>
@@ -131,51 +119,7 @@ export default function DashboardPage() {
   );
 }
 
-function TriggerButton({ action, label, icon }: { action: string; label: string; icon: string }) {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState('');
-
-  const handleClick = async () => {
-    setLoading(true);
-    setResult('');
-    try {
-      const res = await fetch('/api/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setResult('✅');
-        setTimeout(() => { setResult(''); window.location.reload(); }, 3000);
-      } else {
-        setResult('❌');
-      }
-    } catch {
-      setResult('❌');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={loading}
-      className="px-5 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600 disabled:opacity-50 shadow-lg shadow-miia-500/20 flex items-center gap-2"
-    >
-      {loading ? (
-        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-      ) : (
-        <span>{icon}</span>
-      )}
-      {loading ? 'Executando...' : label}
-      {result && <span>{result}</span>}
-    </button>
-  );
-}
-
-function MetricCard({ label, value, light, accent }: { label: string; value: number; light?: boolean; accent?: string }) {
+function MetricCard({ label, value, accent }: { label: string; value: number; accent?: string }) {
   const colorMap: Record<string, string> = { green: 'text-green-300', amber: 'text-amber-300' };
   return (
     <div className="text-center">
@@ -217,10 +161,10 @@ function LoadingSkeleton() {
       <div className="h-8 bg-slate-200 rounded w-48 mb-8" />
       <div className="h-40 bg-slate-200 rounded-2xl mb-8" />
       <div className="grid grid-cols-6 gap-4 mb-8">
-        {[...Array(6)].map((_, i) => <div key={i} className="h-20 bg-slate-200 rounded-xl" />)}
+        {[1,2,3,4,5,6].map((i) => <div key={i} className="h-20 bg-slate-200 rounded-xl" />)}
       </div>
       <div className="grid grid-cols-2 gap-6">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-64 bg-slate-200 rounded-2xl" />)}
+        {[1,2,3,4].map((i) => <div key={i} className="h-64 bg-slate-200 rounded-2xl" />)}
       </div>
     </div>
   );
@@ -238,14 +182,3 @@ function ErrorState({ error }: { error: string }) {
     </div>
   );
 }
-```
-
-Salva com **Ctrl+S**. Depois no terminal:
-```
-git add .
-```
-```
-git commit -m "Add trigger buttons"
-```
-```
-git push
