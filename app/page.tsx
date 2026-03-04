@@ -224,4 +224,3 @@ function SettingField({ label, value, onChange, type = 'text' }: { label: string
     </div>
   );
 }
-```
