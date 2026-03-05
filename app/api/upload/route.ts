@@ -50,8 +50,6 @@ export async function POST(req: NextRequest) {
 
     await appendContacts(validRows, targetSpreadsheet);
 
-    await writeSheet('Painel!J1', [['ENVIAR']], targetSpreadsheet);
-
     return NextResponse.json({
       success: true,
       total: contacts.length,
