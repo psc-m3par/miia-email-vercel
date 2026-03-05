@@ -23,6 +23,9 @@ export default function SettingsPage() {
   const [message, setMessage] = useState('');
   const [confirmClear, setConfirmClear] = useState<string>('');
   const [triggerLoading, setTriggerLoading] = useState('');
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '' });
+  const [creatingCat, setCreatingCat] = useState(false);
 
   const loadData = () => {
     setLoading(true);
@@ -69,6 +72,34 @@ export default function SettingsPage() {
       setMessage('Erro: ' + e.message);
     } finally {
       setSaving(-1);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCat.category.trim()) { setMessage('Nome da category obrigatorio'); return; }
+    if (!newCat.responsavel.trim()) { setMessage('Email do responsavel obrigatorio'); return; }
+    if (!newCat.nomeRemetente.trim()) { setMessage('Nome do remetente obrigatorio'); return; }
+    setCreatingCat(true);
+    setMessage('');
+    try {
+      const rowIndex = painel.length + 2;
+      await fetch('/api/sheets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'painel',
+          rowIndex: rowIndex,
+          values: [newCat.category, newCat.responsavel, newCat.nomeRemetente, newCat.emailsHora, newCat.diasFup1, newCat.diasFup2, newCat.ativo ? 'SIM' : 'NAO', newCat.cc],
+        }),
+      });
+      setMessage('Category "' + newCat.category + '" criada!');
+      setShowNewCat(false);
+      setNewCat({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '' });
+      loadData();
+    } catch (e: any) {
+      setMessage('Erro: ' + e.message);
+    } finally {
+      setCreatingCat(false);
     }
   };
 
@@ -130,10 +161,39 @@ export default function SettingsPage() {
           {triggerLoading === 'fups' ? <Spinner /> : <span>↩️</span>}
           {triggerLoading === 'fups' ? 'Enviando...' : 'Enviar FUPs Agora'}
         </button>
+        <button onClick={() => setShowNewCat(!showNewCat)}
+          className="px-5 py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 shadow-lg shadow-green-500/20 flex items-center gap-2">
+          <span>➕</span> Nova Category
+        </button>
         <button onClick={() => loadData()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
           Atualizar
         </button>
       </div>
+
+      {showNewCat && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6">
+          <h3 className="font-semibold text-green-800 mb-4">Criar Nova Category</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <SettingField label="Nome da Category" value={newCat.category} onChange={v => setNewCat({...newCat, category: v})} />
+            <SettingField label="Responsavel (email)" value={newCat.responsavel} onChange={v => setNewCat({...newCat, responsavel: v})} />
+            <SettingField label="Nome Remetente" value={newCat.nomeRemetente} onChange={v => setNewCat({...newCat, nomeRemetente: v})} />
+            <SettingField label="Emails/Hora" value={newCat.emailsHora.toString()} onChange={v => setNewCat({...newCat, emailsHora: parseInt(v) || 20})} type="number" />
+            <SettingField label="CC (opcional)" value={newCat.cc} onChange={v => setNewCat({...newCat, cc: v})} />
+            <SettingField label="Dias ate FUP1" value={newCat.diasFup1.toString()} onChange={v => setNewCat({...newCat, diasFup1: parseInt(v) || 3})} type="number" />
+            <SettingField label="Dias ate FUP2" value={newCat.diasFup2.toString()} onChange={v => setNewCat({...newCat, diasFup2: parseInt(v) || 7})} type="number" />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={handleCreateCategory} disabled={creatingCat}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+              {creatingCat ? 'Criando...' : 'Criar Category'}
+            </button>
+            <button onClick={() => setShowNewCat(false)}
+              className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         {painel.map((row, idx) => {
