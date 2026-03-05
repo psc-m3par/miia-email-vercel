@@ -16,33 +16,52 @@ function getSheets() {
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID!;
 
-export async function readSheet(range: string) {
+const SPREADSHEET_MAP: Record<string, string> = {
+  'psc@miia.tech': process.env.SPREADSHEET_ID || '',
+  'jal@miia.tech': process.env.SPREADSHEET_ID_JAL || '',
+};
+
+function getSpreadsheetForResponsavel(email: string): string {
+  const lower = email.toLowerCase().trim();
+  return SPREADSHEET_MAP[lower] || SPREADSHEET_ID;
+}
+
+export function getAllSpreadsheetIds(): string[] {
+  const ids = new Set<string>();
+  ids.add(SPREADSHEET_ID);
+  for (const key in SPREADSHEET_MAP) {
+    if (SPREADSHEET_MAP[key]) ids.add(SPREADSHEET_MAP[key]);
+  }
+  return Array.from(ids).filter(id => id.length > 0);
+}
+
+export async function readSheet(range: string, spreadsheetId?: string) {
   const sheets = getSheets();
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: spreadsheetId || SPREADSHEET_ID, range });
   return res.data.values || [];
 }
 
-export async function writeSheet(range: string, values: any[][]) {
+export async function writeSheet(range: string, values: any[][], spreadsheetId?: string) {
   const sheets = getSheets();
   await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID, range,
+    spreadsheetId: spreadsheetId || SPREADSHEET_ID, range,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values },
   });
 }
 
-export async function appendSheet(range: string, values: any[][]) {
+export async function appendSheet(range: string, values: any[][], spreadsheetId?: string) {
   const sheets = getSheets();
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID, range,
+    spreadsheetId: spreadsheetId || SPREADSHEET_ID, range,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values },
   });
 }
 
-export async function readPainel() {
-  const rows = await readSheet('Painel!A:H');
+export async function readPainel(spreadsheetId?: string) {
+  const rows = await readSheet('Painel!A:H', spreadsheetId);
   if (rows.length < 2) return [];
   return rows.slice(1).filter(r => r[0]).map(r => ({
     category: r[0] || '',
@@ -56,8 +75,8 @@ export async function readPainel() {
   }));
 }
 
-export async function readTemplates() {
-  const rows = await readSheet('Templates!A:G');
+export async function readTemplates(spreadsheetId?: string) {
+  const rows = await readSheet('Templates!A:G', spreadsheetId);
   if (rows.length < 2) return [];
   return rows.slice(1).filter(r => r[0]).map(r => ({
     category: r[0] || '',
@@ -70,8 +89,8 @@ export async function readTemplates() {
   }));
 }
 
-export async function readContatos() {
-  const rows = await readSheet('Contatos!A:K');
+export async function readContatos(spreadsheetId?: string) {
+  const rows = await readSheet('Contatos!A:K', spreadsheetId);
   if (rows.length < 2) return { headers: rows[0] || [], contacts: [] };
   const headers = rows[0];
   const contacts = rows.slice(1).filter(r => r[0] || r[3]).map((r, i) => ({
@@ -92,15 +111,29 @@ export async function readContatos() {
 }
 
 export async function getDashboardStats() {
-  const [painel, templates, { contacts }] = await Promise.all([
-    readPainel(), readTemplates(), readContatos(),
-  ]);
+  const allIds = getAllSpreadsheetIds();
+  let allPainel: any[] = [];
+  let allTemplates: any[] = [];
+  let allContacts: any[] = [];
+
+  for (const id of allIds) {
+    try {
+      const [painel, templates, { contacts }] = await Promise.all([
+        readPainel(id), readTemplates(id), readContatos(id),
+      ]);
+      allPainel = allPainel.concat(painel);
+      allTemplates = allTemplates.concat(templates);
+      allContacts = allContacts.concat(contacts);
+    } catch (e) {
+      console.error('Error reading spreadsheet ' + id, e);
+    }
+  }
 
   const hoje = new Date().toISOString().split('T')[0];
   const stats: Record<string, any> = {};
   let totalGeral = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
 
-  for (const c of contacts) {
+  for (const c of allContacts) {
     const cat = c.category;
     if (!cat) continue;
     if (!stats[cat]) {
@@ -118,33 +151,38 @@ export async function getDashboardStats() {
 
     if (f1.startsWith('OK')) { stats[cat].fup1++; totalGeral.fup1++; }
     if (f2.startsWith('OK')) { stats[cat].fup2++; totalGeral.fup2++; }
-    if (f2 === 'RESPONDIDO') { stats[cat].respondidos++; totalGeral.respondidos++; }
+    if (f1 === 'RESPONDIDO' || f2 === 'RESPONDIDO') { stats[cat].respondidos++; totalGeral.respondidos++; }
     if (e1.startsWith('OK') && !c.threadId) { stats[cat].semThread++; totalGeral.semThread++; }
     if (e1.includes(hoje)) { stats[cat].hojeEmail1++; totalGeral.hojeEmail1++; }
     if (f1.includes(hoje)) { stats[cat].hojeFup1++; totalGeral.hojeFup1++; }
     if (f2.includes(hoje)) { stats[cat].hojeFup2++; totalGeral.hojeFup2++; }
   }
 
-  return { painel, templates, stats, totalGeral, totalContatos: contacts.length };
+  return { painel: allPainel, templates: allTemplates, stats, totalGeral, totalContatos: allContacts.length };
 }
 
-export async function appendContacts(contacts: any[][]) {
-  await appendSheet('Contatos!A:G', contacts);
+export async function appendContacts(contacts: any[][], spreadsheetId?: string) {
+  await appendSheet('Contatos!A:G', contacts, spreadsheetId);
 }
 
-async function getSheetId(sheetName: string): Promise<number | null> {
+export function getSpreadsheetIdForResponsavel(email: string): string {
+  return getSpreadsheetForResponsavel(email);
+}
+
+async function getSheetId(sheetName: string, spreadsheetId?: string): Promise<number | null> {
   const sheets = getSheets();
-  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: spreadsheetId || SPREADSHEET_ID });
   const sheet = spreadsheet.data.sheets?.find(
     (s: any) => s.properties?.title === sheetName
   );
   return sheet?.properties?.sheetId ?? null;
 }
 
-async function deleteRowsByCategory(sheetName: string, category: string): Promise<number> {
+async function deleteRowsByCategory(sheetName: string, category: string, spreadsheetId?: string): Promise<number> {
   const sheets = getSheets();
+  const sid = spreadsheetId || SPREADSHEET_ID;
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
+    spreadsheetId: sid,
     range: sheetName + '!A:K',
   });
   const rows = res.data.values || [];
@@ -164,7 +202,7 @@ async function deleteRowsByCategory(sheetName: string, category: string): Promis
 
   if (rowsToDelete.length === 0) return 0;
 
-  const sheetId = await getSheetId(sheetName);
+  const sheetId = await getSheetId(sheetName, sid);
   if (sheetId === null) return 0;
 
   const requests = rowsToDelete.map(rowIndex => ({
@@ -179,17 +217,18 @@ async function deleteRowsByCategory(sheetName: string, category: string): Promis
   }));
 
   await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: SPREADSHEET_ID,
+    spreadsheetId: sid,
     requestBody: { requests },
   });
 
   return rowsToDelete.length;
 }
 
-async function deleteRowsByFirstColumn(sheetName: string, value: string): Promise<number> {
+async function deleteRowsByFirstColumn(sheetName: string, value: string, spreadsheetId?: string): Promise<number> {
   const sheets = getSheets();
+  const sid = spreadsheetId || SPREADSHEET_ID;
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
+    spreadsheetId: sid,
     range: sheetName + '!A:A',
   });
   const rows = res.data.values || [];
@@ -205,7 +244,7 @@ async function deleteRowsByFirstColumn(sheetName: string, value: string): Promis
 
   if (rowsToDelete.length === 0) return 0;
 
-  const sheetId = await getSheetId(sheetName);
+  const sheetId = await getSheetId(sheetName, sid);
   if (sheetId === null) return 0;
 
   const requests = rowsToDelete.map(rowIndex => ({
@@ -220,21 +259,21 @@ async function deleteRowsByFirstColumn(sheetName: string, value: string): Promis
   }));
 
   await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: SPREADSHEET_ID,
+    spreadsheetId: sid,
     requestBody: { requests },
   });
 
   return rowsToDelete.length;
 }
 
-export async function clearContactsByCategory(category: string): Promise<number> {
-  return deleteRowsByCategory('Contatos', category);
+export async function clearContactsByCategory(category: string, spreadsheetId?: string): Promise<number> {
+  return deleteRowsByCategory('Contatos', category, spreadsheetId);
 }
 
-export async function deleteCategoryFromPainel(category: string): Promise<number> {
-  return deleteRowsByFirstColumn('Painel', category);
+export async function deleteCategoryFromPainel(category: string, spreadsheetId?: string): Promise<number> {
+  return deleteRowsByFirstColumn('Painel', category, spreadsheetId);
 }
 
-export async function deleteCategoryFromTemplates(category: string): Promise<number> {
-  return deleteRowsByFirstColumn('Templates', category);
+export async function deleteCategoryFromTemplates(category: string, spreadsheetId?: string): Promise<number> {
+  return deleteRowsByFirstColumn('Templates', category, spreadsheetId);
 }

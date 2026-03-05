@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { appendContacts, readPainel, writeSheet } from '@/lib/sheets';
+import { appendContacts, readPainel, writeSheet, getSpreadsheetIdForResponsavel, getAllSpreadsheetIds } from '@/lib/sheets';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,12 +10,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nenhum contato valido' }, { status: 400 });
     }
 
-    const painel = await readPainel();
-    const catExists = painel.some(p => p.category.toLowerCase() === category.toLowerCase());
+    let targetSpreadsheet: string | undefined;
+    let foundCategory = false;
 
-    if (!catExists) {
+    const allIds = getAllSpreadsheetIds();
+    for (const id of allIds) {
+      try {
+        const painel = await readPainel(id);
+        const match = painel.find(p => p.category.toLowerCase() === category.toLowerCase());
+        if (match) {
+          targetSpreadsheet = id;
+          foundCategory = true;
+          break;
+        }
+      } catch (e) {}
+    }
+
+    if (!foundCategory || !targetSpreadsheet) {
       return NextResponse.json({
-        error: 'Category "' + category + '" nao existe no Painel. Categories disponiveis: ' + painel.map(p => p.category).join(', '),
+        error: 'Category "' + category + '" nao encontrada em nenhuma planilha.',
       }, { status: 400 });
     }
 
@@ -35,9 +48,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nenhum contato com email valido' }, { status: 400 });
     }
 
-    await appendContacts(validRows);
+    await appendContacts(validRows, targetSpreadsheet);
 
-    await writeSheet('Painel!J1', [['ENVIAR']]);
+    await writeSheet('Painel!J1', [['ENVIAR']], targetSpreadsheet);
 
     return NextResponse.json({
       success: true,
