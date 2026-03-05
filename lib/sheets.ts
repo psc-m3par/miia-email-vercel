@@ -132,11 +132,20 @@ export async function appendContacts(contacts: any[][]) {
   await appendSheet('Contatos!A:G', contacts);
 }
 
-export async function clearContactsByCategory(category: string): Promise<number> {
+async function getSheetId(sheetName: string): Promise<number | null> {
+  const sheets = getSheets();
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+  const sheet = spreadsheet.data.sheets?.find(
+    (s: any) => s.properties?.title === sheetName
+  );
+  return sheet?.properties?.sheetId ?? null;
+}
+
+async function deleteRowsByCategory(sheetName: string, category: string): Promise<number> {
   const sheets = getSheets();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'Contatos!A:K',
+    range: sheetName + '!A:K',
   });
   const rows = res.data.values || [];
   if (rows.length < 2) return 0;
@@ -145,7 +154,6 @@ export async function clearContactsByCategory(category: string): Promise<number>
   const catColIndex = header.findIndex((h: string) => h.toString().toUpperCase() === 'CATEGORY');
   if (catColIndex === -1) return 0;
 
-  // Find rows to delete (from bottom to top to preserve indices)
   const rowsToDelete: number[] = [];
   for (let i = rows.length - 1; i >= 1; i--) {
     const rowCat = (rows[i][catColIndex] || '').toString().trim();
@@ -156,20 +164,14 @@ export async function clearContactsByCategory(category: string): Promise<number>
 
   if (rowsToDelete.length === 0) return 0;
 
-  // Get spreadsheet info to find sheet ID
-  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-  const contatosSheet = spreadsheet.data.sheets?.find(
-    (s: any) => s.properties?.title === 'Contatos'
-  );
-  const sheetId = contatosSheet?.properties?.sheetId;
-  if (sheetId === undefined) return 0;
+  const sheetId = await getSheetId(sheetName);
+  if (sheetId === null) return 0;
 
-  // Delete rows from bottom to top
   const requests = rowsToDelete.map(rowIndex => ({
     deleteDimension: {
       range: {
         sheetId: sheetId,
-        dimension: 'ROWS',
+        dimension: 'ROWS' as const,
         startIndex: rowIndex,
         endIndex: rowIndex + 1,
       },
@@ -182,4 +184,57 @@ export async function clearContactsByCategory(category: string): Promise<number>
   });
 
   return rowsToDelete.length;
+}
+
+async function deleteRowsByFirstColumn(sheetName: string, value: string): Promise<number> {
+  const sheets = getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: sheetName + '!A:A',
+  });
+  const rows = res.data.values || [];
+  if (rows.length < 2) return 0;
+
+  const rowsToDelete: number[] = [];
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const cellValue = (rows[i]?.[0] || '').toString().trim();
+    if (cellValue.toLowerCase() === value.toLowerCase()) {
+      rowsToDelete.push(i);
+    }
+  }
+
+  if (rowsToDelete.length === 0) return 0;
+
+  const sheetId = await getSheetId(sheetName);
+  if (sheetId === null) return 0;
+
+  const requests = rowsToDelete.map(rowIndex => ({
+    deleteDimension: {
+      range: {
+        sheetId: sheetId,
+        dimension: 'ROWS' as const,
+        startIndex: rowIndex,
+        endIndex: rowIndex + 1,
+      },
+    },
+  }));
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: { requests },
+  });
+
+  return rowsToDelete.length;
+}
+
+export async function clearContactsByCategory(category: string): Promise<number> {
+  return deleteRowsByCategory('Contatos', category);
+}
+
+export async function deleteCategoryFromPainel(category: string): Promise<number> {
+  return deleteRowsByFirstColumn('Painel', category);
+}
+
+export async function deleteCategoryFromTemplates(category: string): Promise<number> {
+  return deleteRowsByFirstColumn('Templates', category);
 }

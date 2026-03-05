@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState<string>('');
   const [message, setMessage] = useState('');
   const [confirmClear, setConfirmClear] = useState<string>('');
+  const [confirmDelete, setConfirmDelete] = useState<string>('');
+  const [deletingCat, setDeletingCat] = useState<string>('');
   const [triggerLoading, setTriggerLoading] = useState('');
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '' });
@@ -82,13 +84,11 @@ export default function SettingsPage() {
     setCreatingCat(true);
     setMessage('');
     try {
-      const rowIndex = painel.length + 2;
       await fetch('/api/sheets', {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'painel',
-          rowIndex: rowIndex,
           values: [newCat.category, newCat.responsavel, newCat.nomeRemetente, newCat.emailsHora, newCat.diasFup1, newCat.diasFup2, newCat.ativo ? 'SIM' : 'NAO', newCat.cc],
         }),
       });
@@ -128,6 +128,31 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteCategory = async (category: string, idx: number) => {
+    if (confirmDelete !== category) {
+      setConfirmDelete(category);
+      return;
+    }
+    setDeletingCat(category);
+    setMessage('');
+    setConfirmDelete('');
+    try {
+      const res = await fetch('/api/sheets', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, deleteFromPainel: true, deleteFromTemplates: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMessage('Category "' + category + '" excluida!');
+      loadData();
+    } catch (e: any) {
+      setMessage('Erro: ' + e.message);
+    } finally {
+      setDeletingCat('');
+    }
+  };
+
   const handleTrigger = async (action: string) => {
     setTriggerLoading(action);
     setMessage('Executando...');
@@ -163,7 +188,7 @@ export default function SettingsPage() {
         </button>
         <button onClick={() => setShowNewCat(!showNewCat)}
           className="px-5 py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 shadow-lg shadow-green-500/20 flex items-center gap-2">
-          <span>➕</span> Nova Category
+          <span>+</span> Nova Category
         </button>
         <button onClick={() => loadData()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
           Atualizar
@@ -211,10 +236,29 @@ export default function SettingsPage() {
                     {row.ativo ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
-                <button onClick={() => saveRow(idx)} disabled={saving === idx}
-                  className="px-4 py-1.5 bg-miia-500 text-white text-xs rounded-lg font-medium hover:bg-miia-600 disabled:opacity-50">
-                  {saving === idx ? 'Salvando...' : 'Salvar'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => saveRow(idx)} disabled={saving === idx}
+                    className="px-4 py-1.5 bg-miia-500 text-white text-xs rounded-lg font-medium hover:bg-miia-600 disabled:opacity-50">
+                    {saving === idx ? 'Salvando...' : 'Salvar'}
+                  </button>
+                  {confirmDelete === row.category ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleDeleteCategory(row.category, idx)} disabled={deletingCat === row.category}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg font-medium hover:bg-red-700">
+                        {deletingCat === row.category ? '...' : 'Confirmar'}
+                      </button>
+                      <button onClick={() => setConfirmDelete('')}
+                        className="px-3 py-1.5 bg-slate-200 text-slate-600 text-xs rounded-lg font-medium">
+                        Nao
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => handleDeleteCategory(row.category, idx)}
+                      className="px-3 py-1.5 bg-red-50 text-red-600 text-xs rounded-lg font-medium hover:bg-red-100 border border-red-200">
+                      Excluir
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-6 flex-wrap">
