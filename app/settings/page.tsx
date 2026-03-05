@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXGYYkwrYIfQO_gsy0Lg1RU70Ea8-t_eIEFHbcW3ha24BH2qJuWwQvpTm1vGS5gmlM6w/exec';
-
 interface PainelRow {
   category: string; responsavel: string; nomeRemetente: string;
   emailsHora: number; diasFup1: number; diasFup2: number;
@@ -24,7 +22,6 @@ export default function SettingsPage() {
   const [confirmClear, setConfirmClear] = useState<string>('');
   const [confirmDelete, setConfirmDelete] = useState<string>('');
   const [deletingCat, setDeletingCat] = useState<string>('');
-  const [triggerLoading, setTriggerLoading] = useState('');
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '' });
   const [creatingCat, setCreatingCat] = useState(false);
@@ -128,7 +125,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDeleteCategory = async (category: string, idx: number) => {
+  const handleDeleteCategory = async (category: string) => {
     if (confirmDelete !== category) {
       setConfirmDelete(category);
       return;
@@ -153,39 +150,17 @@ export default function SettingsPage() {
     }
   };
 
-  const handleTrigger = async (action: string) => {
-    setTriggerLoading(action);
-    setMessage('Executando...');
-    const url = APPS_SCRIPT_URL + '?action=' + action;
-    window.open(url, '_blank', 'width=400,height=200');
-    setTimeout(() => {
-      setMessage(action === 'enviar' ? 'Emails enviados! Atualizando...' : 'FUPs enviados! Atualizando...');
-      setTriggerLoading('');
-      setTimeout(() => loadData(), 5000);
-    }, 3000);
-  };
-
   if (loading) return <div className="animate-pulse"><div className="h-8 bg-slate-200 rounded w-48 mb-8" />{[1,2,3].map(i => <div key={i} className="h-40 bg-slate-200 rounded-2xl mb-4" />)}</div>;
 
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-slate-800">Painel de Controle</h1>
-        <p className="text-slate-500 mt-1">Configure categories, envie emails e gerencie bases</p>
+        <p className="text-slate-500 mt-1">Configure categories e gerencie bases</p>
         {message && <p className="text-sm mt-2 bg-white border border-slate-200 rounded-xl px-4 py-2 inline-block">{message}</p>}
       </div>
 
       <div className="flex gap-3 mb-8">
-        <button onClick={() => handleTrigger('enviar')} disabled={triggerLoading === 'enviar'}
-          className="px-5 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600 disabled:opacity-50 shadow-lg shadow-miia-500/20 flex items-center gap-2">
-          {triggerLoading === 'enviar' ? <Spinner /> : <span>🚀</span>}
-          {triggerLoading === 'enviar' ? 'Enviando...' : 'Enviar Emails Agora'}
-        </button>
-        <button onClick={() => handleTrigger('fups')} disabled={triggerLoading === 'fups'}
-          className="px-5 py-2.5 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 shadow-lg shadow-indigo-500/20 flex items-center gap-2">
-          {triggerLoading === 'fups' ? <Spinner /> : <span>↩️</span>}
-          {triggerLoading === 'fups' ? 'Enviando...' : 'Enviar FUPs Agora'}
-        </button>
         <button onClick={() => setShowNewCat(!showNewCat)}
           className="px-5 py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 shadow-lg shadow-green-500/20 flex items-center gap-2">
           <span>+</span> Nova Category
@@ -243,7 +218,7 @@ export default function SettingsPage() {
                   </button>
                   {confirmDelete === row.category ? (
                     <div className="flex items-center gap-1">
-                      <button onClick={() => handleDeleteCategory(row.category, idx)} disabled={deletingCat === row.category}
+                      <button onClick={() => handleDeleteCategory(row.category)} disabled={deletingCat === row.category}
                         className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg font-medium hover:bg-red-700">
                         {deletingCat === row.category ? '...' : 'Confirmar'}
                       </button>
@@ -253,7 +228,7 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   ) : (
-                    <button onClick={() => handleDeleteCategory(row.category, idx)}
+                    <button onClick={() => handleDeleteCategory(row.category)}
                       className="px-3 py-1.5 bg-red-50 text-red-600 text-xs rounded-lg font-medium hover:bg-red-100 border border-red-200">
                       Excluir
                     </button>
@@ -313,10 +288,6 @@ function StatPill({ label, value, color }: { label: string; value: number; color
       <span className="text-xs text-slate-500">{label}</span>
     </div>
   );
-}
-
-function Spinner() {
-  return <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>;
 }
 
 function SettingField({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
