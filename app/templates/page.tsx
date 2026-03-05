@@ -147,7 +147,6 @@ export default function TemplatesPage() {
           {showNew ? (
             <div className="bg-white rounded-2xl border border-green-200 p-6 animate-fade-in">
               <h3 className="font-semibold text-green-700 mb-4">Criar Novo Template</h3>
-
               <div className="mb-4">
                 <label className="text-xs text-slate-500 mb-1 block">Category</label>
                 {categories.length > 0 ? (
@@ -163,29 +162,24 @@ export default function TemplatesPage() {
                   <p className="text-xs text-slate-400">Todas as categories ja tem template. Crie uma nova category no Painel primeiro.</p>
                 )}
               </div>
-
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
                 <span className="text-xs text-slate-400">Placeholders:</span>
                 {PLACEHOLDERS.map(p => (
                   <span key={p} className="text-xs bg-miia-50 text-miia-600 px-2.5 py-1 rounded-lg font-mono">{p}</span>
                 ))}
               </div>
-
               <Section title="Email 1" color="blue">
                 <Field label="Assunto" value={newTemplate.assunto} onChange={v => setNewTemplate({...newTemplate, assunto: v})} />
                 <Field label="Corpo" value={newTemplate.corpo} onChange={v => setNewTemplate({...newTemplate, corpo: v})} textarea />
               </Section>
-
               <Section title="Follow-up 1" color="indigo">
                 <Field label="Assunto" value={newTemplate.fup1Assunto} onChange={v => setNewTemplate({...newTemplate, fup1Assunto: v})} />
                 <Field label="Corpo" value={newTemplate.fup1Corpo} onChange={v => setNewTemplate({...newTemplate, fup1Corpo: v})} textarea />
               </Section>
-
               <Section title="Follow-up 2" color="purple">
                 <Field label="Assunto" value={newTemplate.fup2Assunto} onChange={v => setNewTemplate({...newTemplate, fup2Assunto: v})} />
                 <Field label="Corpo" value={newTemplate.fup2Corpo} onChange={v => setNewTemplate({...newTemplate, fup2Corpo: v})} textarea />
               </Section>
-
               <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100">
                 <button onClick={handleCreate} disabled={creating}
                   className="px-6 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50">
@@ -205,28 +199,23 @@ export default function TemplatesPage() {
                   <span key={p} className="text-xs bg-miia-50 text-miia-600 px-2.5 py-1 rounded-lg font-mono">{p}</span>
                 ))}
               </div>
-
               <Section title="Email 1" color="blue">
                 <Field label="Assunto" value={editing.assunto} onChange={v => setEditing({ ...editing, assunto: v })} />
                 <Field label="Corpo" value={editing.corpo} onChange={v => setEditing({ ...editing, corpo: v })} textarea />
               </Section>
-
               <Section title="Follow-up 1" color="indigo">
                 <Field label="Assunto" value={editing.fup1Assunto} onChange={v => setEditing({ ...editing, fup1Assunto: v })} />
                 <Field label="Corpo" value={editing.fup1Corpo} onChange={v => setEditing({ ...editing, fup1Corpo: v })} textarea />
               </Section>
-
               <Section title="Follow-up 2" color="purple">
                 <Field label="Assunto" value={editing.fup2Assunto} onChange={v => setEditing({ ...editing, fup2Assunto: v })} />
                 <Field label="Corpo" value={editing.fup2Corpo} onChange={v => setEditing({ ...editing, fup2Corpo: v })} textarea />
               </Section>
-
               <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100">
                 <button onClick={handleSave} disabled={saving}
                   className="px-6 py-2.5 bg-miia-500 text-white rounded-xl font-medium hover:bg-miia-600 disabled:opacity-50 shadow-lg shadow-miia-500/20">
                   {saving ? 'Salvando...' : 'Salvar alteracoes'}
                 </button>
-                {message && <span className="text-sm">{message}</span>}
               </div>
             </div>
           ) : (
@@ -270,14 +259,3 @@ function Field({ label, value, onChange, textarea }: { label: string; value: str
     </div>
   );
 }
-```
-
-**Ctrl+S**. Terminal:
-```
-git add -A
-```
-```
-git commit -m "Add create template"
-```
-```
-git push
