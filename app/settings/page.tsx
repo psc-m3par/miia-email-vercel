@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number>(-1);
   const [clearing, setClearing] = useState<string>('');
+  const [sending, setSending] = useState<string>('');
   const [message, setMessage] = useState('');
   const [confirmClear, setConfirmClear] = useState<string>('');
   const [confirmDelete, setConfirmDelete] = useState<string>('');
@@ -71,6 +72,31 @@ export default function SettingsPage() {
       setMessage('Erro: ' + e.message);
     } finally {
       setSaving(-1);
+    }
+  };
+
+  const handleSendNow = async (category: string) => {
+    setSending(category);
+    setMessage('');
+    try {
+      const res = await fetch('/api/send-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category }),
+      });
+      const data = await res.json();
+      if (data.enviados > 0) {
+        setMessage(`${data.enviados} emails enviados para "${category}"!`);
+      } else if (data.erros?.length > 0) {
+        setMessage(`Erros ao enviar "${category}": ${data.erros.join(', ')}`);
+      } else {
+        setMessage(`Nenhum email pendente em "${category}".`);
+      }
+      loadData();
+    } catch (e: any) {
+      setMessage('Erro: ' + e.message);
+    } finally {
+      setSending('');
     }
   };
 
@@ -212,6 +238,10 @@ export default function SettingsPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => handleSendNow(row.category)} disabled={sending === row.category || !row.ativo}
+                    className="px-4 py-1.5 bg-blue-500 text-white text-xs rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1">
+                    {sending === row.category ? 'Enviando...' : '▶ Enviar Agora'}
+                  </button>
                   <button onClick={() => saveRow(idx)} disabled={saving === idx}
                     className="px-4 py-1.5 bg-miia-500 text-white text-xs rounded-lg font-medium hover:bg-miia-600 disabled:opacity-50">
                     {saving === idx ? 'Salvando...' : 'Salvar'}

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/send-emails",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/send-fups",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/check-replies",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -5,49 +5,54 @@ import { checkReplies } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
-  try {
-    const allIds = getAllSpreadsheetIds();
-    let totalRespondidos = 0;
+async function runCheckReplies() {
+  const allIds = getAllSpreadsheetIds();
+  let totalRespondidos = 0;
 
-    for (const spreadsheetId of allIds) {
-      const [painel, { contacts }] = await Promise.all([
-        readPainel(spreadsheetId),
-        readContatos(spreadsheetId),
-      ]);
+  for (const spreadsheetId of allIds) {
+    const [painel, { contacts }] = await Promise.all([
+      readPainel(spreadsheetId),
+      readContatos(spreadsheetId),
+    ]);
 
-      for (const cat of painel) {
-        if (!cat.ativo) continue;
+    for (const cat of painel) {
+      if (!cat.ativo) continue;
 
-        const enviados = contacts.filter(c =>
-          c.category === cat.category &&
-          c.email1Enviado.startsWith('OK') &&
-          c.threadId &&
-          !c.fup1Enviado.includes('RESPONDIDO') &&
-          !c.fup2Enviado.includes('RESPONDIDO')
-        );
+      const enviados = contacts.filter(c =>
+        c.category.normalize('NFC') === cat.category.normalize('NFC') &&
+        c.email1Enviado.startsWith('OK') &&
+        c.threadId &&
+        !c.fup1Enviado.includes('RESPONDIDO') &&
+        !c.fup2Enviado.includes('RESPONDIDO')
+      );
 
-        for (const contato of enviados) {
-          const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
+      for (const contato of enviados) {
+        const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
 
-          if (result.hasReply) {
-            const col = contato.fup1Enviado ? 'J' : 'I';
-            await writeSheet(
-              `Contatos!${col}${contato.rowIndex}`,
-              [['RESPONDIDO']],
-              spreadsheetId
-            );
-            totalRespondidos++;
-          }
-
-          await new Promise(r => setTimeout(r, 500));
+        if (result.hasReply) {
+          const col = contato.fup1Enviado ? 'J' : 'I';
+          await writeSheet(
+            `Contatos!${col}${contato.rowIndex}`,
+            [['RESPONDIDO']],
+            spreadsheetId
+          );
+          totalRespondidos++;
         }
+
+        await new Promise(r => setTimeout(r, 500));
       }
     }
-
-    return NextResponse.json({ ok: true, respondidos: totalRespondidos });
-  } catch (error: any) {
-    console.error('Check replies error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  return { ok: true, respondidos: totalRespondidos };
+}
+
+export async function GET(req: NextRequest) {
+  const result = await runCheckReplies();
+  return NextResponse.json(result);
+}
+
+export async function POST(req: NextRequest) {
+  const result = await runCheckReplies();
+  return NextResponse.json(result);
 }
