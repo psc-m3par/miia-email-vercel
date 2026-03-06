@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
-import { sendEmail, sendReply } from '@/lib/gmail';
+import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
     const allIds = getAllSpreadsheetIds();
     let totalEnviados = 0;
     let erros: string[] = [];
+    let debug: any = { spreadsheets: allIds, categories: [] };
 
     for (const spreadsheetId of allIds) {
       const [painel, templates, { contacts }] = await Promise.all([
@@ -18,28 +19,39 @@ export async function POST(req: NextRequest) {
         readContatos(spreadsheetId),
       ]);
 
+      debug.totalContatos = contacts.length;
+      debug.painelCount = painel.length;
+
       for (const cat of painel) {
-        if (!cat.ativo) continue;
-
         const template = templates.find(t => t.category === cat.category);
-        if (!template) continue;
-
         const pendentes = contacts.filter(c =>
           c.category === cat.category && !c.email1Enviado && c.email
         );
+
+        debug.categories.push({
+          category: cat.category,
+          ativo: cat.ativo,
+          responsavel: cat.responsavel,
+          hasTemplate: !!template,
+          pendentes: pendentes.length,
+          sampleContact: pendentes[0] ? { email: pendentes[0].email, category: pendentes[0].category, email1Enviado: pendentes[0].email1Enviado } : null,
+        });
+
+        if (!cat.ativo) continue;
+        if (!template) continue;
 
         const lote = pendentes.slice(0, cat.emailsHora);
 
         for (const contato of lote) {
           const assunto = template.assunto
-            .replace(/\{firstName\}/gi, contato.firstName)
-            .replace(/\{lastName\}/gi, contato.lastName)
-            .replace(/\{companyName\}/gi, contato.companyName);
+            .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
+            .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
+            .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
 
           const corpo = template.corpo
-            .replace(/\{firstName\}/gi, contato.firstName)
-            .replace(/\{lastName\}/gi, contato.lastName)
-            .replace(/\{companyName\}/gi, contato.companyName);
+            .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
+            .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
+            .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
 
           const result = await sendEmail(
             cat.responsavel,
@@ -68,15 +80,14 @@ export async function POST(req: NextRequest) {
             erros.push(`${contato.email}: ${result.error}`);
           }
 
-          // Pausa de 2s entre emails pra não estourar rate limit
           await new Promise(r => setTimeout(r, 2000));
         }
       }
     }
 
-    return NextResponse.json({ ok: true, enviados: totalEnviados, erros });
+    return NextResponse.json({ ok: true, enviados: totalEnviados, erros, debug });
   } catch (error: any) {
     console.error('Send emails error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    }
 }
