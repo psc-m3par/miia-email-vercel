@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
       debug.painelCount = painel.length;
 
       for (const cat of painel) {
-        const template = templates.find(t => t.category === cat.category);
+        const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
         const pendentes = contacts.filter(c =>
-          c.category === cat.category && !c.email1Enviado && c.email
+          c.category.normalize('NFC') === cat.category.normalize('NFC') && !c.email1Enviado && c.email
         );
 
         debug.categories.push({
@@ -89,5 +89,5 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Send emails error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  }
 }
