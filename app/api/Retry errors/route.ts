@@ -3,12 +3,12 @@ import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetI
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
 
 async function runRetryErrors(category?: string) {
   const allIds = getAllSpreadsheetIds();
   let totalCorrigidos = 0;
   let erros: string[] = [];
+  let totalErros = 0;
 
   for (const spreadsheetId of allIds) {
     const [painel, templates, { contacts }] = await Promise.all([
@@ -30,7 +30,11 @@ async function runRetryErrors(category?: string) {
         c.email
       );
 
-      for (const contato of comErro) {
+      totalErros += comErro.length;
+
+      const lote = comErro.slice(0, 5);
+
+      for (const contato of lote) {
         await writeSheet(
           'Contatos!H' + contato.rowIndex + ':K' + contato.rowIndex,
           [['', '', '', '']],
@@ -74,13 +78,12 @@ async function runRetryErrors(category?: string) {
           );
           erros.push(contato.email + ': ' + result.error);
         }
-
-        await new Promise(r => setTimeout(r, 2000));
       }
     }
   }
 
-  return { ok: true, corrigidos: totalCorrigidos, erros };
+  const restantes = totalErros - totalCorrigidos - erros.length;
+  return { ok: true, corrigidos: totalCorrigidos, erros, restantes: restantes > 0 ? restantes : 0 };
 }
 
 export async function GET(req: NextRequest) {
