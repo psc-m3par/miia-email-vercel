@@ -22,20 +22,33 @@ async function runCheckReplies() {
         c.category.normalize('NFC') === cat.category.normalize('NFC') &&
         c.email1Enviado.startsWith('OK') &&
         c.threadId &&
-        !c.fup1Enviado.includes('RESPONDIDO') &&
-        !c.fup2Enviado.includes('RESPONDIDO')
+        c.fup1Enviado !== 'RESPONDIDO' &&
+        c.fup2Enviado !== 'RESPONDIDO'
       );
 
       for (const contato of enviados) {
         const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
 
         if (result.hasReply) {
-          const col = contato.fup1Enviado ? 'J' : 'I';
-          await writeSheet(
-            `Contatos!${col}${contato.rowIndex}`,
-            [['RESPONDIDO']],
-            spreadsheetId
-          );
+          if (!contato.fup1Enviado) {
+            await writeSheet(
+              'Contatos!I' + contato.rowIndex,
+              [['RESPONDIDO']],
+              spreadsheetId
+            );
+          } else if (!contato.fup2Enviado) {
+            await writeSheet(
+              'Contatos!J' + contato.rowIndex,
+              [['RESPONDIDO']],
+              spreadsheetId
+            );
+          } else {
+            await writeSheet(
+              'Contatos!J' + contato.rowIndex,
+              [['RESPONDIDO']],
+              spreadsheetId
+            );
+          }
           totalRespondidos++;
         }
 
