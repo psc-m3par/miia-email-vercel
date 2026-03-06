@@ -8,26 +8,43 @@ interface Contact {
   fup1Enviado: string; fup2Enviado: string; threadId: string;
 }
 
+interface PainelRow {
+  category: string; responsavel: string;
+}
+
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [painel, setPainel] = useState<PainelRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterResp, setFilterResp] = useState('');
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
+  const [responsaveis, setResponsaveis] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch('/api/sheets?type=contacts')
-      .then(r => r.json())
-      .then(data => {
-        if (data.contacts) {
-          setContacts(data.contacts);
-          const cats = Array.from(new Set(data.contacts.map((c: Contact) => c.category).filter(Boolean))) as string[];
-          setCategories(cats);
-        }
-      })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/sheets?type=contacts').then(r => r.json()),
+      fetch('/api/sheets?type=painel').then(r => r.json()),
+    ]).then(([contactData, painelData]) => {
+      if (contactData.contacts) {
+        setContacts(contactData.contacts);
+        const cats = Array.from(new Set(contactData.contacts.map((c: Contact) => c.category).filter(Boolean))) as string[];
+        setCategories(cats);
+      }
+      if (Array.isArray(painelData)) {
+        setPainel(painelData);
+        const resps = Array.from(new Set(painelData.map((p: PainelRow) => p.responsavel).filter(Boolean))) as string[];
+        setResponsaveis(resps);
+      }
+    }).finally(() => setLoading(false));
   }, []);
+
+  const getResponsavel = (category: string) => {
+    const p = painel.find(p => p.category === category);
+    return p ? p.responsavel : '';
+  };
 
   const getStatus = (c: Contact) => {
     if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
@@ -50,6 +67,7 @@ export default function ContactsPage() {
   const filtered = contacts.filter(c => {
     if (filterCat && c.category !== filterCat) return false;
     if (filterStatus && getStatus(c) !== filterStatus) return false;
+    if (filterResp && getResponsavel(c.category) !== filterResp) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!((c.firstName + ' ' + c.lastName).toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.companyName.toLowerCase().includes(q))) return false;
@@ -85,6 +103,14 @@ export default function ContactsPage() {
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
+          value={filterResp}
+          onChange={e => setFilterResp(e.target.value)}
+          className="px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+        >
+          <option value="">Todos responsaveis</option>
+          {responsaveis.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
           className="px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-miia-400/50"
@@ -104,6 +130,7 @@ export default function ContactsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Empresa</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Responsavel</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Thread</th>
               </tr>
@@ -112,6 +139,7 @@ export default function ContactsPage() {
               {filtered.slice(0, 100).map((c, i) => {
                 const status = getStatus(c);
                 const sl = statusLabel[status];
+                const resp = getResponsavel(c.category);
                 return (
                   <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/50">
                     <td className="px-4 py-3 text-slate-700 font-medium">{c.firstName} {c.lastName}</td>
@@ -120,6 +148,7 @@ export default function ContactsPage() {
                     <td className="px-4 py-3">
                       <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">{c.category}</span>
                     </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{resp}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2.5 py-1 rounded-lg font-medium ${sl.bg} ${sl.text}`}>{sl.label}</span>
                     </td>
