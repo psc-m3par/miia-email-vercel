@@ -16,23 +16,12 @@ function getSheets() {
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID!;
 
-const SPREADSHEET_MAP: Record<string, string> = {
-  'psc@miia.tech': process.env.SPREADSHEET_ID || '',
-  'jal@miia.tech': process.env.SPREADSHEET_ID_JAL || '',
-};
-
-function getSpreadsheetForResponsavel(email: string): string {
-  const lower = email.toLowerCase().trim();
-  return SPREADSHEET_MAP[lower] || SPREADSHEET_ID;
+export function getAllSpreadsheetIds(): string[] {
+  return [SPREADSHEET_ID];
 }
 
-export function getAllSpreadsheetIds(): string[] {
-  const ids = new Set<string>();
-  ids.add(SPREADSHEET_ID);
-  for (const key in SPREADSHEET_MAP) {
-    if (SPREADSHEET_MAP[key]) ids.add(SPREADSHEET_MAP[key]);
-  }
-  return Array.from(ids).filter(id => id.length > 0);
+export function getSpreadsheetIdForResponsavel(email: string): string {
+  return SPREADSHEET_ID;
 }
 
 export async function readSheet(range: string, spreadsheetId?: string) {
@@ -163,10 +152,6 @@ export async function getDashboardStats() {
 
 export async function appendContacts(contacts: any[][], spreadsheetId?: string) {
   await appendSheet('Contatos!A:G', contacts, spreadsheetId);
-}
-
-export function getSpreadsheetIdForResponsavel(email: string): string {
-  return getSpreadsheetForResponsavel(email);
 }
 
 async function getSheetId(sheetName: string, spreadsheetId?: string): Promise<number | null> {
