@@ -47,25 +47,26 @@ async function runSendEmails(category?: string) {
           assunto,
           corpo,
           cat.cc,
-          spreadsheetId
+          spreadsheetId,
+          cat.nomeRemetente
         );
 
         const hoje = new Date().toISOString().split('T')[0];
 
         if (result.success) {
           await writeSheet(
-            `Contatos!H${contato.rowIndex}:K${contato.rowIndex}`,
-            [[`OK ${hoje}`, '', '', result.threadId || '']],
+            'Contatos!H' + contato.rowIndex + ':K' + contato.rowIndex,
+            [['OK ' + hoje, '', '', result.threadId || '']],
             spreadsheetId
           );
           totalEnviados++;
         } else {
           await writeSheet(
-            `Contatos!H${contato.rowIndex}`,
-            [[`ERRO ${hoje}: ${result.error}`]],
+            'Contatos!H' + contato.rowIndex,
+            [['ERRO ' + hoje + ': ' + result.error]],
             spreadsheetId
           );
-          erros.push(`${contato.email}: ${result.error}`);
+          erros.push(contato.email + ': ' + result.error);
         }
 
         await new Promise(r => setTimeout(r, 2000));

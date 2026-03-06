@@ -48,13 +48,13 @@ async function runSendFups() {
         const result = await sendReply(
           cat.responsavel, contato.email, assunto, corpo,
           contato.threadId, contato.threadId,
-          cat.cc, spreadsheetId
+          cat.cc, spreadsheetId, cat.nomeRemetente
         );
 
         const hojeStr = hoje.toISOString().split('T')[0];
         await writeSheet(
-          `Contatos!I${contato.rowIndex}`,
-          [[result.success ? `OK ${hojeStr}` : `ERRO ${hojeStr}: ${result.error}`]],
+          'Contatos!I' + contato.rowIndex,
+          [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
           spreadsheetId
         );
         if (result.success) totalFups++;
@@ -86,13 +86,13 @@ async function runSendFups() {
         const result = await sendReply(
           cat.responsavel, contato.email, assunto, corpo,
           contato.threadId, contato.threadId,
-          cat.cc, spreadsheetId
+          cat.cc, spreadsheetId, cat.nomeRemetente
         );
 
         const hojeStr = hoje.toISOString().split('T')[0];
         await writeSheet(
-          `Contatos!J${contato.rowIndex}`,
-          [[result.success ? `OK ${hojeStr}` : `ERRO ${hojeStr}: ${result.error}`]],
+          'Contatos!J' + contato.rowIndex,
+          [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
           spreadsheetId
         );
         if (result.success) totalFups++;
