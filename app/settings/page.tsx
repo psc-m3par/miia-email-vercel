@@ -9,16 +9,18 @@ interface PainelRow {
 }
 
 interface CatStats {
-  total: number; pendentes: number; email1: number; fup1: number; fup2: number; respondidos: number;
+  total: number; pendentes: number; email1: number; fup1: number; fup2: number; respondidos: number; erros: number;
 }
 
 export default function SettingsPage() {
   const [painel, setPainel] = useState<PainelRow[]>([]);
   const [stats, setStats] = useState<Record<string, CatStats>>({});
+  const [totalGeral, setTotalGeral] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number>(-1);
   const [clearing, setClearing] = useState<string>('');
   const [sending, setSending] = useState<string>('');
+  const [retrying, setRetrying] = useState(false);
   const [message, setMessage] = useState('');
   const [confirmClear, setConfirmClear] = useState<string>('');
   const [confirmDelete, setConfirmDelete] = useState<string>('');
@@ -35,10 +37,15 @@ export default function SettingsPage() {
     ]).then(([painelData, dashData]) => {
       if (Array.isArray(painelData)) setPainel(painelData);
       if (dashData.stats) setStats(dashData.stats);
+      if (dashData.totalGeral) setTotalGeral(dashData.totalGeral);
     }).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
+
+  const getTotalErros = () => {
+    return totalGeral.erros || 0;
+  };
 
   const toggleAtivo = async (idx: number) => {
     const updated = [...painel];
@@ -86,17 +93,42 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.enviados > 0) {
-        setMessage(`${data.enviados} emails enviados para "${category}"!`);
+        setMessage(data.enviados + ' emails enviados para "' + category + '"!');
       } else if (data.erros?.length > 0) {
-        setMessage(`Erros ao enviar "${category}": ${data.erros.join(', ')}`);
+        setMessage('Erros ao enviar "' + category + '": ' + data.erros.join(', '));
       } else {
-        setMessage(`Nenhum email pendente em "${category}".`);
+        setMessage('Nenhum email pendente em "' + category + '".');
       }
       loadData();
     } catch (e: any) {
       setMessage('Erro: ' + e.message);
     } finally {
       setSending('');
+    }
+  };
+
+  const handleRetryErrors = async () => {
+    setRetrying(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/retry-errors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.corrigidos > 0) {
+        setMessage(data.corrigidos + ' emails corrigidos e reenviados!');
+      } else if (data.erros?.length > 0) {
+        setMessage('Erros persistem: ' + data.erros.join(', '));
+      } else {
+        setMessage('Nenhum erro encontrado.');
+      }
+      loadData();
+    } catch (e: any) {
+      setMessage('Erro: ' + e.message);
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -186,7 +218,7 @@ export default function SettingsPage() {
         {message && <p className="text-sm mt-2 bg-white border border-slate-200 rounded-xl px-4 py-2 inline-block">{message}</p>}
       </div>
 
-      <div className="flex gap-3 mb-8">
+      <div className="flex gap-3 mb-8 flex-wrap">
         <button onClick={() => setShowNewCat(!showNewCat)}
           className="px-5 py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 shadow-lg shadow-green-500/20 flex items-center gap-2">
           <span>+</span> Nova Category
@@ -194,6 +226,12 @@ export default function SettingsPage() {
         <button onClick={() => loadData()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
           Atualizar
         </button>
+        {getTotalErros() > 0 && (
+          <button onClick={handleRetryErrors} disabled={retrying}
+            className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 shadow-lg shadow-orange-500/20 flex items-center gap-2 disabled:opacity-50">
+            {retrying ? 'Corrigindo...' : 'Corrigir Erros (' + getTotalErros() + ')'}
+          </button>
+        )}
       </div>
 
       {showNewCat && (
@@ -223,7 +261,7 @@ export default function SettingsPage() {
 
       <div className="space-y-4">
         {painel.map((row, idx) => {
-          const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0 };
+          const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
           return (
             <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -240,7 +278,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleSendNow(row.category)} disabled={sending === row.category || !row.ativo}
                     className="px-4 py-1.5 bg-blue-500 text-white text-xs rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1">
-                    {sending === row.category ? 'Enviando...' : '▶ Enviar Agora'}
+                    {sending === row.category ? 'Enviando...' : 'Enviar Agora'}
                   </button>
                   <button onClick={() => saveRow(idx)} disabled={saving === idx}
                     className="px-4 py-1.5 bg-miia-500 text-white text-xs rounded-lg font-medium hover:bg-miia-600 disabled:opacity-50">
@@ -273,6 +311,7 @@ export default function SettingsPage() {
                 <StatPill label="FUP1" value={catStats.fup1} color="text-indigo-700 bg-indigo-100" />
                 <StatPill label="FUP2" value={catStats.fup2} color="text-purple-700 bg-purple-100" />
                 <StatPill label="Respondidos" value={catStats.respondidos} color="text-green-700 bg-green-100" />
+                {catStats.erros > 0 && <StatPill label="Erros" value={catStats.erros} color="text-red-700 bg-red-100" />}
                 <div className="ml-auto">
                   {confirmClear === row.category ? (
                     <div className="flex items-center gap-2">
