@@ -30,7 +30,7 @@ export default function ContactsPage() {
   }, []);
 
   const getStatus = (c: Contact) => {
-    if (c.fup2Enviado === 'RESPONDIDO') return 'respondido';
+    if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
     if (c.fup2Enviado?.startsWith('OK')) return 'fup2';
     if (c.fup1Enviado?.startsWith('OK')) return 'fup1';
     if (c.email1Enviado?.startsWith('ERRO')) return 'erro';
@@ -39,10 +39,10 @@ export default function ContactsPage() {
   };
 
   const statusLabel: Record<string, { label: string; bg: string; text: string }> = {
-    pendente:   { label: 'Pendente',   bg: 'bg-slate-100',  text: 'text-slate-600' },
-    email1:     { label: 'Email 1 ✓',  bg: 'bg-blue-100',   text: 'text-blue-700' },
-    fup1:       { label: 'FUP1 ✓',     bg: 'bg-indigo-100', text: 'text-indigo-700' },
-    fup2:       { label: 'FUP2 ✓',     bg: 'bg-purple-100', text: 'text-purple-700' },
+    pendente:   { label: 'Pendente',    bg: 'bg-slate-100',  text: 'text-slate-600' },
+    email1:     { label: 'Email 1',     bg: 'bg-blue-100',   text: 'text-blue-700' },
+    fup1:       { label: 'FUP1',        bg: 'bg-indigo-100', text: 'text-indigo-700' },
+    fup2:       { label: 'FUP2',        bg: 'bg-purple-100', text: 'text-purple-700' },
     respondido: { label: 'Respondido',  bg: 'bg-green-100',  text: 'text-green-700' },
     erro:       { label: 'Erro',        bg: 'bg-red-100',    text: 'text-red-700' },
   };
@@ -68,7 +68,6 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 flex gap-4 items-center flex-wrap">
         <input
           type="text"
@@ -96,7 +95,6 @@ export default function ContactsPage() {
         <span className="text-xs text-slate-400">{filtered.length} resultados</span>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -125,7 +123,7 @@ export default function ContactsPage() {
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2.5 py-1 rounded-lg font-medium ${sl.bg} ${sl.text}`}>{sl.label}</span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400 font-mono">{c.threadId ? '✓' : '-'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400 font-mono">{c.threadId ? 'OK' : '-'}</td>
                   </tr>
                 );
               })}
