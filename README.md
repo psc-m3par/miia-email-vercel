@@ -26,18 +26,19 @@ Sistema de automação de cold email construído com **Next.js 14**, integrado a
 
 O sistema funciona como um painel de controle para campanhas de outreach por email. O fluxo básico é:
 
-```
-Importar contatos (Apollo CSV/XLSX)
-        ↓
-Configurar categoria (responsável, cadência, templates)
-        ↓
-Sistema envia Email 1 automaticamente
-        ↓
-Após N dias sem resposta → envia Follow-up 1
-        ↓
-Após N dias sem resposta → envia Follow-up 2
-        ↓
-Quando o contato responde → status muda para "Respondido"
+```mermaid
+flowchart TD
+    A([📥 Importar contatos\nApollo CSV / XLSX]) --> B([⚙️ Configurar categoria\nresponsável · cadência · templates])
+    B --> C([📤 Email 1 enviado\nautomaticamente])
+    C --> D{Respondeu?}
+    D -- Sim --> G([✅ Respondido])
+    D -- Não, após N dias --> E([📤 Follow-up 1\nenviado na mesma thread])
+    E --> D2{Respondeu?}
+    D2 -- Sim --> G
+    D2 -- Não, após N dias --> F([📤 Follow-up 2\nenviado na mesma thread])
+    F --> D3{Respondeu?}
+    D3 -- Sim --> G
+    D3 -- Não --> H([🔚 Sequência concluída])
 ```
 
 Todos os dados (contatos, tokens, templates, configurações) ficam armazenados em uma **planilha do Google Sheets**, eliminando a necessidade de banco de dados separado.
@@ -61,24 +62,21 @@ Todos os dados (contatos, tokens, templates, configurações) ficam armazenados 
 
 ## Arquitetura
 
-```
-┌─────────────────────────────────────────┐
-│              NEXT.JS APP                │
-│                                         │
-│  ┌──────────┐    ┌────────────────────┐ │
-│  │  Pages   │    │    API Routes      │ │
-│  │ (React)  │◄──►│  (Node.js/Server)  │ │
-│  └──────────┘    └─────────┬──────────┘ │
-│                            │            │
-└────────────────────────────┼────────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-       ┌──────▼──────┐ ┌─────▼──────┐      │
-       │  Google     │ │   Gmail    │      │
-       │  Sheets API │ │    API     │      │
-       │ (dados)     │ │  (emails)  │      │
-       └─────────────┘ └────────────┘      │
+```mermaid
+flowchart TD
+    subgraph APP["⚡ Next.js App"]
+        P["🖥️ Pages\nReact · Client Components"]
+        API["🔧 API Routes\nNode.js · Server"]
+        P <--> API
+    end
+
+    subgraph GOOGLE["☁️ Google Cloud"]
+        SHEETS["📊 Google Sheets API\nBanco de dados\nService Account"]
+        GMAIL["📧 Gmail API\nEnvio e leitura\nOAuth2 por remetente"]
+    end
+
+    API --> SHEETS
+    API --> GMAIL
 ```
 
 - **Google Sheets** armazena todos os dados: contatos, templates, configurações e tokens OAuth.
@@ -377,31 +375,34 @@ Gerenciamento de tokens OAuth2 com **cache em memória** (5 minutos):
 
 ## Fluxo de Envio de Emails
 
-```
-Cron / chamada manual → /api/send-emails
-                           │
-                    Para cada categoria ativa:
-                    1. Busca contatos pendentes (sem email1Enviado)
-                    2. Limita ao lote (emailsHora)
-                    3. Personaliza assunto e corpo com dados do contato
-                    4. Obtém token OAuth2 válido do responsável
-                    5. Envia via Gmail API
-                    6. Registra resultado + threadId na planilha
-                    7. Aguarda 2 segundos antes do próximo
+```mermaid
+flowchart TD
+    subgraph SE["📤 /api/send-emails"]
+        SE1[Busca contatos pendentes] --> SE2[Limita ao lote\nemailsHora]
+        SE2 --> SE3[Personaliza assunto e corpo\ncom dados do contato]
+        SE3 --> SE4[Obtém token OAuth2\ndo responsável]
+        SE4 --> SE5{Gmail API}
+        SE5 -- sucesso --> SE6[Registra OK + threadId\nna planilha]
+        SE5 -- erro --> SE7[Registra ERRO\nna planilha]
+        SE6 --> SE8[⏱️ Aguarda 2s]
+    end
 
-Cron → /api/send-fups
-          │
-    Para cada contato com email1 enviado há N dias:
-    1. Verifica se diasFup1 passou
-    2. Envia como reply na mesma thread
-    3. Registra OK ou ERRO na coluna fup1Enviado
-    [repete para FUP2]
+    subgraph SF["🔁 /api/send-fups"]
+        SF1{diasFup1 passou?\nemail1 enviado · sem fup1 · tem threadId}
+        SF1 -- Sim --> SF2[Envia FUP1 como reply\nna mesma thread]
+        SF2 --> SF3{diasFup2 passou?\nfup1 enviado · sem fup2 · tem threadId}
+        SF3 -- Sim --> SF4[Envia FUP2 como reply\nna mesma thread]
+    end
 
-Cron → /api/check-replies
-          │
-    Para cada contato com email enviado e threadId:
-    1. Busca a thread via Gmail API
-    2. Se encontrar mensagem de outro remetente → marca RESPONDIDO
+    subgraph CR["👁️ /api/check-replies"]
+        CR1[Busca thread via Gmail API] --> CR2{Mensagem de\noutro remetente?}
+        CR2 -- Sim --> CR3[Marca RESPONDIDO\nna planilha]
+        CR2 -- Não --> CR4[Mantém status atual]
+    end
+
+    CRON([🕐 Cron Job / chamada manual]) --> SE
+    CRON --> SF
+    CRON --> CR
 ```
 
 ---
@@ -487,6 +488,7 @@ Use os seguintes marcadores no assunto e corpo dos emails para personalizar auto
 | `[Full Name]` | Nome completo |
 | `[Company]` | Nome da empresa |
 | `[Category]` | Nome da categoria |
+| `[Sender Name]` | Nome do remetente (configurado no Painel) |
 
 **Exemplo:**
 ```
