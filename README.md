@@ -28,17 +28,17 @@ O sistema funciona como um painel de controle para campanhas de outreach por ema
 
 ```mermaid
 flowchart TD
-    A([📥 Importar contatos\nApollo CSV / XLSX]) --> B([⚙️ Configurar categoria\nresponsável · cadência · templates])
-    B --> C([📤 Email 1 enviado\nautomaticamente])
+    A(["📥 Importar contatos<br/>Apollo CSV / XLSX"]) --> B(["⚙️ Configurar categoria<br/>responsável · cadência · templates"])
+    B --> C(["📤 Email 1 enviado<br/>automaticamente"])
     C --> D{Respondeu?}
-    D -- Sim --> G([✅ Respondido])
-    D -- Não, após N dias --> E([📤 Follow-up 1\nenviado na mesma thread])
+    D -- Sim --> G(["✅ Respondido"])
+    D -- "Não, após N dias" --> E(["📤 Follow-up 1<br/>enviado na mesma thread"])
     E --> D2{Respondeu?}
     D2 -- Sim --> G
-    D2 -- Não, após N dias --> F([📤 Follow-up 2\nenviado na mesma thread])
+    D2 -- "Não, após N dias" --> F(["📤 Follow-up 2<br/>enviado na mesma thread"])
     F --> D3{Respondeu?}
     D3 -- Sim --> G
-    D3 -- Não --> H([🔚 Sequência concluída])
+    D3 -- Não --> H(["🔚 Sequência concluída"])
 ```
 
 Todos os dados (contatos, tokens, templates, configurações) ficam armazenados em uma **planilha do Google Sheets**, eliminando a necessidade de banco de dados separado.
@@ -65,14 +65,14 @@ Todos os dados (contatos, tokens, templates, configurações) ficam armazenados 
 ```mermaid
 flowchart TD
     subgraph APP["⚡ Next.js App"]
-        P["🖥️ Pages\nReact · Client Components"]
-        API["🔧 API Routes\nNode.js · Server"]
+        P["🖥️ Pages<br/>React · Client Components"]
+        API["🔧 API Routes<br/>Node.js · Server"]
         P <--> API
     end
 
     subgraph GOOGLE["☁️ Google Cloud"]
-        SHEETS["📊 Google Sheets API\nBanco de dados\nService Account"]
-        GMAIL["📧 Gmail API\nEnvio e leitura\nOAuth2 por remetente"]
+        SHEETS["📊 Google Sheets API<br/>Banco de dados<br/>Service Account"]
+        GMAIL["📧 Gmail API<br/>Envio e leitura<br/>OAuth2 por remetente"]
     end
 
     API --> SHEETS
@@ -378,25 +378,25 @@ Gerenciamento de tokens OAuth2 com **cache em memória** (5 minutos):
 ```mermaid
 flowchart TD
     subgraph SE["📤 /api/send-emails"]
-        SE1[Busca contatos pendentes] --> SE2[Limita ao lote\nemailsHora]
-        SE2 --> SE3[Personaliza assunto e corpo\ncom dados do contato]
-        SE3 --> SE4[Obtém token OAuth2\ndo responsável]
+        SE1[Busca contatos pendentes] --> SE2["Limita ao lote<br/>emailsHora"]
+        SE2 --> SE3["Personaliza assunto e corpo<br/>com dados do contato"]
+        SE3 --> SE4["Obtém token OAuth2<br/>do responsável"]
         SE4 --> SE5{Gmail API}
-        SE5 -- sucesso --> SE6[Registra OK + threadId\nna planilha]
-        SE5 -- erro --> SE7[Registra ERRO\nna planilha]
+        SE5 -- sucesso --> SE6["Registra OK + threadId<br/>na planilha"]
+        SE5 -- erro --> SE7["Registra ERRO<br/>na planilha"]
         SE6 --> SE8[⏱️ Aguarda 2s]
     end
 
     subgraph SF["🔁 /api/send-fups"]
-        SF1{diasFup1 passou?\nemail1 enviado · sem fup1 · tem threadId}
-        SF1 -- Sim --> SF2[Envia FUP1 como reply\nna mesma thread]
-        SF2 --> SF3{diasFup2 passou?\nfup1 enviado · sem fup2 · tem threadId}
-        SF3 -- Sim --> SF4[Envia FUP2 como reply\nna mesma thread]
+        SF1{"diasFup1 passou?<br/>email1 enviado · sem fup1 · tem threadId"}
+        SF1 -- Sim --> SF2["Envia FUP1 como reply<br/>na mesma thread"]
+        SF2 --> SF3{"diasFup2 passou?<br/>fup1 enviado · sem fup2 · tem threadId"}
+        SF3 -- Sim --> SF4["Envia FUP2 como reply<br/>na mesma thread"]
     end
 
     subgraph CR["👁️ /api/check-replies"]
-        CR1[Busca thread via Gmail API] --> CR2{Mensagem de\noutro remetente?}
-        CR2 -- Sim --> CR3[Marca RESPONDIDO\nna planilha]
+        CR1[Busca thread via Gmail API] --> CR2{"Mensagem de<br/>outro remetente?"}
+        CR2 -- Sim --> CR3["Marca RESPONDIDO<br/>na planilha"]
         CR2 -- Não --> CR4[Mantém status atual]
     end
 
