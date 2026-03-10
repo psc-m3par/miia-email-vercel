@@ -34,12 +34,14 @@ async function runSendEmails(category?: string) {
         const assunto = template.assunto
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
+          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
 
         const corpo = template.corpo
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
+          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
 
         const result = await sendEmail(
           cat.responsavel,

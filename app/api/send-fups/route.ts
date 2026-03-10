@@ -38,12 +38,14 @@ async function runSendFups() {
         const assunto = (template.fup1Assunto || template.assunto)
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
+          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
 
         const corpo = template.fup1Corpo
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
+          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
 
         const result = await sendReply(
           cat.responsavel, contato.email, assunto, corpo,
@@ -76,12 +78,14 @@ async function runSendFups() {
         const assunto = (template.fup2Assunto || template.assunto)
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
+          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
 
         const corpo = template.fup2Corpo
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName);
+          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
 
         const result = await sendReply(
           cat.responsavel, contato.email, assunto, corpo,
