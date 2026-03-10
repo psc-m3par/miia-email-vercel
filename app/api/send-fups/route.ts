@@ -28,6 +28,13 @@ async function runSendFups() {
       const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
       if (!template) continue;
 
+      const pendentes = contacts.filter(c =>
+        c.category.normalize('NFC') === cat.category.normalize('NFC') &&
+        !c.email1Enviado &&
+        c.email
+      );
+      if (pendentes.length > 0) continue;
+
       const hoje = new Date();
 
       const prontosFup1 = contacts.filter(c => {
