@@ -30,8 +30,8 @@ async function runSendFups() {
         if (c.fup1Enviado) return false;
         if (!c.threadId) return false;
         const dataEnvio = c.email1Enviado.replace('OK ', '');
-        const diff = Math.floor((hoje.getTime() - new Date(dataEnvio).getTime()) / 86400000);
-        return diff >= cat.diasFup1;
+        const diff = Math.floor((hoje.getTime() - new Date(dataEnvio).getTime()) / 60000); // TEST MODE: em minutos
+        return diff >= 5; // TEST MODE: 5 minutos
       });
 
       for (const contato of prontosFup1) {
@@ -70,8 +70,8 @@ async function runSendFups() {
         if (!c.threadId) return false;
         if (c.fup1Enviado.includes('RESPONDIDO')) return false;
         const dataFup1 = c.fup1Enviado.replace('OK ', '');
-        const diff = Math.floor((hoje.getTime() - new Date(dataFup1).getTime()) / 86400000);
-        return diff >= cat.diasFup2;
+        const diff = Math.floor((hoje.getTime() - new Date(dataFup1).getTime()) / 60000); // TEST MODE: em minutos
+        return diff >= 5; // TEST MODE: 5 minutos
       });
 
       for (const contato of prontosFup2) {
