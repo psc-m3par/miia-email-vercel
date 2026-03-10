@@ -1,21 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { readPainel, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
 import { checkReplies } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+const MAX_POR_RODADA = 20;
+
 async function runCheckReplies() {
   const allIds = getAllSpreadsheetIds();
   let totalRespondidos = 0;
+  let processados = 0;
 
   for (const spreadsheetId of allIds) {
+    if (processados >= MAX_POR_RODADA) break;
+
     const [painel, { contacts }] = await Promise.all([
       readPainel(spreadsheetId),
       readContatos(spreadsheetId),
     ]);
 
     for (const cat of painel) {
+      if (processados >= MAX_POR_RODADA) break;
       if (!cat.ativo) continue;
 
       const enviados = contacts.filter(c =>
@@ -27,6 +33,8 @@ async function runCheckReplies() {
       );
 
       for (const contato of enviados) {
+        if (processados >= MAX_POR_RODADA) break;
+
         const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
 
         if (result.hasReply) {
@@ -46,6 +54,7 @@ async function runCheckReplies() {
           totalRespondidos++;
         }
 
+        processados++;
         await new Promise(r => setTimeout(r, 500));
       }
     }
@@ -54,12 +63,12 @@ async function runCheckReplies() {
   return { ok: true, respondidos: totalRespondidos };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const result = await runCheckReplies();
   return NextResponse.json(result);
 }
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const result = await runCheckReplies();
   return NextResponse.json(result);
 }

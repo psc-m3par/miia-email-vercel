@@ -1,15 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
 import { sendReply } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+const MAX_POR_RODADA = 15;
+
 async function runSendFups() {
   const allIds = getAllSpreadsheetIds();
   let totalFups = 0;
+  let processados = 0;
 
   for (const spreadsheetId of allIds) {
+    if (processados >= MAX_POR_RODADA) break;
+
     const [painel, templates, { contacts }] = await Promise.all([
       readPainel(spreadsheetId),
       readTemplates(spreadsheetId),
@@ -17,6 +22,7 @@ async function runSendFups() {
     ]);
 
     for (const cat of painel) {
+      if (processados >= MAX_POR_RODADA) break;
       if (!cat.ativo) continue;
 
       const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
@@ -35,6 +41,8 @@ async function runSendFups() {
       });
 
       for (const contato of prontosFup1) {
+        if (processados >= MAX_POR_RODADA) break;
+
         const assunto = (template.fup1Assunto || template.assunto)
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
@@ -60,7 +68,8 @@ async function runSendFups() {
           spreadsheetId
         );
         if (result.success) totalFups++;
-        await new Promise(r => setTimeout(r, 2000));
+        processados++;
+        await new Promise(r => setTimeout(r, 500));
       }
 
       const prontosFup2 = contacts.filter(c => {
@@ -75,6 +84,8 @@ async function runSendFups() {
       });
 
       for (const contato of prontosFup2) {
+        if (processados >= MAX_POR_RODADA) break;
+
         const assunto = (template.fup2Assunto || template.assunto)
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
@@ -100,7 +111,8 @@ async function runSendFups() {
           spreadsheetId
         );
         if (result.success) totalFups++;
-        await new Promise(r => setTimeout(r, 2000));
+        processados++;
+        await new Promise(r => setTimeout(r, 500));
       }
     }
   }
@@ -108,12 +120,12 @@ async function runSendFups() {
   return { ok: true, fups: totalFups };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const result = await runSendFups();
   return NextResponse.json(result);
 }
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const result = await runSendFups();
   return NextResponse.json(result);
 }

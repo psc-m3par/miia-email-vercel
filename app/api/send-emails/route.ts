@@ -71,7 +71,7 @@ async function runSendEmails(category?: string) {
           erros.push(contato.email + ': ' + result.error);
         }
 
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 500));
       }
     }
   }
