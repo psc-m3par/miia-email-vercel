@@ -42,7 +42,11 @@ async function runSendEmails(category?: string, force = false) {
       );
 
       const lote = pendentes.slice(0, cat.emailsHora || 20);
+      if (lote.length === 0) continue;
       let enviadosCat = 0;
+
+      // Grava ultimoEnvio ANTES do loop para bloquear chamadas concorrentes imediatamente
+      await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
 
       for (const contato of lote) {
         // Re-check sheet to prevent duplicate sends (race condition / Vercel retries)
@@ -94,14 +98,6 @@ async function runSendEmails(category?: string, force = false) {
         if (result.success) enviadosCat++;
       }
 
-      // Update ultimoEnvio timestamp in Painel after sending batch
-      if (enviadosCat > 0) {
-        await writeSheet(
-          'Painel!I' + cat.rowIndex,
-          [[new Date().toISOString()]],
-          spreadsheetId
-        );
-      }
     }
   }
 

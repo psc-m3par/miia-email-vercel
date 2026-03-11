@@ -32,7 +32,6 @@ async function runSendFups() {
         }
       }
 
-      let enviadosCat = 0;
       const limite = cat.emailsHora || 20;
 
       const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
@@ -46,6 +45,10 @@ async function runSendFups() {
       if (pendentes.length > 0) continue;
 
       const hoje = new Date();
+      let enviadosCat = 0;
+
+      // Grava ultimoEnvio ANTES do loop para bloquear chamadas concorrentes
+      await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
 
       const prontosFup1 = contacts.filter(c => {
         if (c.category.normalize('NFC') !== cat.category.normalize('NFC')) return false;
@@ -150,14 +153,6 @@ async function runSendFups() {
         await new Promise(r => setTimeout(r, 500));
       }
 
-      // Grava ultimoEnvio após lote de FUPs
-      if (enviadosCat > 0) {
-        await writeSheet(
-          'Painel!I' + cat.rowIndex,
-          [[new Date().toISOString()]],
-          spreadsheetId
-        );
-      }
     }
   }
 
