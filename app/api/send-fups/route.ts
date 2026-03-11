@@ -5,16 +5,14 @@ import { sendReply, checkReplies } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MAX_POR_RODADA = 50;
+const MINUTOS_ENTRE_LOTES = 55;
 
 async function runSendFups() {
   const allIds = getAllSpreadsheetIds();
   let totalFups = 0;
-  let processados = 0;
+  const pulados: string[] = [];
 
   for (const spreadsheetId of allIds) {
-    if (processados >= MAX_POR_RODADA) break;
-
     const [painel, templates, { contacts }] = await Promise.all([
       readPainel(spreadsheetId),
       readTemplates(spreadsheetId),
@@ -22,8 +20,20 @@ async function runSendFups() {
     ]);
 
     for (const cat of painel) {
-      if (processados >= MAX_POR_RODADA) break;
       if (!cat.ativo) continue;
+
+      // Rate limiting: mesma lógica do send-emails (55 min entre lotes)
+      if (cat.ultimoEnvio) {
+        const minutosSinceLastSend = (Date.now() - new Date(cat.ultimoEnvio).getTime()) / 60000;
+        if (minutosSinceLastSend < MINUTOS_ENTRE_LOTES) {
+          const proxEnvio = Math.ceil(MINUTOS_ENTRE_LOTES - minutosSinceLastSend);
+          pulados.push(`"${cat.category}" aguardando ${proxEnvio}min`);
+          continue;
+        }
+      }
+
+      let enviadosCat = 0;
+      const limite = cat.emailsHora || 20;
 
       const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
       if (!template) continue;
@@ -48,9 +58,8 @@ async function runSendFups() {
       });
 
       for (const contato of prontosFup1) {
-        if (processados >= MAX_POR_RODADA) break;
+        if (enviadosCat >= limite) break;
 
-        // Verifica resposta em tempo real antes de enviar
         const replyCheck = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
         if (replyCheck.hasReply) {
           await writeSheet(
@@ -58,7 +67,6 @@ async function runSendFups() {
             [['RESPONDIDO', 'RESPONDIDO']],
             spreadsheetId
           );
-          processados++;
           continue;
         }
 
@@ -86,8 +94,7 @@ async function runSendFups() {
           [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
           spreadsheetId
         );
-        if (result.success) totalFups++;
-        processados++;
+        if (result.success) { totalFups++; enviadosCat++; }
         await new Promise(r => setTimeout(r, 500));
       }
 
@@ -103,9 +110,8 @@ async function runSendFups() {
       });
 
       for (const contato of prontosFup2) {
-        if (processados >= MAX_POR_RODADA) break;
+        if (enviadosCat >= limite) break;
 
-        // Verifica resposta em tempo real antes de enviar
         const replyCheck2 = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
         if (replyCheck2.hasReply) {
           await writeSheet(
@@ -113,7 +119,6 @@ async function runSendFups() {
             [['RESPONDIDO']],
             spreadsheetId
           );
-          processados++;
           continue;
         }
 
@@ -141,14 +146,22 @@ async function runSendFups() {
           [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
           spreadsheetId
         );
-        if (result.success) totalFups++;
-        processados++;
+        if (result.success) { totalFups++; enviadosCat++; }
         await new Promise(r => setTimeout(r, 500));
+      }
+
+      // Grava ultimoEnvio após lote de FUPs
+      if (enviadosCat > 0) {
+        await writeSheet(
+          'Painel!I' + cat.rowIndex,
+          [[new Date().toISOString()]],
+          spreadsheetId
+        );
       }
     }
   }
 
-  return { ok: true, fups: totalFups };
+  return { ok: true, fups: totalFups, pulados };
 }
 
 export async function GET() {
