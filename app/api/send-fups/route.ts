@@ -47,9 +47,6 @@ async function runSendFups() {
       const hoje = new Date();
       let enviadosCat = 0;
 
-      // Grava ultimoEnvio ANTES do loop para bloquear chamadas concorrentes
-      await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
-
       const prontosFup1 = contacts.filter(c => {
         if (c.category.normalize('NFC') !== cat.category.normalize('NFC')) return false;
         if (!c.email1Enviado.startsWith('OK')) return false;
@@ -59,6 +56,22 @@ async function runSendFups() {
         const diffDias = Math.floor((hoje.getTime() - new Date(dataEnvio).getTime()) / 86400000);
         return diffDias >= (cat.diasFup1 || 3);
       });
+
+      const prontosFup2 = contacts.filter(c => {
+        if (c.category.normalize('NFC') !== cat.category.normalize('NFC')) return false;
+        if (!c.fup1Enviado.startsWith('OK')) return false;
+        if (c.fup2Enviado) return false;
+        if (!c.threadId) return false;
+        if (c.fup1Enviado.includes('RESPONDIDO')) return false;
+        const dataFup1 = c.fup1Enviado.replace('OK ', '');
+        const diffDias = Math.floor((hoje.getTime() - new Date(dataFup1).getTime()) / 86400000);
+        return diffDias >= (cat.diasFup2 || 7);
+      });
+
+      if (prontosFup1.length === 0 && prontosFup2.length === 0) continue;
+
+      // Só bloqueia o slot de 55min se há FUPs reais para enviar
+      await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
 
       for (const contato of prontosFup1) {
         if (enviadosCat >= limite) break;
@@ -100,17 +113,6 @@ async function runSendFups() {
         if (result.success) { totalFups++; enviadosCat++; }
         await new Promise(r => setTimeout(r, 500));
       }
-
-      const prontosFup2 = contacts.filter(c => {
-        if (c.category.normalize('NFC') !== cat.category.normalize('NFC')) return false;
-        if (!c.fup1Enviado.startsWith('OK')) return false;
-        if (c.fup2Enviado) return false;
-        if (!c.threadId) return false;
-        if (c.fup1Enviado.includes('RESPONDIDO')) return false;
-        const dataFup1 = c.fup1Enviado.replace('OK ', '');
-        const diffDias = Math.floor((hoje.getTime() - new Date(dataFup1).getTime()) / 86400000);
-        return diffDias >= (cat.diasFup2 || 7);
-      });
 
       for (const contato of prontosFup2) {
         if (enviadosCat >= limite) break;

@@ -49,11 +49,6 @@ async function runSendEmails(category?: string, force = false) {
       await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
 
       for (const contato of lote) {
-        // Re-check sheet to prevent duplicate sends (race condition / Vercel retries)
-        const { contacts: fresh } = await readContatos(spreadsheetId);
-        const freshContato = fresh.find(c => c.rowIndex === contato.rowIndex);
-        if (freshContato?.email1Enviado) continue;
-
         const assunto = template.assunto
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
