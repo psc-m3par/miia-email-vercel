@@ -38,15 +38,26 @@ async function runCheckReplies() {
         const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
 
         if (result.hasReply) {
-          if (contato.fup1Enviado.startsWith('OK')) {
+          // Marca RESPONDIDO em todas as colunas pendentes (I e J)
+          // para bloquear qualquer follow-up futuro
+          if (!contato.fup1Enviado) {
+            // Respondeu após Email 1 — marca FUP1 e FUP2 como RESPONDIDO
+            await writeSheet(
+              'Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex,
+              [['RESPONDIDO', 'RESPONDIDO']],
+              spreadsheetId
+            );
+          } else if (contato.fup1Enviado.startsWith('OK') && !contato.fup2Enviado) {
+            // Respondeu após FUP1 — marca FUP2 como RESPONDIDO
             await writeSheet(
               'Contatos!J' + contato.rowIndex,
               [['RESPONDIDO']],
               spreadsheetId
             );
-          } else {
+          } else if (contato.fup2Enviado.startsWith('OK')) {
+            // Respondeu após FUP2 — marca FUP2 como RESPONDIDO
             await writeSheet(
-              'Contatos!I' + contato.rowIndex,
+              'Contatos!J' + contato.rowIndex,
               [['RESPONDIDO']],
               spreadsheetId
             );

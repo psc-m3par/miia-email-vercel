@@ -28,7 +28,7 @@ async function runSendEmails(category?: string) {
         c.category.normalize('NFC') === cat.category.normalize('NFC') && !c.email1Enviado && c.email
       );
 
-      const lote = pendentes.slice(0, 20); // TEST MODE: fixo 20 por rodada
+      const lote = pendentes.slice(0, cat.emailsHora || 20);
 
       for (const contato of lote) {
         const assunto = template.assunto
