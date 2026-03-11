@@ -50,9 +50,10 @@ export async function appendSheet(range: string, values: any[][], spreadsheetId?
 }
 
 export async function readPainel(spreadsheetId?: string) {
-  const rows = await readSheet('Painel!A:H', spreadsheetId);
+  const rows = await readSheet('Painel!A:I', spreadsheetId);
   if (rows.length < 2) return [];
-  return rows.slice(1).filter(r => r[0]).map(r => ({
+  return rows.slice(1).filter(r => r[0]).map((r, i) => ({
+    rowIndex: i + 2,
     category: r[0] || '',
     responsavel: r[1] || '',
     nomeRemetente: r[2] || '',
@@ -61,6 +62,7 @@ export async function readPainel(spreadsheetId?: string) {
     diasFup2: parseInt(r[5]) || 7,
     ativo: (r[6] || '').toString().toUpperCase() === 'SIM',
     cc: r[7] || '',
+    ultimoEnvio: r[8] || '',
   }));
 }
 

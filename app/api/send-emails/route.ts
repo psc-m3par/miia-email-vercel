@@ -5,10 +5,13 @@ import { sendEmail } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-async function runSendEmails(category?: string) {
+const MINUTOS_ENTRE_LOTES = 55;
+
+async function runSendEmails(category?: string, force = false) {
   const allIds = getAllSpreadsheetIds();
   let totalEnviados = 0;
   let erros: string[] = [];
+  const pulados: string[] = [];
 
   for (const spreadsheetId of allIds) {
     const [painel, templates, { contacts }] = await Promise.all([
@@ -21,6 +24,16 @@ async function runSendEmails(category?: string) {
       if (!cat.ativo) continue;
       if (category && cat.category.normalize('NFC') !== category.normalize('NFC')) continue;
 
+      // Rate limiting: skip if last send was less than 55 minutes ago (cron protection)
+      if (!force && cat.ultimoEnvio) {
+        const minutosSinceLastSend = (Date.now() - new Date(cat.ultimoEnvio).getTime()) / 60000;
+        if (minutosSinceLastSend < MINUTOS_ENTRE_LOTES) {
+          const proxEnvio = Math.ceil(MINUTOS_ENTRE_LOTES - minutosSinceLastSend);
+          pulados.push(`"${cat.category}" aguardando ${proxEnvio}min para próximo lote`);
+          continue;
+        }
+      }
+
       const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
       if (!template) continue;
 
@@ -29,6 +42,7 @@ async function runSendEmails(category?: string) {
       );
 
       const lote = pendentes.slice(0, cat.emailsHora || 20);
+      let enviadosCat = 0;
 
       for (const contato of lote) {
         // Re-check sheet to prevent duplicate sends (race condition / Vercel retries)
@@ -77,25 +91,36 @@ async function runSendEmails(category?: string) {
         }
 
         await new Promise(r => setTimeout(r, 500));
+        if (result.success) enviadosCat++;
+      }
+
+      // Update ultimoEnvio timestamp in Painel after sending batch
+      if (enviadosCat > 0) {
+        await writeSheet(
+          'Painel!I' + cat.rowIndex,
+          [[new Date().toISOString()]],
+          spreadsheetId
+        );
       }
     }
   }
 
-  return { ok: true, enviados: totalEnviados, erros };
+  return { ok: true, enviados: totalEnviados, erros, pulados };
 }
 
 export async function GET(req: NextRequest) {
-  const result = await runSendEmails();
+  const result = await runSendEmails(undefined, false);
   return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const result = await runSendEmails(body.category);
+    // Manual "Enviar Agora" button always forces send (bypasses rate limit)
+    const result = await runSendEmails(body.category, true);
     return NextResponse.json(result);
   } catch {
-    const result = await runSendEmails();
+    const result = await runSendEmails(undefined, true);
     return NextResponse.json(result);
   }
 }
