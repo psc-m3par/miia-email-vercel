@@ -10,18 +10,14 @@ const MAX_POR_RODADA = 20;
 async function runCheckReplies() {
   const allIds = getAllSpreadsheetIds();
   let totalRespondidos = 0;
-  let processados = 0;
 
   for (const spreadsheetId of allIds) {
-    if (processados >= MAX_POR_RODADA) break;
-
     const [painel, { contacts }] = await Promise.all([
       readPainel(spreadsheetId),
       readContatos(spreadsheetId),
     ]);
 
     for (const cat of painel) {
-      if (processados >= MAX_POR_RODADA) break;
       if (!cat.ativo) continue;
 
       const enviados = contacts.filter(c =>
@@ -32,8 +28,11 @@ async function runCheckReplies() {
         !c.fup2Enviado.includes('RESPONDIDO')
       );
 
+      // Limite por categoria (não global) para não estourar o timeout de 60s
+      let processadosCat = 0;
+
       for (const contato of enviados) {
-        if (processados >= MAX_POR_RODADA) break;
+        if (processadosCat >= MAX_POR_RODADA) break;
 
         const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
 
@@ -65,8 +64,8 @@ async function runCheckReplies() {
           totalRespondidos++;
         }
 
-        processados++;
-        await new Promise(r => setTimeout(r, 500));
+        processadosCat++;
+        await new Promise(r => setTimeout(r, 300));
       }
     }
   }
