@@ -31,6 +31,11 @@ async function runSendEmails(category?: string) {
       const lote = pendentes.slice(0, cat.emailsHora || 20);
 
       for (const contato of lote) {
+        // Re-check sheet to prevent duplicate sends (race condition / Vercel retries)
+        const { contacts: fresh } = await readContatos(spreadsheetId);
+        const freshContato = fresh.find(c => c.rowIndex === contato.rowIndex);
+        if (freshContato?.email1Enviado) continue;
+
         const assunto = template.assunto
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
