@@ -43,15 +43,8 @@ export default function DashboardPage() {
   // Server-side rate limiting (55min window) ensures no over-sending.
   const triggerScheduler = useCallback(() => {
     fetch('/api/send-emails').catch(() => {});
+    fetch('/api/send-fups').catch(() => {});
     fetch('/api/check-replies').catch(() => {});
-
-    // FUPs: only trigger once per day (track in sessionStorage)
-    const lastFupTrigger = sessionStorage.getItem('lastFupTrigger');
-    const hoje = new Date().toISOString().split('T')[0];
-    if (lastFupTrigger !== hoje) {
-      fetch('/api/send-fups').catch(() => {});
-      sessionStorage.setItem('lastFupTrigger', hoje);
-    }
   }, []);
 
   useEffect(() => {

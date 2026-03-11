@@ -5,7 +5,7 @@ import { sendReply, checkReplies } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MAX_POR_RODADA = 15;
+const MAX_POR_RODADA = 50;
 
 async function runSendFups() {
   const allIds = getAllSpreadsheetIds();
