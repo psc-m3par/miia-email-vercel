@@ -100,7 +100,7 @@ export async function checkReplies(
   senderEmail: string,
   threadId: string,
   spreadsheetId?: string
-): Promise<{ hasReply: boolean; error?: string }> {
+): Promise<{ hasReply: boolean; isBounce?: boolean; error?: string }> {
   const accessToken = await getValidAccessToken(senderEmail, spreadsheetId);
   if (!accessToken) {
     return { hasReply: false, error: 'Token nao encontrado para ' + senderEmail };
@@ -120,11 +120,17 @@ export async function checkReplies(
 
   if (messages.length <= 1) return { hasReply: false };
 
+  const BOUNCE_PATTERNS = ['mailer-daemon', 'postmaster', 'mail delivery subsystem', 'delivery status notification', 'mailer-daemon@'];
+
   for (const msg of messages) {
     const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === 'from');
-    if (fromHeader && !fromHeader.value.toLowerCase().includes(senderEmail.toLowerCase())) {
-      return { hasReply: true };
+    if (!fromHeader) continue;
+    const fromVal = fromHeader.value.toLowerCase();
+    if (fromVal.includes(senderEmail.toLowerCase())) continue;
+    if (BOUNCE_PATTERNS.some(p => fromVal.includes(p))) {
+      return { hasReply: true, isBounce: true };
     }
+    return { hasReply: true, isBounce: false };
   }
 
   return { hasReply: false };

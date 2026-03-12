@@ -47,6 +47,7 @@ export default function ContactsPage() {
   };
 
   const getStatus = (c: Contact) => {
+    if (c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE') return 'bounce';
     if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
     if (c.fup2Enviado?.startsWith('OK')) return 'fup2';
     if (c.fup1Enviado?.startsWith('OK')) return 'fup1';
@@ -56,12 +57,13 @@ export default function ContactsPage() {
   };
 
   const statusLabel: Record<string, { label: string; bg: string; text: string }> = {
-    pendente:   { label: 'Pendente',    bg: 'bg-slate-100',  text: 'text-slate-600' },
-    email1:     { label: 'Email 1',     bg: 'bg-blue-100',   text: 'text-blue-700' },
-    fup1:       { label: 'FUP1',        bg: 'bg-indigo-100', text: 'text-indigo-700' },
-    fup2:       { label: 'FUP2',        bg: 'bg-purple-100', text: 'text-purple-700' },
-    respondido: { label: 'Respondido',  bg: 'bg-green-100',  text: 'text-green-700' },
-    erro:       { label: 'Erro',        bg: 'bg-red-100',    text: 'text-red-700' },
+    pendente:   { label: 'Pendente',       bg: 'bg-slate-100',  text: 'text-slate-600' },
+    email1:     { label: 'Email 1',        bg: 'bg-blue-100',   text: 'text-blue-700' },
+    fup1:       { label: 'FUP1',           bg: 'bg-indigo-100', text: 'text-indigo-700' },
+    fup2:       { label: 'FUP2',           bg: 'bg-purple-100', text: 'text-purple-700' },
+    respondido: { label: 'Respondido',     bg: 'bg-green-100',  text: 'text-green-700' },
+    bounce:     { label: 'Não encontrado', bg: 'bg-orange-100', text: 'text-orange-700' },
+    erro:       { label: 'Erro',           bg: 'bg-red-100',    text: 'text-red-700' },
   };
 
   const filtered = contacts.filter(c => {
