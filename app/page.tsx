@@ -392,29 +392,64 @@ function getHealth(rotina: string, s: any, ativo: boolean, lastLog?: LogEntry): 
 
 function MonitorTable({ painel, stats, logs }: { painel: any[]; stats: Record<string, any>; logs: LogEntry[] }) {
   const ROTINAS = ['Email 1', 'FUP1', 'FUP2', 'Check Replies'];
+  const [filtroStatus, setFiltroStatus] = useState<'todas' | 'ativo' | 'pausado'>('todas');
+  const [filtroRotina, setFiltroRotina] = useState<string>('todas');
 
-  // Index last log per rotina+categoria
   const lastLog: Record<string, LogEntry> = {};
   for (const log of [...logs].reverse()) {
     const key = log.rotina + '||' + log.categoria;
     if (!lastLog[key]) lastLog[key] = log;
   }
 
-  const rows: { rotina: string; cat: any; s: any; last?: LogEntry; health: HealthStatus }[] = [];
+  const allRows: { rotina: string; cat: any; s: any; last?: LogEntry; health: HealthStatus }[] = [];
   for (const rotina of ROTINAS) {
     for (const cat of painel) {
       const s = stats[cat.category] || {};
       const last = lastLog[rotina + '||' + cat.category];
       const health = getHealth(rotina, s, cat.ativo, last);
-      rows.push({ rotina, cat, s, last, health });
+      allRows.push({ rotina, cat, s, last, health });
     }
   }
 
+  const rows = allRows.filter(row => {
+    if (filtroStatus === 'ativo' && !row.cat.ativo) return false;
+    if (filtroStatus === 'pausado' && row.cat.ativo) return false;
+    if (filtroRotina !== 'todas' && row.rotina !== filtroRotina) return false;
+    return true;
+  });
+
+  const FilterChip = ({ label, value, current, set }: { label: string; value: string; current: string; set: (v: any) => void }) => (
+    <button
+      onClick={() => set(value)}
+      className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+        current === value
+          ? 'bg-miia-500 text-white'
+          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+      }`}>
+      {label}
+    </button>
+  );
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
-      <div className="px-5 py-4 border-b border-slate-100">
-        <h2 className="font-display text-base font-bold text-slate-800">Monitoramento de Rotinas</h2>
-        <p className="text-[11px] text-slate-400 mt-0.5">Estado em tempo real de cada rotina por categoria</p>
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="font-display text-base font-bold text-slate-800">Monitoramento de Rotinas</h2>
+          <p className="text-[11px] text-slate-400 mt-0.5">Estado em tempo real — {rows.length} linha(s) visível(is)</p>
+        </div>
+        <div className="flex gap-4 flex-wrap">
+          <div className="flex gap-1">
+            <FilterChip label="Todas" value="todas" current={filtroStatus} set={setFiltroStatus} />
+            <FilterChip label="Ativo" value="ativo" current={filtroStatus} set={setFiltroStatus} />
+            <FilterChip label="Pausado" value="pausado" current={filtroStatus} set={setFiltroStatus} />
+          </div>
+          <div className="flex gap-1">
+            <FilterChip label="Todas rotinas" value="todas" current={filtroRotina} set={setFiltroRotina} />
+            {ROTINAS.map(r => (
+              <FilterChip key={r} label={r} value={r} current={filtroRotina} set={setFiltroRotina} />
+            ))}
+          </div>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -429,7 +464,9 @@ function MonitorTable({ painel, stats, logs }: { painel: any[]; stats: Record<st
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
+            {rows.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Nenhuma rotina encontrada com este filtro</td></tr>
+            ) : rows.map((row, i) => (
               <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
                 <td className="px-4 py-2.5">
                   <span className={`font-semibold ${
@@ -440,8 +477,8 @@ function MonitorTable({ painel, stats, logs }: { painel: any[]; stats: Record<st
                 </td>
                 <td className="px-4 py-2.5 font-medium text-slate-700">{row.cat.category}</td>
                 <td className="px-4 py-2.5 text-center">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${row.cat.ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {row.cat.ativo ? 'Ativo' : 'Inativo'}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${row.cat.ativo ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {row.cat.ativo ? 'Ativo' : 'Pausado'}
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-center">
