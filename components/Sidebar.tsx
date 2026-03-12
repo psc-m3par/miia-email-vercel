@@ -66,8 +66,17 @@ function IconGmail({ className }: { className?: string }) {
   );
 }
 
+function IconMonitor({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+
 const NAV = [
   { href: '/', label: 'Dashboard', Icon: IconDashboard },
+  { href: '/monitor', label: 'Monitor', Icon: IconMonitor },
   { href: '/upload', label: 'Upload Apollo', Icon: IconUpload },
   { href: '/templates', label: 'Templates', Icon: IconTemplates },
   { href: '/contacts', label: 'Contatos', Icon: IconContatos },

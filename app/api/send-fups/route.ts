@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { sendReply, checkReplies } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -155,6 +155,12 @@ async function runSendFups() {
         await new Promise(r => setTimeout(r, 500));
       }
 
+      if (enviadosCat > 0) {
+        const fup1Sent = prontosFup1.filter((_: any, i: number) => i < enviadosCat).length;
+        const fup2Sent = enviadosCat - fup1Sent;
+        if (fup1Sent > 0) await appendLog('FUP1', cat.category, fup1Sent, 'ok', `${fup1Sent} FUP1s enviados`, spreadsheetId);
+        if (fup2Sent > 0) await appendLog('FUP2', cat.category, fup2Sent, 'ok', `${fup2Sent} FUP2s enviados`, spreadsheetId);
+      }
     }
   }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +44,7 @@ async function runSendEmails(category?: string, force = false) {
       const lote = pendentes.slice(0, cat.emailsHora || 20);
       if (lote.length === 0) continue;
       let enviadosCat = 0;
+      let errosCat = 0;
 
       // Grava ultimoEnvio ANTES do loop para bloquear chamadas concorrentes imediatamente
       await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
@@ -87,12 +88,19 @@ async function runSendEmails(category?: string, force = false) {
             spreadsheetId
           );
           erros.push(contato.email + ': ' + result.error);
+          errosCat++;
         }
 
         await new Promise(r => setTimeout(r, 500));
         if (result.success) enviadosCat++;
       }
 
+      if (enviadosCat > 0) {
+        await appendLog('Email 1', cat.category, enviadosCat, 'ok', `${enviadosCat} emails enviados (${pendentes.length - enviadosCat} restantes)`, spreadsheetId);
+      }
+      if (errosCat > 0) {
+        await appendLog('Email 1', cat.category, errosCat, 'erro', `${errosCat} falhas: ${erros.slice(-errosCat).join('; ')}`, spreadsheetId);
+      }
     }
   }
 

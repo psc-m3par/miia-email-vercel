@@ -156,6 +156,49 @@ export async function appendContacts(contacts: any[][], spreadsheetId?: string) 
   await appendSheet('Contatos!A:G', contacts, spreadsheetId);
 }
 
+export async function appendLog(
+  rotina: string, categoria: string, quantidade: number,
+  status: 'ok' | 'erro', detalhes: string, spreadsheetId?: string
+) {
+  const sid = spreadsheetId || SPREADSHEET_ID;
+  const ts = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });
+  const row = [[ts, rotina, categoria, quantidade, status, detalhes]];
+  try {
+    await appendSheet('Logs!A:F', row, sid);
+  } catch {
+    try {
+      const sheets = getSheets();
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sid,
+        requestBody: { requests: [{ addSheet: { properties: { title: 'Logs' } } }] },
+      });
+      await writeSheet('Logs!A1:F1', [['Timestamp', 'Rotina', 'Categoria', 'Qtd', 'Status', 'Detalhes']], sid);
+      await appendSheet('Logs!A:F', row, sid);
+    } catch { /* best-effort */ }
+  }
+}
+
+export async function readLogs(spreadsheetId?: string, limit = 150) {
+  try {
+    const rows = await readSheet('Logs!A:F', spreadsheetId);
+    if (rows.length < 2) return [];
+    return rows.slice(1)
+      .filter((r: any[]) => r[0])
+      .map((r: any[]) => ({
+        timestamp: r[0] || '',
+        rotina: r[1] || '',
+        categoria: r[2] || '',
+        quantidade: parseInt(r[3]) || 0,
+        status: r[4] || '',
+        detalhes: r[5] || '',
+      }))
+      .slice(-limit)
+      .reverse();
+  } catch {
+    return [];
+  }
+}
+
 async function getSheetId(sheetName: string, spreadsheetId?: string): Promise<number | null> {
   const sheets = getSheets();
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: spreadsheetId || SPREADSHEET_ID });

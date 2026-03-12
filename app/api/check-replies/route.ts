@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readPainel, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readPainel, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { checkReplies } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +30,7 @@ async function runCheckReplies() {
 
       // Limite por categoria (não global) para não estourar o timeout de 60s
       let processadosCat = 0;
+      let respondidosCat = 0;
 
       for (const contato of enviados) {
         if (processadosCat >= MAX_POR_RODADA) break;
@@ -62,10 +63,15 @@ async function runCheckReplies() {
             );
           }
           totalRespondidos++;
+          respondidosCat++;
         }
 
         processadosCat++;
         await new Promise(r => setTimeout(r, 300));
+      }
+
+      if (respondidosCat > 0) {
+        await appendLog('Check Replies', cat.category, respondidosCat, 'ok', `${respondidosCat} resposta(s) detectada(s)`, spreadsheetId);
       }
     }
   }
