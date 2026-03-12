@@ -143,6 +143,7 @@ export default function DashboardPage() {
       await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'email_relatorio', value: reportConfig.email_relatorio }) });
       setReportMsg('Salvo!');
       setTimeout(() => setReportMsg(''), 3000);
+      loadData();
     } catch { setReportMsg('Erro ao salvar'); }
     finally { setSavingReport(false); }
   };
