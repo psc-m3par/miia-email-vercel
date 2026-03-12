@@ -5,7 +5,7 @@ function createRawEmail(from: string, to: string, subject: string, htmlBody: str
   let headers = [
     'From: ' + from,
     'To: ' + to,
-    'Subject: ' + subject,
+    'Subject: =?UTF-8?B?' + Buffer.from(subject, 'utf-8').toString('base64') + '?=',
     'MIME-Version: 1.0',
     'Content-Type: multipart/alternative; boundary="' + boundary + '"',
   ];
