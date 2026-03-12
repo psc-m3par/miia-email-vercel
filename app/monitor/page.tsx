@@ -43,18 +43,21 @@ export default function MonitorPage() {
   const [filterCat, setFilterCat] = useState<string>('');
   const [forçando, setForçando] = useState<string>('');
   const [resultado, setResultado] = useState<{ key: string; msg: string; ok: boolean } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(() => {
+    setRefreshing(true);
+    const t = Date.now();
     Promise.all([
-      fetch('/api/monitor?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
-      fetch('/api/sheets?type=painel&t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/monitor?t=' + t, { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/sheets?type=painel&t=' + t, { cache: 'no-store' }).then(r => r.json()),
     ]).then(([monitorData, painelData]) => {
       if (monitorData.logs) setLogs(monitorData.logs);
       if (Array.isArray(painelData)) setPainel(painelData);
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).catch(() => {
       setLastUpdate('erro ao carregar — ' + new Date().toLocaleTimeString('pt-BR'));
-    }).finally(() => setLoading(false));
+    }).finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
   const forceRun = async (rotina: string, category: string) => {
@@ -121,8 +124,8 @@ export default function MonitorPage() {
           <h1 className="font-display text-3xl font-bold text-slate-800">Monitor de Rotinas</h1>
           <p className="text-slate-400 text-xs mt-1">Atualiza a cada 30s | Ultima: {lastUpdate}</p>
         </div>
-        <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
-          Atualizar
+        <button onClick={loadData} disabled={refreshing} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 disabled:opacity-60">
+          {refreshing ? 'Atualizando...' : 'Atualizar'}
         </button>
       </div>
 
@@ -131,9 +134,11 @@ export default function MonitorPage() {
         {ROTINAS.map(rotina => {
           const rotinaLogs = logs.filter(l => l.rotina === rotina);
           const last = rotinaLogs[0];
-          const totalHoje = rotinaLogs
-            .filter(l => l.timestamp.startsWith(new Date().toLocaleDateString('pt-BR')))
-            .reduce((s, l) => s + l.quantidade, 0);
+          const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
+          const logsHoje = rotinaLogs.filter(l => l.timestamp.startsWith(hoje));
+          const totalHoje = rotina === 'Check Replies'
+            ? logsHoje.length
+            : logsHoje.reduce((s, l) => s + l.quantidade, 0);
           const erros = rotinaLogs.filter(l => l.status === 'erro').length;
           const c = ROTINA_COLORS[rotina] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-400' };
 
@@ -144,7 +149,7 @@ export default function MonitorPage() {
                 <span className={`text-sm font-semibold ${c.text}`}>{rotina}</span>
               </div>
               <div className="text-2xl font-bold font-display text-slate-800 mb-1">{totalHoje}</div>
-              <div className="text-[10px] text-slate-500 mb-2">hoje</div>
+              <div className="text-[10px] text-slate-500 mb-2">{rotina === 'Check Replies' ? 'execuções hoje' : 'hoje'}</div>
               {last ? (
                 <div className="text-[10px] text-slate-500">
                   Ultimo: <strong>{timeAgo(last.timestamp)}</strong>
