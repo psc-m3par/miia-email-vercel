@@ -37,23 +37,50 @@ function timeAgo(tsStr: string): string {
 export default function MonitorPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [painel, setPainel] = useState<any[]>([]);
-  const [stats, setStats] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
   const [filterRotina, setFilterRotina] = useState<string>('');
   const [filterCat, setFilterCat] = useState<string>('');
+  const [forçando, setForçando] = useState<string>('');
+  const [resultado, setResultado] = useState<{ key: string; msg: string; ok: boolean } | null>(null);
 
   const loadData = useCallback(() => {
-    fetch('/api/monitor', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.logs) setLogs(data.logs);
-        if (data.painel) setPainel(data.painel);
-        if (data.stats) setStats(data.stats);
-        setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
-      })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/monitor', { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/sheets?type=painel', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([monitorData, painelData]) => {
+      if (monitorData.logs) setLogs(monitorData.logs);
+      if (Array.isArray(painelData)) setPainel(painelData);
+      setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
+    }).finally(() => setLoading(false));
   }, []);
+
+  const forceRun = async (rotina: string, category: string) => {
+    const key = rotina + '||' + category;
+    setForçando(key);
+    setResultado(null);
+    try {
+      let res: Response;
+      if (rotina === 'Email 1') {
+        res = await fetch('/api/send-emails', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) });
+        const d = await res.json();
+        setResultado({ key, ok: true, msg: d.enviados > 0 ? `${d.enviados} email(s) enviado(s)` : d.pulados?.[0] || 'Nenhum pendente' });
+      } else if (rotina === 'FUP1' || rotina === 'FUP2') {
+        res = await fetch('/api/send-fups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) });
+        const d = await res.json();
+        setResultado({ key, ok: true, msg: d.fups > 0 ? `${d.fups} FUP(s) enviado(s)` : d.pulados?.[0] || 'Nenhum FUP pendente no prazo' });
+      } else {
+        res = await fetch('/api/check-replies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) });
+        const d = await res.json();
+        setResultado({ key, ok: true, msg: d.respondidos > 0 ? `${d.respondidos} resposta(s) detectada(s)` : 'Nenhuma nova resposta' });
+      }
+      setTimeout(() => { setResultado(null); loadData(); }, 4000);
+    } catch (e: any) {
+      setResultado({ key, ok: false, msg: 'Erro: ' + e.message });
+    } finally {
+      setForçando('');
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -129,69 +156,79 @@ export default function MonitorPage() {
         })}
       </div>
 
-      {/* Status por categoria */}
+      {/* Painel de execução por categoria */}
       {painel.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
-          <h2 className="font-display text-base font-bold text-slate-800 mb-4">Status por Categoria</h2>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h2 className="font-display text-base font-bold text-slate-800">Execução por Categoria</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">Última execução e botões para forçar cada rotina individualmente</p>
+          </div>
+          {resultado && (
+            <div className={`mx-5 mt-3 px-4 py-2 rounded-lg text-xs font-medium ${resultado.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {resultado.msg}
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left py-2 px-3 text-slate-500 font-medium">Categoria</th>
-                  <th className="text-center py-2 px-3 text-slate-500 font-medium">Estado</th>
-                  <th className="text-center py-2 px-3 text-blue-600 font-medium">Email 1</th>
-                  <th className="text-center py-2 px-3 text-indigo-600 font-medium">FUP1</th>
-                  <th className="text-center py-2 px-3 text-purple-600 font-medium">FUP2</th>
-                  <th className="text-center py-2 px-3 text-green-600 font-medium">Replies</th>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left py-2.5 px-4 text-slate-500 font-medium">Categoria</th>
+                  <th className="text-center py-2.5 px-4 text-slate-400 font-medium">Status</th>
+                  <th className="text-center py-2.5 px-4 text-blue-600 font-medium">Email 1</th>
+                  <th className="text-center py-2.5 px-4 text-indigo-600 font-medium">FUP1</th>
+                  <th className="text-center py-2.5 px-4 text-purple-600 font-medium">FUP2</th>
+                  <th className="text-center py-2.5 px-4 text-green-600 font-medium">Check Replies</th>
                 </tr>
               </thead>
               <tbody>
                 {painel.map((cat: any) => {
-                  const s = stats[cat.category] || {};
-                  const lastEmail = lastPerRotina['Email 1||' + cat.category];
-                  const lastFup1 = lastPerRotina['FUP1||' + cat.category];
-                  const lastFup2 = lastPerRotina['FUP2||' + cat.category];
-                  const lastReply = lastPerRotina['Check Replies||' + cat.category];
+                  const mkKey = (r: string) => r + '||' + cat.category;
+                  const lastEmail = lastPerRotina[mkKey('Email 1')];
+                  const lastFup1  = lastPerRotina[mkKey('FUP1')];
+                  const lastFup2  = lastPerRotina[mkKey('FUP2')];
+                  const lastReply = lastPerRotina[mkKey('Check Replies')];
+
+                  const ForceBtn = ({ rotina, color }: { rotina: string; color: string }) => {
+                    const key = mkKey(rotina);
+                    const running = forçando === key;
+                    const res = resultado?.key === key ? resultado : null;
+                    return (
+                      <div className="flex flex-col items-center gap-1">
+                        {(() => {
+                          const last = lastPerRotina[key];
+                          return last ? (
+                            <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
+                              {last.quantidade} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
+                            </div>
+                          ) : <span className="text-slate-300 text-[10px]">sem registro</span>;
+                        })()}
+                        {res && <span className={`text-[10px] font-medium ${res.ok ? 'text-green-600' : 'text-red-500'}`}>{res.msg}</span>}
+                        <button
+                          disabled={!!forçando}
+                          onClick={() => forceRun(rotina, cat.category)}
+                          className={`mt-0.5 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                            running
+                              ? 'bg-slate-100 text-slate-400 cursor-wait'
+                              : 'bg-slate-100 text-slate-600 hover:bg-miia-500 hover:text-white'
+                          }`}>
+                          {running ? 'rodando...' : 'Forçar'}
+                        </button>
+                      </div>
+                    );
+                  };
+
                   return (
-                    <tr key={cat.category} className="border-b border-slate-50 hover:bg-slate-50/50">
-                      <td className="py-2.5 px-3 font-medium text-slate-700">{cat.category}</td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${cat.ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <tr key={cat.category} className="border-b border-slate-50 hover:bg-slate-50/30">
+                      <td className="py-3 px-4 font-medium text-slate-700">{cat.category}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${cat.ativo ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-600'}`}>
                           {cat.ativo ? 'Ativo' : 'Pausado'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-center">
-                        {lastEmail ? (
-                          <div>
-                            <div className={`font-bold ${lastEmail.status === 'ok' ? 'text-blue-600' : 'text-red-500'}`}>{lastEmail.quantidade}</div>
-                            <div className="text-slate-400">{timeAgo(lastEmail.timestamp)}</div>
-                          </div>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        {lastFup1 ? (
-                          <div>
-                            <div className="font-bold text-indigo-600">{lastFup1.quantidade}</div>
-                            <div className="text-slate-400">{timeAgo(lastFup1.timestamp)}</div>
-                          </div>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        {lastFup2 ? (
-                          <div>
-                            <div className="font-bold text-purple-600">{lastFup2.quantidade}</div>
-                            <div className="text-slate-400">{timeAgo(lastFup2.timestamp)}</div>
-                          </div>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        {lastReply ? (
-                          <div>
-                            <div className="font-bold text-green-600">{lastReply.quantidade}</div>
-                            <div className="text-slate-400">{timeAgo(lastReply.timestamp)}</div>
-                          </div>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="Email 1" color="text-blue-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP1" color="text-indigo-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP2" color="text-purple-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="Check Replies" color="text-green-600" /></td>
                     </tr>
                   );
                 })}

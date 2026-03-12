@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readPainel, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { checkReplies } from '@/lib/gmail';
 
@@ -7,7 +7,7 @@ export const maxDuration = 60;
 
 const MAX_POR_RODADA = 20;
 
-async function runCheckReplies() {
+async function runCheckReplies(category?: string) {
   const allIds = getAllSpreadsheetIds();
   let totalRespondidos = 0;
 
@@ -18,7 +18,8 @@ async function runCheckReplies() {
     ]);
 
     for (const cat of painel) {
-      if (!cat.ativo) continue;
+      if (!category && !cat.ativo) continue;
+      if (category && cat.category.normalize('NFC') !== category.normalize('NFC')) continue;
 
       const enviados = contacts.filter(c =>
         c.category.normalize('NFC') === cat.category.normalize('NFC') &&
@@ -84,7 +85,13 @@ export async function GET() {
   return NextResponse.json(result);
 }
 
-export async function POST() {
-  const result = await runCheckReplies();
-  return NextResponse.json(result);
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const result = await runCheckReplies(body.category);
+    return NextResponse.json(result);
+  } catch {
+    const result = await runCheckReplies();
+    return NextResponse.json(result);
+  }
 }

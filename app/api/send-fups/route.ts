@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { sendReply, checkReplies } from '@/lib/gmail';
 
@@ -7,7 +7,7 @@ export const maxDuration = 60;
 
 const MINUTOS_ENTRE_LOTES = 55;
 
-async function runSendFups() {
+async function runSendFups(category?: string, force = false) {
   const allIds = getAllSpreadsheetIds();
   let totalFups = 0;
   const pulados: string[] = [];
@@ -21,17 +21,20 @@ async function runSendFups() {
 
     for (const cat of painel) {
       if (!cat.ativo) continue;
+      if (category && cat.category.normalize('NFC') !== category.normalize('NFC')) continue;
 
       // Janela de horário: só roda entre horaInicio e horaFim (hora local de Brasília)
-      const horaBrasilia = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
-      const horaAtual = parseInt(horaBrasilia);
-      if (horaAtual < cat.horaInicio || horaAtual >= cat.horaFim) {
-        pulados.push(`"${cat.category}" fora da janela (${cat.horaInicio}h-${cat.horaFim}h, agora ${horaAtual}h)`);
-        continue;
+      if (!force) {
+        const horaBrasilia = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
+        const horaAtual = parseInt(horaBrasilia);
+        if (horaAtual < cat.horaInicio || horaAtual >= cat.horaFim) {
+          pulados.push(`"${cat.category}" fora da janela (${cat.horaInicio}h-${cat.horaFim}h, agora ${horaAtual}h)`);
+          continue;
+        }
       }
 
       // Rate limiting: mesma lógica do send-emails (55 min entre lotes)
-      if (cat.ultimoEnvio) {
+      if (!force && cat.ultimoEnvio) {
         const minutosSinceLastSend = (Date.now() - new Date(cat.ultimoEnvio).getTime()) / 60000;
         if (minutosSinceLastSend < MINUTOS_ENTRE_LOTES) {
           const proxEnvio = Math.ceil(MINUTOS_ENTRE_LOTES - minutosSinceLastSend);
@@ -188,7 +191,13 @@ export async function GET() {
   return NextResponse.json(result);
 }
 
-export async function POST() {
-  const result = await runSendFups();
-  return NextResponse.json(result);
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const result = await runSendFups(body.category, true);
+    return NextResponse.json(result);
+  } catch {
+    const result = await runSendFups(undefined, true);
+    return NextResponse.json(result);
+  }
 }
