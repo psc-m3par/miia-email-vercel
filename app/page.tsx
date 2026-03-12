@@ -390,7 +390,7 @@ export default function DashboardPage() {
             <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Ultimos Emails Enviados</h2>
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               {recentlySent.length > 0 ? (
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-50 max-h-[260px] overflow-y-auto">
                   {recentlySent.map((c, i) => {
                     const time = c.email1Enviado.replace('OK ', '');
                     let status = 'Email 1';
