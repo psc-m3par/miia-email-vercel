@@ -5,8 +5,6 @@ import { checkReplies } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MAX_POR_RODADA = 20;
-
 async function runCheckReplies(category?: string) {
   const allIds = getAllSpreadsheetIds();
   let totalRespondidos = 0;
@@ -26,15 +24,14 @@ async function runCheckReplies(category?: string) {
         c.email1Enviado.startsWith('OK') &&
         c.threadId &&
         !c.fup1Enviado.includes('RESPONDIDO') &&
-        !c.fup2Enviado.includes('RESPONDIDO')
+        !c.fup2Enviado.includes('RESPONDIDO') &&
+        !c.fup1Enviado.includes('BOUNCE') &&
+        !c.fup2Enviado.includes('BOUNCE')
       );
 
-      // Limite por categoria (não global) para não estourar o timeout de 60s
-      let processadosCat = 0;
       let respondidosCat = 0;
 
       for (const contato of enviados) {
-        if (processadosCat >= MAX_POR_RODADA) break;
 
         const result = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
 
@@ -67,8 +64,7 @@ async function runCheckReplies(category?: string) {
           }
         }
 
-        processadosCat++;
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 150));
       }
 
       if (respondidosCat > 0) {

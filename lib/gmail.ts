@@ -107,7 +107,7 @@ export async function checkReplies(
   }
 
   const res = await fetch(
-    'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId,
+    'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=metadata&metadataHeaders=From',
     { headers: { Authorization: 'Bearer ' + accessToken } }
   );
 
