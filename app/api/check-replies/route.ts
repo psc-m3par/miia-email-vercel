@@ -67,9 +67,9 @@ async function runCheckReplies(category?: string) {
         await new Promise(r => setTimeout(r, 150));
       }
 
-      if (respondidosCat > 0) {
-        await appendLog('Check Replies', cat.category, respondidosCat, 'ok', `${respondidosCat} resposta(s) detectada(s)`, spreadsheetId);
-      }
+      await appendLog('Check Replies', cat.category, respondidosCat, 'ok',
+        respondidosCat > 0 ? `${respondidosCat} resposta(s) detectada(s)` : `${enviados.length} verificados, nenhuma nova resposta`,
+        spreadsheetId);
     }
   }
 
