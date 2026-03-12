@@ -103,7 +103,7 @@ export default function MonitorPage() {
 
   // Last activity per rotina per category
   const lastPerRotina: Record<string, LogEntry> = {};
-  for (const log of [...logs].reverse()) {
+  for (const log of logs) {
     const key = log.rotina + '||' + log.categoria;
     if (!lastPerRotina[key]) lastPerRotina[key] = log;
   }
