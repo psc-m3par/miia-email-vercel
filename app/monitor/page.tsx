@@ -79,7 +79,8 @@ export default function MonitorPage() {
         const d = await res.json();
         setResultado({ key, ok: true, msg: d.respondidos > 0 ? `${d.respondidos} resposta(s) detectada(s)` : 'Nenhuma nova resposta' });
       }
-      setTimeout(() => { setResultado(null); loadData(); }, 4000);
+      loadData();
+      setTimeout(() => { setResultado(null); loadData(); }, 8000);
     } catch (e: any) {
       setResultado({ key, ok: false, msg: 'Erro: ' + e.message });
     } finally {
