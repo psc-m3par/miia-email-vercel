@@ -20,12 +20,37 @@ interface DashboardData {
   totalContatos: number;
 }
 
+function getEstado(s: Stats, ativo: boolean): { label: string; color: string } {
+  if (!ativo) return { label: 'Pausado', color: 'bg-slate-100 text-slate-500' };
+  if (s.total === 0) return { label: 'Sem base', color: 'bg-slate-100 text-slate-400' };
+  if (s.pendentes > 0) return { label: 'Enviando Email 1', color: 'bg-blue-100 text-blue-700' };
+  const semFup1 = s.email1 - s.respondidos - s.fup1;
+  if (semFup1 > 0) return { label: 'Aguardando FUP1', color: 'bg-indigo-100 text-indigo-700' };
+  if (s.fup1 > 0 && s.fup2 < s.fup1) return { label: 'Aguardando FUP2', color: 'bg-purple-100 text-purple-700' };
+  if (s.email1 > 0) return { label: 'Ciclo completo', color: 'bg-green-100 text-green-700' };
+  return { label: 'Pronto', color: 'bg-slate-100 text-slate-500' };
+}
+
+function getTimingInfo(ultimoEnvio: string, pendentes: number): { ultimoLabel: string; proximoLabel: string; recente: boolean } {
+  if (!ultimoEnvio) return { ultimoLabel: '', proximoLabel: pendentes > 0 ? 'Pronto para enviar' : '', recente: false };
+  const minAgo = Math.floor((Date.now() - new Date(ultimoEnvio).getTime()) / 60000);
+  const recente = minAgo < 4;
+  const ultimoLabel = minAgo < 1 ? 'há menos de 1 min' : `há ${minAgo} min`;
+  const minRestantes = 55 - minAgo;
+  let proximoLabel = '';
+  if (pendentes > 0) {
+    proximoLabel = minRestantes > 0 ? `próximo em ${minRestantes} min` : 'pronto para enviar';
+  }
+  return { ultimoLabel, proximoLabel, recente };
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
+  const [pausingAll, setPausingAll] = useState(false);
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -39,8 +64,6 @@ export default function DashboardPage() {
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
-  // Fire-and-forget scheduler: triggers send/fup/replies on each refresh cycle.
-  // Server-side rate limiting (55min window) ensures no over-sending.
   const triggerScheduler = useCallback(() => {
     fetch('/api/send-emails').catch(() => {});
     fetch('/api/send-fups').catch(() => {});
@@ -57,11 +80,51 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [loadData, triggerScheduler]);
 
+  const handlePausarTudo = async () => {
+    if (!data) return;
+    setPausingAll(true);
+    const ativas = data.painel.filter((p: any) => p.ativo);
+    for (const cat of ativas) {
+      await fetch('/api/sheets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'painel', rowIndex: cat.rowIndex,
+          values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, 'NAO', cat.cc],
+        }),
+      }).catch(() => {});
+    }
+    setPausingAll(false);
+    loadData();
+  };
+
+  const handleRetomarTudo = async () => {
+    if (!data) return;
+    setPausingAll(true);
+    const pausadas = data.painel.filter((p: any) => !p.ativo);
+    for (const cat of pausadas) {
+      await fetch('/api/sheets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'painel', rowIndex: cat.rowIndex,
+          values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, 'SIM', cat.cc],
+        }),
+      }).catch(() => {});
+    }
+    setPausingAll(false);
+    loadData();
+  };
+
   if (loading) return <LoadingSkeleton />;
   if (error) return <ErrorState error={error} onRetry={loadData} />;
   if (!data) return null;
 
   const { totalGeral, stats, painel } = data;
+
+  const algumaAtiva = painel.some((p: any) => p.ativo);
+  const algumaPausada = painel.some((p: any) => !p.ativo);
+  const todasAtivas = !algumaPausada;
 
   const recentlySent = contacts
     .filter(c => c.email1Enviado && c.email1Enviado.startsWith('OK'))
@@ -73,20 +136,42 @@ export default function DashboardPage() {
     const s = stats[cat];
     if (s.semThread > 0) alerts.push(s.semThread + ' contatos de "' + cat + '" sem Thread ID (FUPs bloqueados)');
     if (s.pendentes > 0 && s.pendentes <= 5) alerts.push('Base de "' + cat + '" quase vazia: ' + s.pendentes + ' pendentes');
-    if (s.pendentes === 0 && s.total > 0) alerts.push('Base de "' + cat + '" esgotada');
+    if (s.pendentes === 0 && s.total > 0 && s.email1 === s.total) alerts.push('Base de "' + cat + '" esgotada');
     if (s.erros > 0) alerts.push(s.erros + ' erros em "' + cat + '"');
   }
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold text-slate-800">Dashboard</h1>
           <p className="text-slate-400 text-xs mt-1">Atualiza automaticamente a cada 30s | Ultima: {lastUpdate}</p>
         </div>
-        <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
-          Atualizar agora
-        </button>
+        <div className="flex items-center gap-2">
+          {algumaAtiva && (
+            <button
+              onClick={handlePausarTudo}
+              disabled={pausingAll}
+              className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
+              {pausingAll ? '...' : (
+                <><span className="w-2 h-2 bg-white rounded-full inline-block" /> Pausar Tudo</>
+              )}
+            </button>
+          )}
+          {!todasAtivas && (
+            <button
+              onClick={handleRetomarTudo}
+              disabled={pausingAll}
+              className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 disabled:opacity-50 flex items-center gap-2">
+              {pausingAll ? '...' : (
+                <><span>▶</span> Retomar Tudo</>
+              )}
+            </button>
+          )}
+          <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {alerts.length > 0 && (
@@ -120,7 +205,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div>
-          <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Progresso por Categoria</h2>
+          <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Rotinas por Categoria</h2>
           <div className="space-y-3">
             {Object.entries(stats).map(([cat, s]) => {
               const painelCat = painel.find((p: any) => p.category === cat);
@@ -129,21 +214,29 @@ export default function DashboardPage() {
               const taxaRespFup1 = s.fup1 > 0 ? Math.round((s.respondidos / s.fup1) * 100) : 0;
               const taxaRespFup2 = s.fup2 > 0 ? Math.round((s.respondidos / s.fup2) * 100) : 0;
               const emailsPerResp = s.respondidos > 0 ? Math.round(s.email1 / s.respondidos) : 0;
+              const estado = getEstado(s, painelCat?.ativo ?? false);
+              const { ultimoLabel, proximoLabel, recente } = getTimingInfo(painelCat?.ultimoEnvio || '', s.pendentes);
 
               return (
                 <div key={cat} className="bg-white rounded-xl border border-slate-200 p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {recente && (
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                        </span>
+                      )}
                       <h3 className="font-semibold text-slate-700 text-sm">{cat}</h3>
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${painelCat?.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                        {painelCat?.ativo ? 'Ativo' : 'Inativo'}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estado.color}`}>
+                        {estado.label}
                       </span>
                     </div>
                     <span className="text-xs text-slate-400">{s.total} contatos</span>
                   </div>
 
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-                    <div className="h-full bg-gradient-to-r from-miia-400 to-miia-600 rounded-full" style={{ width: progresso + '%' }} />
+                    <div className="h-full bg-gradient-to-r from-miia-400 to-miia-600 rounded-full transition-all" style={{ width: progresso + '%' }} />
                   </div>
 
                   <div className="grid grid-cols-4 gap-2 text-center mb-2">
@@ -153,13 +246,28 @@ export default function DashboardPage() {
                     <MiniStat label="FUP2" value={s.fup2} color="text-purple-600" />
                   </div>
 
-                  <div className="border-t border-slate-100 pt-2 mt-2">
+                  {(ultimoLabel || proximoLabel) && (
+                    <div className="bg-slate-50 rounded-lg px-3 py-2 mb-2 flex items-center justify-between flex-wrap gap-1">
+                      {ultimoLabel && (
+                        <span className="text-[10px] text-slate-500">
+                          Ultimo envio: <strong className="text-slate-700">{ultimoLabel}</strong>
+                        </span>
+                      )}
+                      {proximoLabel && (
+                        <span className={`text-[10px] font-medium ${proximoLabel.startsWith('pronto') ? 'text-green-600' : 'text-slate-500'}`}>
+                          {proximoLabel.startsWith('pronto') ? '✓ ' : ''}{proximoLabel}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="border-t border-slate-100 pt-2 mt-1">
                     <div className="flex justify-between text-[10px] text-slate-500">
                       <span>Taxa resp. Email1: <strong className="text-slate-700">{taxaRespEmail1}%</strong></span>
                       <span>FUP1: <strong className="text-slate-700">{taxaRespFup1}%</strong></span>
                       <span>FUP2: <strong className="text-slate-700">{taxaRespFup2}%</strong></span>
                       {emailsPerResp > 0 && (
-                        <span>Emails/resposta: <strong className="text-miia-500">{emailsPerResp}</strong></span>
+                        <span>Emails/resp: <strong className="text-miia-500">{emailsPerResp}</strong></span>
                       )}
                     </div>
                   </div>

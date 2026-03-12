@@ -226,6 +226,34 @@ export default function SettingsPage() {
         <button onClick={() => loadData()} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
           Atualizar
         </button>
+        {painel.some(p => p.ativo) && (
+          <button
+            onClick={async () => {
+              setMessage('Pausando tudo...');
+              for (let i = 0; i < painel.length; i++) {
+                if (painel[i].ativo) await saveRow(i, { ...painel[i], ativo: false });
+              }
+              loadData();
+              setMessage('Todas as rotinas pausadas.');
+            }}
+            className="px-5 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 shadow-lg shadow-amber-500/20 flex items-center gap-2">
+            ⏸ Pausar Tudo
+          </button>
+        )}
+        {painel.some(p => !p.ativo) && (
+          <button
+            onClick={async () => {
+              setMessage('Retomando tudo...');
+              for (let i = 0; i < painel.length; i++) {
+                if (!painel[i].ativo) await saveRow(i, { ...painel[i], ativo: true });
+              }
+              loadData();
+              setMessage('Todas as rotinas retomadas.');
+            }}
+            className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 shadow-lg shadow-green-600/20 flex items-center gap-2">
+            ▶ Retomar Tudo
+          </button>
+        )}
         {getTotalErros() > 0 && (
           <button onClick={handleRetryErrors} disabled={retrying}
             className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 shadow-lg shadow-orange-500/20 flex items-center gap-2 disabled:opacity-50">
