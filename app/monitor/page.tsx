@@ -46,12 +46,14 @@ export default function MonitorPage() {
 
   const loadData = useCallback(() => {
     Promise.all([
-      fetch('/api/monitor', { cache: 'no-store' }).then(r => r.json()),
-      fetch('/api/sheets?type=painel', { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/monitor?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/sheets?type=painel&t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()),
     ]).then(([monitorData, painelData]) => {
       if (monitorData.logs) setLogs(monitorData.logs);
       if (Array.isArray(painelData)) setPainel(painelData);
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
+    }).catch(() => {
+      setLastUpdate('erro ao carregar — ' + new Date().toLocaleTimeString('pt-BR'));
     }).finally(() => setLoading(false));
   }, []);
 
