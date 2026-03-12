@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [painel, setPainel] = useState<PainelRow[]>([]);
   const [stats, setStats] = useState<Record<string, CatStats>>({});
   const [totalGeral, setTotalGeral] = useState<any>({});
+  const [connectedAccounts, setConnectedAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number>(-1);
   const [clearing, setClearing] = useState<string>('');
@@ -34,10 +35,12 @@ export default function SettingsPage() {
     Promise.all([
       fetch('/api/sheets?type=painel').then(r => r.json()),
       fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([painelData, dashData]) => {
+      fetch('/api/tokens').then(r => r.json()),
+    ]).then(([painelData, dashData, tokensData]) => {
       if (Array.isArray(painelData)) setPainel(painelData);
       if (dashData.stats) setStats(dashData.stats);
       if (dashData.totalGeral) setTotalGeral(dashData.totalGeral);
+      if (Array.isArray(tokensData)) setConnectedAccounts(tokensData.filter((t: any) => t.status === 'ativo').map((t: any) => t.email));
     }).finally(() => setLoading(false));
   };
 
@@ -267,7 +270,7 @@ export default function SettingsPage() {
           <h3 className="font-semibold text-green-800 mb-4">Criar Nova Category</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <SettingField label="Nome da Category" value={newCat.category} onChange={v => setNewCat({...newCat, category: v})} />
-            <SettingField label="Responsavel (email)" value={newCat.responsavel} onChange={v => setNewCat({...newCat, responsavel: v})} />
+            <ResponsavelSelect value={newCat.responsavel} onChange={v => setNewCat({...newCat, responsavel: v})} accounts={connectedAccounts} />
             <SettingField label="Nome Remetente" value={newCat.nomeRemetente} onChange={v => setNewCat({...newCat, nomeRemetente: v})} />
             <SettingField label="Emails/Hora" value={newCat.emailsHora.toString()} onChange={v => setNewCat({...newCat, emailsHora: parseInt(v) || 20})} type="number" />
             <SettingField label="CC (opcional)" value={newCat.cc} onChange={v => setNewCat({...newCat, cc: v})} />
@@ -365,7 +368,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <SettingField label="Responsavel (email)" value={row.responsavel} onChange={v => updateField(idx, 'responsavel', v)} />
+                <ResponsavelSelect value={row.responsavel} onChange={v => updateField(idx, 'responsavel', v)} accounts={connectedAccounts} />
                 <SettingField label="Nome Remetente" value={row.nomeRemetente} onChange={v => updateField(idx, 'nomeRemetente', v)} />
                 <SettingField label="Emails/Hora" value={row.emailsHora.toString()} onChange={v => updateField(idx, 'emailsHora', parseInt(v) || 20)} type="number" />
                 <SettingField label="CC (opcional)" value={row.cc} onChange={v => updateField(idx, 'cc', v)} />
@@ -398,6 +401,30 @@ function StatPill({ label, value, color }: { label: string; value: number; color
     <div className="flex items-center gap-1.5">
       <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${color}`}>{value}</span>
       <span className="text-xs text-slate-500">{label}</span>
+    </div>
+  );
+}
+
+function ResponsavelSelect({ value, onChange, accounts }: { value: string; onChange: (v: string) => void; accounts: string[] }) {
+  const options = accounts.includes(value) ? accounts : (value ? [value, ...accounts] : accounts);
+  return (
+    <div>
+      <label className="text-xs text-slate-500 mb-1 block">Responsavel (email)</label>
+      {accounts.length > 0 ? (
+        <select
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50 focus:border-miia-400 bg-white">
+          <option value="">Selecionar conta...</option>
+          {options.map(email => (
+            <option key={email} value={email}>{email}</option>
+          ))}
+        </select>
+      ) : (
+        <input type="text" value={value} onChange={e => onChange(e.target.value)}
+          placeholder="Conecte uma conta em Conectar Gmail"
+          className="w-full px-3 py-2 border border-amber-200 bg-amber-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50" />
+      )}
     </div>
   );
 }

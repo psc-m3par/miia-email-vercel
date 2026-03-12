@@ -1,9 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+interface Account {
+  email: string;
+  status: 'ativo' | 'expirado';
+  expiry: string;
+}
+
 export default function ConnectPage() {
   const [authSuccess, setAuthSuccess] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -11,6 +19,9 @@ export default function ConnectPage() {
       setAuthSuccess(true);
       setAuthEmail(params.get('email') || '');
     }
+    fetch('/api/tokens').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setAccounts(data);
+    }).finally(() => setLoadingAccounts(false));
   }, []);
 
   return (
@@ -30,6 +41,49 @@ export default function ConnectPage() {
           </p>
         </div>
       )}
+
+      {/* Contas conectadas */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm mb-6">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="font-display text-base font-bold text-slate-800">Contas Conectadas</h2>
+          <p className="text-[11px] text-slate-400 mt-0.5">Tokens de acesso armazenados na planilha</p>
+        </div>
+        {loadingAccounts ? (
+          <div className="px-6 py-4 animate-pulse">
+            <div className="h-8 bg-slate-100 rounded w-64 mb-2" />
+            <div className="h-8 bg-slate-100 rounded w-48" />
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="px-6 py-8 text-center">
+            <p className="text-slate-400 text-sm">Nenhuma conta conectada ainda.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {accounts.map(acc => (
+              <div key={acc.email} className="px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${acc.status === 'ativo' ? 'bg-green-500' : 'bg-red-400'}`} />
+                  <span className="text-sm font-medium text-slate-700">{acc.email}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {acc.expiry && (
+                    <span className="text-[10px] text-slate-400">
+                      expira {new Date(acc.expiry).toLocaleDateString('pt-BR')}
+                    </span>
+                  )}
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                    acc.status === 'ativo'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-600'
+                  }`}>
+                    {acc.status === 'ativo' ? 'Ativo' : 'Expirado'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="text-center">
