@@ -13,11 +13,6 @@ interface Contact {
   category: string; email1Enviado: string; fup1Enviado: string; fup2Enviado: string;
 }
 
-interface LogEntry {
-  timestamp: string; rotina: string; categoria: string;
-  quantidade: number; status: string; detalhes: string;
-}
-
 interface DashboardData {
   painel: any[];
   stats: Record<string, Stats>;
@@ -52,7 +47,6 @@ function getTimingInfo(ultimoEnvio: string, pendentes: number): { ultimoLabel: s
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
@@ -62,12 +56,10 @@ export default function DashboardPage() {
     Promise.all([
       fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/sheets?type=contacts', { cache: 'no-store' }).then(r => r.json()),
-      fetch('/api/monitor', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([dashData, contactsData, monitorData]) => {
+    ]).then(([dashData, contactsData]) => {
       if (dashData.error) setError(dashData.error);
       else setData(dashData);
       if (contactsData.contacts) setContacts(contactsData.contacts);
-      if (monitorData.logs) setLogs(monitorData.logs);
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
@@ -211,9 +203,7 @@ export default function DashboardPage() {
         <StatBox label="Erros" value={totalGeral.erros} color="red" />
       </div>
 
-      <MonitorTable painel={painel} stats={stats} logs={logs} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div>
           <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Rotinas por Categoria</h2>
           <div className="space-y-3">
@@ -335,168 +325,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function parseLogTs(ts: string): Date | null {
-  try {
-    const [datePart, timePart] = ts.split(', ');
-    const [d, m, y] = datePart.split('/');
-    return new Date(`${y}-${m}-${d}T${timePart}`);
-  } catch { return null; }
-}
-
-function relativeTime(ts: string): string {
-  const d = parseLogTs(ts);
-  if (!d) return ts;
-  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (diff < 60) return `há ${diff}s`;
-  if (diff < 3600) return `há ${Math.floor(diff / 60)}min`;
-  if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
-  return `há ${Math.floor(diff / 86400)}d`;
-}
-
-type HealthStatus = { label: string; color: string; dot: string };
-
-function getHealth(rotina: string, s: any, ativo: boolean, lastLog?: LogEntry): HealthStatus {
-  if (!ativo) return { label: 'Pausado', color: 'text-slate-500', dot: 'bg-slate-300' };
-
-  if (rotina === 'Email 1') {
-    if (!s || s.total === 0) return { label: 'Sem base', color: 'text-slate-400', dot: 'bg-slate-200' };
-    if (s.pendentes === 0) return { label: 'Concluído', color: 'text-green-600', dot: 'bg-green-400' };
-    if (s.erros > 0 && s.email1 === 0) return { label: 'Com erros', color: 'text-red-600', dot: 'bg-red-500' };
-    if (lastLog) return { label: 'Normal', color: 'text-green-600', dot: 'bg-green-500' };
-    return { label: 'Aguardando', color: 'text-amber-600', dot: 'bg-amber-400' };
-  }
-  if (rotina === 'FUP1') {
-    if (!s || s.email1 === 0) return { label: 'N/A', color: 'text-slate-400', dot: 'bg-slate-200' };
-    const semFup1 = s.email1 - s.respondidos - s.fup1;
-    if (semFup1 <= 0) return { label: 'Concluído', color: 'text-green-600', dot: 'bg-green-400' };
-    if (lastLog) return { label: 'Normal', color: 'text-green-600', dot: 'bg-green-500' };
-    return { label: 'Aguardando prazo', color: 'text-amber-600', dot: 'bg-amber-400' };
-  }
-  if (rotina === 'FUP2') {
-    if (!s || s.fup1 === 0) return { label: 'N/A', color: 'text-slate-400', dot: 'bg-slate-200' };
-    if (s.fup2 >= s.fup1) return { label: 'Concluído', color: 'text-green-600', dot: 'bg-green-400' };
-    if (lastLog) return { label: 'Normal', color: 'text-green-600', dot: 'bg-green-500' };
-    return { label: 'Aguardando prazo', color: 'text-amber-600', dot: 'bg-amber-400' };
-  }
-  if (rotina === 'Check Replies') {
-    if (!s || s.email1 === 0) return { label: 'N/A', color: 'text-slate-400', dot: 'bg-slate-200' };
-    return { label: 'Rodando', color: 'text-blue-600', dot: 'bg-blue-400' };
-  }
-  return { label: '—', color: 'text-slate-400', dot: 'bg-slate-200' };
-}
-
-function MonitorTable({ painel, stats, logs }: { painel: any[]; stats: Record<string, any>; logs: LogEntry[] }) {
-  const ROTINAS = ['Email 1', 'FUP1', 'FUP2', 'Check Replies'];
-  const [filtroStatus, setFiltroStatus] = useState<'todas' | 'ativo' | 'pausado'>('todas');
-  const [filtroRotina, setFiltroRotina] = useState<string>('todas');
-
-  const lastLog: Record<string, LogEntry> = {};
-  for (const log of [...logs].reverse()) {
-    const key = log.rotina + '||' + log.categoria;
-    if (!lastLog[key]) lastLog[key] = log;
-  }
-
-  const allRows: { rotina: string; cat: any; s: any; last?: LogEntry; health: HealthStatus }[] = [];
-  for (const rotina of ROTINAS) {
-    for (const cat of painel) {
-      const s = stats[cat.category] || {};
-      const last = lastLog[rotina + '||' + cat.category];
-      const health = getHealth(rotina, s, cat.ativo, last);
-      allRows.push({ rotina, cat, s, last, health });
-    }
-  }
-
-  const rows = allRows.filter(row => {
-    if (filtroStatus === 'ativo' && !row.cat.ativo) return false;
-    if (filtroStatus === 'pausado' && row.cat.ativo) return false;
-    if (filtroRotina !== 'todas' && row.rotina !== filtroRotina) return false;
-    return true;
-  });
-
-  const FilterChip = ({ label, value, current, set }: { label: string; value: string; current: string; set: (v: any) => void }) => (
-    <button
-      onClick={() => set(value)}
-      className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-        current === value
-          ? 'bg-miia-500 text-white'
-          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-      }`}>
-      {label}
-    </button>
-  );
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="font-display text-base font-bold text-slate-800">Monitoramento de Rotinas</h2>
-          <p className="text-[11px] text-slate-400 mt-0.5">Estado em tempo real — {rows.length} linha(s) visível(is)</p>
-        </div>
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex gap-1">
-            <FilterChip label="Todas" value="todas" current={filtroStatus} set={setFiltroStatus} />
-            <FilterChip label="Ativo" value="ativo" current={filtroStatus} set={setFiltroStatus} />
-            <FilterChip label="Pausado" value="pausado" current={filtroStatus} set={setFiltroStatus} />
-          </div>
-          <div className="flex gap-1">
-            <FilterChip label="Todas rotinas" value="todas" current={filtroRotina} set={setFiltroRotina} />
-            {ROTINAS.map(r => (
-              <FilterChip key={r} label={r} value={r} current={filtroRotina} set={setFiltroRotina} />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="text-left px-4 py-2.5 text-slate-500 font-medium">Rotina</th>
-              <th className="text-left px-4 py-2.5 text-slate-500 font-medium">Categoria</th>
-              <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Status</th>
-              <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Funcionamento</th>
-              <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Última execução</th>
-              <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Qtd</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Nenhuma rotina encontrada com este filtro</td></tr>
-            ) : rows.map((row, i) => (
-              <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
-                <td className="px-4 py-2.5">
-                  <span className={`font-semibold ${
-                    row.rotina === 'Email 1' ? 'text-blue-600' :
-                    row.rotina === 'FUP1' ? 'text-indigo-600' :
-                    row.rotina === 'FUP2' ? 'text-purple-600' : 'text-green-600'
-                  }`}>{row.rotina}</span>
-                </td>
-                <td className="px-4 py-2.5 font-medium text-slate-700">{row.cat.category}</td>
-                <td className="px-4 py-2.5 text-center">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${row.cat.ativo ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {row.cat.ativo ? 'Ativo' : 'Pausado'}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${row.health.dot}`} />
-                    <span className={`font-medium ${row.health.color}`}>{row.health.label}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 text-center text-slate-500">
-                  {row.last ? relativeTime(row.last.timestamp) : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="px-4 py-2.5 text-center font-bold text-slate-600">
-                  {row.last ? row.last.quantidade : <span className="text-slate-300 font-normal">—</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );
