@@ -122,7 +122,7 @@ export async function getDashboardStats() {
     }
   }
 
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const stats: Record<string, any> = {};
   let totalGeral = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
 
@@ -152,6 +152,30 @@ export async function getDashboardStats() {
   }
 
   return { painel: allPainel, templates: allTemplates, stats, totalGeral, totalContatos: allContacts.length };
+}
+
+export async function readConfig(spreadsheetId?: string): Promise<Record<string, string>> {
+  try {
+    const rows = await readSheet('Config!A:B', spreadsheetId);
+    const config: Record<string, string> = {};
+    for (const row of rows) {
+      if (row[0]) config[row[0]] = row[1] || '';
+    }
+    return config;
+  } catch { return {}; }
+}
+
+export async function writeConfig(key: string, value: string, spreadsheetId?: string): Promise<void> {
+  try {
+    const rows = await readSheet('Config!A:B', spreadsheetId).catch(() => []);
+    for (let i = 0; i < rows.length; i++) {
+      if ((rows[i][0] || '') === key) {
+        await writeSheet('Config!A' + (i + 1) + ':B' + (i + 1), [[key, value]], spreadsheetId);
+        return;
+      }
+    }
+    await appendSheet('Config!A:B', [[key, value]], spreadsheetId);
+  } catch { /* best-effort */ }
 }
 
 export async function appendContacts(contacts: any[][], spreadsheetId?: string) {

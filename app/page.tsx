@@ -52,15 +52,25 @@ export default function DashboardPage() {
   const [lastUpdate, setLastUpdate] = useState('');
   const [pausingAll, setPausingAll] = useState(false);
   const [togglingCat, setTogglingCat] = useState('');
+  const [reportConfig, setReportConfig] = useState({ hora_relatorio: '', email_relatorio: '' });
+  const [savingReport, setSavingReport] = useState(false);
+  const [reportMsg, setReportMsg] = useState('');
 
   const loadData = useCallback(() => {
     Promise.all([
       fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/sheets?type=contacts', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([dashData, contactsData]) => {
+      fetch('/api/config', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([dashData, contactsData, configData]) => {
       if (dashData.error) setError(dashData.error);
       else setData(dashData);
       if (contactsData.contacts) setContacts(contactsData.contacts);
+      if (configData && !configData.error) {
+        setReportConfig({
+          hora_relatorio: configData.hora_relatorio || '',
+          email_relatorio: configData.email_relatorio || '',
+        });
+      }
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
@@ -69,6 +79,7 @@ export default function DashboardPage() {
     fetch('/api/send-emails').catch(() => {});
     fetch('/api/send-fups').catch(() => {});
     fetch('/api/check-replies').catch(() => {});
+    fetch('/api/send-report').catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -117,6 +128,18 @@ export default function DashboardPage() {
     }
     setPausingAll(false);
     loadData();
+  };
+
+  const saveReportConfig = async () => {
+    setSavingReport(true);
+    setReportMsg('');
+    try {
+      await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'hora_relatorio', value: reportConfig.hora_relatorio }) });
+      await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'email_relatorio', value: reportConfig.email_relatorio }) });
+      setReportMsg('Salvo!');
+      setTimeout(() => setReportMsg(''), 3000);
+    } catch { setReportMsg('Erro ao salvar'); }
+    finally { setSavingReport(false); }
   };
 
   if (loading) return <LoadingSkeleton />;
@@ -415,6 +438,55 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Relatório Diário */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-6">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-base font-bold text-slate-800">Relatório Diário</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">Receba um resumo por email todo dia no horário configurado</p>
+          </div>
+          {reportConfig.hora_relatorio && (
+            <span className="text-[11px] bg-indigo-50 text-indigo-600 font-medium px-2.5 py-1 rounded-full border border-indigo-100">
+              Agendado para {reportConfig.hora_relatorio}h
+            </span>
+          )}
+        </div>
+        <div className="px-5 py-4 flex items-end gap-4 flex-wrap">
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Horário de envio</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={0} max={23}
+                value={reportConfig.hora_relatorio}
+                onChange={e => setReportConfig(c => ({ ...c, hora_relatorio: e.target.value }))}
+                placeholder="ex: 18"
+                className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+              />
+              <span className="text-xs text-slate-400">h (Brasília)</span>
+            </div>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-xs text-slate-500 mb-1 block">Email destinatário</label>
+            <input
+              type="email"
+              value={reportConfig.email_relatorio}
+              onChange={e => setReportConfig(c => ({ ...c, email_relatorio: e.target.value }))}
+              placeholder="email@exemplo.com"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={saveReportConfig}
+              disabled={savingReport}
+              className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
+              {savingReport ? 'Salvando...' : 'Salvar'}
+            </button>
+            {reportMsg && <span className="text-xs text-green-600 font-medium">{reportMsg}</span>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
