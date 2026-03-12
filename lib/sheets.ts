@@ -166,16 +166,30 @@ export async function readConfig(spreadsheetId?: string): Promise<Record<string,
 }
 
 export async function writeConfig(key: string, value: string, spreadsheetId?: string): Promise<void> {
-  try {
-    const rows = await readSheet('Config!A:B', spreadsheetId).catch(() => []);
+  const sid = spreadsheetId || SPREADSHEET_ID;
+  const doWrite = async () => {
+    const rows = await readSheet('Config!A:B', sid);
     for (let i = 0; i < rows.length; i++) {
       if ((rows[i][0] || '') === key) {
-        await writeSheet('Config!A' + (i + 1) + ':B' + (i + 1), [[key, value]], spreadsheetId);
+        await writeSheet('Config!A' + (i + 1) + ':B' + (i + 1), [[key, value]], sid);
         return;
       }
     }
-    await appendSheet('Config!A:B', [[key, value]], spreadsheetId);
-  } catch { /* best-effort */ }
+    await appendSheet('Config!A:B', [[key, value]], sid);
+  };
+  try {
+    await doWrite();
+  } catch {
+    try {
+      const sheets = getSheets();
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sid,
+        requestBody: { requests: [{ addSheet: { properties: { title: 'Config' } } }] },
+      });
+      await writeSheet('Config!A1:B1', [['key', 'value']], sid);
+      await appendSheet('Config!A:B', [[key, value]], sid);
+    } catch { /* best-effort */ }
+  }
 }
 
 export async function appendContacts(contacts: any[][], spreadsheetId?: string) {

@@ -55,13 +55,15 @@ export default function DashboardPage() {
   const [reportConfig, setReportConfig] = useState({ hora_relatorio: '', email_relatorio: '' });
   const [savingReport, setSavingReport] = useState(false);
   const [reportMsg, setReportMsg] = useState('');
+  const [connectedEmails, setConnectedEmails] = useState<string[]>([]);
 
   const loadData = useCallback(() => {
     Promise.all([
       fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/sheets?type=contacts', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/config', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([dashData, contactsData, configData]) => {
+      fetch('/api/tokens', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([dashData, contactsData, configData, tokensData]) => {
       if (dashData.error) setError(dashData.error);
       else setData(dashData);
       if (contactsData.contacts) setContacts(contactsData.contacts);
@@ -70,6 +72,9 @@ export default function DashboardPage() {
           hora_relatorio: configData.hora_relatorio || '',
           email_relatorio: configData.email_relatorio || '',
         });
+      }
+      if (Array.isArray(tokensData)) {
+        setConnectedEmails(tokensData.map((t: any) => t.email));
       }
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
@@ -319,174 +324,110 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div>
-          <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Ultimos Emails Enviados</h2>
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            {recentlySent.length > 0 ? (
-              <div className="divide-y divide-slate-50">
-                {recentlySent.map((c, i) => {
-                  const time = c.email1Enviado.replace('OK ', '');
-                  let status = 'Email 1';
-                  let statusColor = 'bg-blue-100 text-blue-700';
-                  if (c.fup2Enviado === 'RESPONDIDO') { status = 'Respondido'; statusColor = 'bg-green-100 text-green-700'; }
-                  else if (c.fup2Enviado && c.fup2Enviado.startsWith('OK')) { status = 'FUP2'; statusColor = 'bg-purple-100 text-purple-700'; }
-                  else if (c.fup1Enviado && c.fup1Enviado.startsWith('OK')) { status = 'FUP1'; statusColor = 'bg-indigo-100 text-indigo-700'; }
-
-                  return (
-                    <div key={i} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50/50">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">{c.firstName} {c.lastName}</p>
-                        <p className="text-xs text-slate-400">{c.companyName} - {c.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{status}</span>
-                        <p className="text-[10px] text-slate-400 mt-1">{time}</p>
-                      </div>
+        <div className="space-y-4">
+          {totalGeral.email1 > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="font-display text-base font-bold text-slate-800">Eficiência de Conversão</h2>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Taxa de resposta por etapa</p>
+                </div>
+                {totalGeral.respondidos > 0 && (
+                  <div className="flex gap-3">
+                    <div className="text-center">
+                      <div className="text-xl font-bold font-display text-miia-500">{Math.round((totalGeral.respondidos / totalGeral.email1) * 100)}%</div>
+                      <div className="text-[10px] text-slate-400">Taxa geral</div>
                     </div>
-                  );
-                })}
+                    <div className="text-center">
+                      <div className="text-xl font-bold font-display text-green-500">{totalGeral.respondidos}</div>
+                      <div className="text-[10px] text-slate-400">Respondidos</div>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="p-8 text-center text-slate-400 text-sm">Nenhum email enviado ainda</div>
-            )}
-          </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Categoria</th>
+                      <th className="text-center px-3 py-2.5 text-slate-500 font-medium">Env.</th>
+                      <th className="text-center px-3 py-2.5 text-slate-500 font-medium">Resp.</th>
+                      <th className="text-center px-3 py-2.5 text-blue-600 font-medium">E1%</th>
+                      <th className="text-center px-3 py-2.5 text-indigo-600 font-medium">F1%</th>
+                      <th className="text-center px-3 py-2.5 text-purple-600 font-medium">F2%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(stats).map(([cat, s]) => {
+                      const taxaEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
+                      const taxaFup1   = s.fup1 > 0   ? Math.round((s.respondidos / s.fup1) * 100)   : 0;
+                      const taxaFup2   = s.fup2 > 0   ? Math.round((s.respondidos / s.fup2) * 100)   : 0;
+                      return (
+                        <tr key={cat} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="px-3 py-2.5 font-medium text-slate-700 max-w-[110px] truncate">{cat}</td>
+                          <td className="px-3 py-2.5 text-center text-slate-600">{s.email1}</td>
+                          <td className="px-3 py-2.5 text-center font-bold text-green-600">{s.respondidos}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className={`font-bold ${taxaEmail1 > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{taxaEmail1 > 0 ? taxaEmail1 + '%' : '—'}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className={`font-bold ${taxaFup1 > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>{taxaFup1 > 0 ? taxaFup1 + '%' : '—'}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className={`font-bold ${taxaFup2 > 0 ? 'text-purple-600' : 'text-slate-300'}`}>{taxaFup2 > 0 ? taxaFup2 + '%' : '—'}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
+          <div>
+            <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Ultimos Emails Enviados</h2>
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {recentlySent.length > 0 ? (
+                <div className="divide-y divide-slate-50">
+                  {recentlySent.map((c, i) => {
+                    const time = c.email1Enviado.replace('OK ', '');
+                    let status = 'Email 1';
+                    let statusColor = 'bg-blue-100 text-blue-700';
+                    if (c.fup2Enviado === 'RESPONDIDO') { status = 'Respondido'; statusColor = 'bg-green-100 text-green-700'; }
+                    else if (c.fup2Enviado && c.fup2Enviado.startsWith('OK')) { status = 'FUP2'; statusColor = 'bg-purple-100 text-purple-700'; }
+                    else if (c.fup1Enviado && c.fup1Enviado.startsWith('OK')) { status = 'FUP1'; statusColor = 'bg-indigo-100 text-indigo-700'; }
+                    return (
+                      <div key={i} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50/50">
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">{c.firstName} {c.lastName}</p>
+                          <p className="text-xs text-slate-400">{c.companyName} - {c.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{status}</span>
+                          <p className="text-[10px] text-slate-400 mt-1">{time}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400 text-sm">Nenhum email enviado ainda</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-
-      {totalGeral.email1 > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h2 className="font-display text-base font-bold text-slate-800">Eficiência de Conversão</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">Taxa de resposta por categoria e etapa</p>
-            </div>
-            {totalGeral.respondidos > 0 && (
-              <div className="flex gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold font-display text-miia-500">{Math.round((totalGeral.respondidos / totalGeral.email1) * 100)}%</div>
-                  <div className="text-[10px] text-slate-400">Taxa geral</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold font-display text-miia-500">{Math.round(totalGeral.email1 / totalGeral.respondidos)}</div>
-                  <div className="text-[10px] text-slate-400">Emails/resposta</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold font-display text-green-500">{totalGeral.respondidos}</div>
-                  <div className="text-[10px] text-slate-400">Total respondidos</div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left px-4 py-2.5 text-slate-500 font-medium">Categoria</th>
-                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Enviados</th>
-                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Respondidos</th>
-                  <th className="text-center px-4 py-2.5 text-blue-600 font-medium">Email 1 %</th>
-                  <th className="text-center px-4 py-2.5 text-indigo-600 font-medium">FUP1 %</th>
-                  <th className="text-center px-4 py-2.5 text-purple-600 font-medium">FUP2 %</th>
-                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Emails/resp</th>
-                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Melhor etapa</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(stats).map(([cat, s]) => {
-                  const taxaEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
-                  const taxaFup1   = s.fup1 > 0   ? Math.round((s.respondidos / s.fup1) * 100)   : 0;
-                  const taxaFup2   = s.fup2 > 0   ? Math.round((s.respondidos / s.fup2) * 100)   : 0;
-                  const emailsResp = s.respondidos > 0 ? Math.round(s.email1 / s.respondidos) : 0;
-                  const taxas = [
-                    { label: 'Email 1', v: taxaEmail1 },
-                    { label: 'FUP1',   v: taxaFup1 },
-                    { label: 'FUP2',   v: taxaFup2 },
-                  ];
-                  const melhor = taxas.reduce((a, b) => b.v > a.v ? b : a, taxas[0]);
-                  return (
-                    <tr key={cat} className="border-b border-slate-50 hover:bg-slate-50/50">
-                      <td className="px-4 py-2.5 font-medium text-slate-700">{cat}</td>
-                      <td className="px-4 py-2.5 text-center text-slate-600">{s.email1}</td>
-                      <td className="px-4 py-2.5 text-center font-bold text-green-600">{s.respondidos}</td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={`font-bold ${taxaEmail1 > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{taxaEmail1 > 0 ? taxaEmail1 + '%' : '—'}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={`font-bold ${taxaFup1 > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>{taxaFup1 > 0 ? taxaFup1 + '%' : '—'}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={`font-bold ${taxaFup2 > 0 ? 'text-purple-600' : 'text-slate-300'}`}>{taxaFup2 > 0 ? taxaFup2 + '%' : '—'}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {emailsResp > 0 ? <span className="font-bold text-miia-500">{emailsResp}</span> : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {melhor.v > 0 ? (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                            melhor.label === 'Email 1' ? 'bg-blue-100 text-blue-700' :
-                            melhor.label === 'FUP1'   ? 'bg-indigo-100 text-indigo-700' :
-                                                        'bg-purple-100 text-purple-700'
-                          }`}>{melhor.label}</span>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Relatório Diário */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-6">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-base font-bold text-slate-800">Relatório Diário</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">Receba um resumo por email todo dia no horário configurado</p>
-          </div>
-          {reportConfig.hora_relatorio && (
-            <span className="text-[11px] bg-indigo-50 text-indigo-600 font-medium px-2.5 py-1 rounded-full border border-indigo-100">
-              Agendado para {reportConfig.hora_relatorio}h
-            </span>
-          )}
-        </div>
-        <div className="px-5 py-4 flex items-end gap-4 flex-wrap">
-          <div>
-            <label className="text-xs text-slate-500 mb-1 block">Horário de envio</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number" min={0} max={23}
-                value={reportConfig.hora_relatorio}
-                onChange={e => setReportConfig(c => ({ ...c, hora_relatorio: e.target.value }))}
-                placeholder="ex: 18"
-                className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-miia-400/50"
-              />
-              <span className="text-xs text-slate-400">h (Brasília)</span>
-            </div>
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-xs text-slate-500 mb-1 block">Email destinatário</label>
-            <input
-              type="email"
-              value={reportConfig.email_relatorio}
-              onChange={e => setReportConfig(c => ({ ...c, email_relatorio: e.target.value }))}
-              placeholder="email@exemplo.com"
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={saveReportConfig}
-              disabled={savingReport}
-              className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
-              {savingReport ? 'Salvando...' : 'Salvar'}
-            </button>
-            {reportMsg && <span className="text-xs text-green-600 font-medium">{reportMsg}</span>}
-          </div>
-        </div>
-      </div>
+      <ReportConfigSection
+        reportConfig={reportConfig}
+        setReportConfig={setReportConfig}
+        connectedEmails={connectedEmails}
+        savingReport={savingReport}
+        reportMsg={reportMsg}
+        onSave={saveReportConfig}
+      />
     </div>
   );
 }
@@ -523,6 +464,108 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
     <div className="bg-slate-50 rounded-lg py-1.5">
       <div className={`text-sm font-bold font-display ${color}`}>{value}</div>
       <div className="text-[10px] text-slate-400">{label}</div>
+    </div>
+  );
+}
+
+function ReportConfigSection({ reportConfig, setReportConfig, connectedEmails, savingReport, reportMsg, onSave }: {
+  reportConfig: { hora_relatorio: string; email_relatorio: string };
+  setReportConfig: React.Dispatch<React.SetStateAction<{ hora_relatorio: string; email_relatorio: string }>>;
+  connectedEmails: string[];
+  savingReport: boolean;
+  reportMsg: string;
+  onSave: () => void;
+}) {
+  const [customInput, setCustomInput] = useState('');
+
+  const emailList = reportConfig.email_relatorio
+    ? reportConfig.email_relatorio.split(',').map(e => e.trim()).filter(Boolean)
+    : [];
+
+  const addEmail = (email: string) => {
+    const trimmed = email.trim();
+    if (!trimmed || emailList.includes(trimmed)) return;
+    setReportConfig(c => ({ ...c, email_relatorio: [...emailList, trimmed].join(',') }));
+  };
+
+  const removeEmail = (email: string) => {
+    setReportConfig(c => ({ ...c, email_relatorio: emailList.filter(e => e !== email).join(',') }));
+  };
+
+  const availableToAdd = connectedEmails.filter(e => !emailList.includes(e));
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-6">
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-base font-bold text-slate-800">Relatório Diário</h2>
+          <p className="text-[11px] text-slate-400 mt-0.5">Receba um resumo por email todo dia no horário configurado</p>
+        </div>
+        {reportConfig.hora_relatorio && (
+          <span className="text-[11px] bg-indigo-50 text-indigo-600 font-medium px-2.5 py-1 rounded-full border border-indigo-100">
+            Agendado para {reportConfig.hora_relatorio}h
+          </span>
+        )}
+      </div>
+      <div className="px-5 py-4 flex items-start gap-4 flex-wrap">
+        <div className="shrink-0">
+          <label className="text-xs text-slate-500 mb-1 block">Horário de envio</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min={0} max={23}
+              value={reportConfig.hora_relatorio}
+              onChange={e => setReportConfig(c => ({ ...c, hora_relatorio: e.target.value }))}
+              placeholder="ex: 18"
+              className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+            />
+            <span className="text-xs text-slate-400">h (Brasília)</span>
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-[220px]">
+          <label className="text-xs text-slate-500 mb-1 block">Destinatários</label>
+          {emailList.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {emailList.map(email => (
+                <span key={email} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-full text-[11px]">
+                  {email}
+                  <button onClick={() => removeEmail(email)} className="text-indigo-300 hover:text-indigo-700 font-bold leading-none">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {availableToAdd.length > 0 && (
+              <select
+                value=""
+                onChange={e => { if (e.target.value) addEmail(e.target.value); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-500 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white">
+                <option value="">+ Conta conectada</option>
+                {availableToAdd.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+            )}
+            <input
+              type="email"
+              value={customInput}
+              onChange={e => setCustomInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && customInput) { addEmail(customInput); setCustomInput(''); } }}
+              onBlur={() => { if (customInput) { addEmail(customInput); setCustomInput(''); } }}
+              placeholder="+ Outro email"
+              className="flex-1 min-w-[160px] px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 pt-5">
+          <button
+            onClick={onSave}
+            disabled={savingReport}
+            className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
+            {savingReport ? 'Salvando...' : 'Salvar'}
+          </button>
+          {reportMsg && <span className="text-xs text-green-600 font-medium">{reportMsg}</span>}
+        </div>
+      </div>
     </div>
   );
 }
