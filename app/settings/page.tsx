@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 interface PainelRow {
   category: string; responsavel: string; nomeRemetente: string;
   emailsHora: number; diasFup1: number; diasFup2: number;
-  ativo: boolean; cc: string; horaInicio: number; horaFim: number;
+  ativo: boolean; cc: string; ultimoEnvio: string; horaInicio: number; horaFim: number;
 }
 
 interface CatStats {
@@ -71,7 +71,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           type: 'painel',
           rowIndex: idx + 2,
-          values: [r.category, r.responsavel, r.nomeRemetente, r.emailsHora, r.diasFup1, r.diasFup2, r.ativo ? 'SIM' : 'NAO', r.cc, '', r.horaInicio ?? 8, r.horaFim ?? 20],
+          values: [r.category, r.responsavel, r.nomeRemetente, r.emailsHora, r.diasFup1, r.diasFup2, r.ativo ? 'SIM' : 'NAO', r.cc, r.ultimoEnvio || '', r.horaInicio ?? 8, r.horaFim ?? 20],
         }),
       });
       setMessage('Salvo: ' + r.category);

@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
   const [pausingAll, setPausingAll] = useState(false);
+  const [togglingCat, setTogglingCat] = useState('');
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -80,19 +81,29 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [loadData, triggerScheduler]);
 
+  const savePainelRow = async (cat: any, ativo: boolean) => {
+    await fetch('/api/sheets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'painel', rowIndex: cat.rowIndex,
+        values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, ativo ? 'SIM' : 'NAO', cat.cc, cat.ultimoEnvio || '', cat.horaInicio ?? 8, cat.horaFim ?? 24],
+      }),
+    }).catch(() => {});
+  };
+
+  const handleToggleCat = async (cat: any) => {
+    setTogglingCat(cat.category);
+    await savePainelRow(cat, !cat.ativo);
+    setTogglingCat('');
+    loadData();
+  };
+
   const handlePausarTudo = async () => {
     if (!data) return;
     setPausingAll(true);
-    const ativas = data.painel.filter((p: any) => p.ativo);
-    for (const cat of ativas) {
-      await fetch('/api/sheets', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'painel', rowIndex: cat.rowIndex,
-          values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, 'NAO', cat.cc],
-        }),
-      }).catch(() => {});
+    for (const cat of data.painel.filter((p: any) => p.ativo)) {
+      await savePainelRow(cat, false);
     }
     setPausingAll(false);
     loadData();
@@ -101,16 +112,8 @@ export default function DashboardPage() {
   const handleRetomarTudo = async () => {
     if (!data) return;
     setPausingAll(true);
-    const pausadas = data.painel.filter((p: any) => !p.ativo);
-    for (const cat of pausadas) {
-      await fetch('/api/sheets', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'painel', rowIndex: cat.rowIndex,
-          values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, 'SIM', cat.cc],
-        }),
-      }).catch(() => {});
+    for (const cat of data.painel.filter((p: any) => !p.ativo)) {
+      await savePainelRow(cat, true);
     }
     setPausingAll(false);
     loadData();
@@ -173,9 +176,6 @@ export default function DashboardPage() {
               )}
             </button>
           )}
-          <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
-            Atualizar
-          </button>
         </div>
       </div>
 
@@ -237,7 +237,21 @@ export default function DashboardPage() {
                         {estado.label}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-400">{s.total} contatos</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">{s.total} contatos</span>
+                      {painelCat && (
+                        <button
+                          onClick={() => handleToggleCat(painelCat)}
+                          disabled={togglingCat === cat}
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors disabled:opacity-50 ${
+                            painelCat.ativo
+                              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}>
+                          {togglingCat === cat ? '...' : (painelCat.ativo ? 'Pausar' : 'Retomar')}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">

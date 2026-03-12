@@ -37,6 +37,7 @@ function timeAgo(tsStr: string): string {
 export default function MonitorPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [painel, setPainel] = useState<any[]>([]);
+  const [dashStats, setDashStats] = useState<{ stats: Record<string, any>; totalGeral: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
   const [filterRotina, setFilterRotina] = useState<string>('');
@@ -48,9 +49,11 @@ export default function MonitorPage() {
     Promise.all([
       fetch('/api/monitor', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/sheets?type=painel', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([monitorData, painelData]) => {
+      fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([monitorData, painelData, dashData]) => {
       if (monitorData.logs) setLogs(monitorData.logs);
       if (Array.isArray(painelData)) setPainel(painelData);
+      if (dashData.stats) setDashStats({ stats: dashData.stats, totalGeral: dashData.totalGeral });
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).finally(() => setLoading(false));
   }, []);
@@ -229,6 +232,64 @@ export default function MonitorPage() {
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP1" color="text-indigo-600" /></td>
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP2" color="text-purple-600" /></td>
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="Check Replies" color="text-green-600" /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Eficiência de Conversão */}
+      {dashStats && dashStats.totalGeral?.email1 > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="font-display text-base font-bold text-slate-800">Eficiência de Conversão</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">Taxa de resposta por categoria e etapa</p>
+            </div>
+            {dashStats.totalGeral.respondidos > 0 && (
+              <div className="flex gap-4">
+                <div className="text-center">
+                  <div className="text-xl font-bold font-display text-miia-500">{Math.round((dashStats.totalGeral.respondidos / dashStats.totalGeral.email1) * 100)}%</div>
+                  <div className="text-[10px] text-slate-400">Taxa geral</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold font-display text-green-500">{dashStats.totalGeral.respondidos}</div>
+                  <div className="text-[10px] text-slate-400">Respondidos</div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-2.5 text-slate-500 font-medium">Categoria</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Enviados</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Respondidos</th>
+                  <th className="text-center px-4 py-2.5 text-blue-600 font-medium">Email 1 %</th>
+                  <th className="text-center px-4 py-2.5 text-indigo-600 font-medium">FUP1 %</th>
+                  <th className="text-center px-4 py-2.5 text-purple-600 font-medium">FUP2 %</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Emails/resp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(dashStats.stats).map(([cat, s]: [string, any]) => {
+                  const taxaEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
+                  const taxaFup1   = s.fup1 > 0   ? Math.round((s.respondidos / s.fup1) * 100)   : 0;
+                  const taxaFup2   = s.fup2 > 0   ? Math.round((s.respondidos / s.fup2) * 100)   : 0;
+                  const emailsResp = s.respondidos > 0 ? Math.round(s.email1 / s.respondidos) : 0;
+                  return (
+                    <tr key={cat} className="border-b border-slate-50 hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 font-medium text-slate-700">{cat}</td>
+                      <td className="px-4 py-2.5 text-center text-slate-600">{s.email1}</td>
+                      <td className="px-4 py-2.5 text-center font-bold text-green-600">{s.respondidos}</td>
+                      <td className="px-4 py-2.5 text-center"><span className={`font-bold ${taxaEmail1 > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{taxaEmail1 > 0 ? taxaEmail1 + '%' : '—'}</span></td>
+                      <td className="px-4 py-2.5 text-center"><span className={`font-bold ${taxaFup1 > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>{taxaFup1 > 0 ? taxaFup1 + '%' : '—'}</span></td>
+                      <td className="px-4 py-2.5 text-center"><span className={`font-bold ${taxaFup2 > 0 ? 'text-purple-600' : 'text-slate-300'}`}>{taxaFup2 > 0 ? taxaFup2 + '%' : '—'}</span></td>
+                      <td className="px-4 py-2.5 text-center">{emailsResp > 0 ? <span className="font-bold text-miia-500">{emailsResp}</span> : <span className="text-slate-300">—</span>}</td>
                     </tr>
                   );
                 })}
