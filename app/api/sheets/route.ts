@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const spreadsheetId = responsavel ? getSpreadsheetIdForResponsavel(responsavel) : undefined;
 
     if (type === 'painel') {
-      await appendSheet('Painel!A:H', [values], spreadsheetId);
+      await appendSheet('Painel!A:K', [values], spreadsheetId);
       return NextResponse.json({ success: true });
     }
     if (type === 'templates') {
@@ -94,7 +94,7 @@ export async function PUT(req: NextRequest) {
     }
 
     if (type === 'painel') {
-      const range = 'Painel!A' + rowIndex + ':H' + rowIndex;
+      const range = 'Painel!A' + rowIndex + ':K' + rowIndex;
       await writeSheet(range, [values], spreadsheetId);
       return NextResponse.json({ success: true });
     }
