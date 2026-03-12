@@ -54,19 +54,27 @@ async function runSendEmails(category?: string, force = false) {
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
           .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+          .replace(/\[Category\]/gi, cat.category)
+          .replace(/\r?\n/g, ' ').trim();
 
-        const corpo = template.corpo
+        const corpoRaw = template.corpo
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
           .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+          .replace(/\[Category\]/gi, cat.category);
+        const corpo = corpoRaw
+          .replace(/\r\n/g, '\n')
+          .replace(/\n\n+/g, '</p><p>')
+          .replace(/\n/g, '<br>');
+        const htmlBody = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6"><p>${corpo}</p></div>`;
 
         const result = await sendEmail(
           cat.responsavel,
           contato.email,
           assunto,
-          corpo,
+          htmlBody,
           cat.cc,
           spreadsheetId,
           cat.nomeRemetente

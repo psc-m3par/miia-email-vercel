@@ -90,16 +90,20 @@ async function runSendFups() {
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
           .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+          .replace(/\[Category\]/gi, cat.category)
+          .replace(/\r?\n/g, ' ').trim();
 
-        const corpo = template.fup1Corpo
+        const corpoFup1Raw = template.fup1Corpo
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
           .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+          .replace(/\[Category\]/gi, cat.category);
+        const htmlBodyFup1 = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6"><p>${corpoFup1Raw.replace(/\r\n/g, '\n').replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p></div>`;
 
         const result = await sendReply(
-          cat.responsavel, contato.email, assunto, corpo,
+          cat.responsavel, contato.email, assunto, htmlBodyFup1,
           contato.threadId, contato.threadId,
           cat.cc, spreadsheetId, cat.nomeRemetente
         );
@@ -131,16 +135,20 @@ async function runSendFups() {
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
           .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+          .replace(/\[Category\]/gi, cat.category)
+          .replace(/\r?\n/g, ' ').trim();
 
-        const corpo = template.fup2Corpo
+        const corpoFup2Raw = template.fup2Corpo
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
           .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente);
+          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+          .replace(/\[Category\]/gi, cat.category);
+        const htmlBodyFup2 = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6"><p>${corpoFup2Raw.replace(/\r\n/g, '\n').replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p></div>`;
 
         const result = await sendReply(
-          cat.responsavel, contato.email, assunto, corpo,
+          cat.responsavel, contato.email, assunto, htmlBodyFup2,
           contato.threadId, contato.threadId,
           cat.cc, spreadsheetId, cat.nomeRemetente
         );
