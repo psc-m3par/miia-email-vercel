@@ -22,6 +22,14 @@ async function runSendFups() {
     for (const cat of painel) {
       if (!cat.ativo) continue;
 
+      // Janela de horário: só roda entre horaInicio e horaFim (hora local de Brasília)
+      const horaBrasilia = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
+      const horaAtual = parseInt(horaBrasilia);
+      if (horaAtual < cat.horaInicio || horaAtual >= cat.horaFim) {
+        pulados.push(`"${cat.category}" fora da janela (${cat.horaInicio}h-${cat.horaFim}h, agora ${horaAtual}h)`);
+        continue;
+      }
+
       // Rate limiting: mesma lógica do send-emails (55 min entre lotes)
       if (cat.ultimoEnvio) {
         const minutosSinceLastSend = (Date.now() - new Date(cat.ultimoEnvio).getTime()) / 60000;

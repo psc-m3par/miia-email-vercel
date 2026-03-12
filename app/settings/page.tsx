@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 interface PainelRow {
   category: string; responsavel: string; nomeRemetente: string;
   emailsHora: number; diasFup1: number; diasFup2: number;
-  ativo: boolean; cc: string;
+  ativo: boolean; cc: string; horaInicio: number; horaFim: number;
 }
 
 interface CatStats {
@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string>('');
   const [deletingCat, setDeletingCat] = useState<string>('');
   const [showNewCat, setShowNewCat] = useState(false);
-  const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '' });
+  const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20 });
   const [creatingCat, setCreatingCat] = useState(false);
 
   const loadData = () => {
@@ -71,7 +71,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           type: 'painel',
           rowIndex: idx + 2,
-          values: [r.category, r.responsavel, r.nomeRemetente, r.emailsHora, r.diasFup1, r.diasFup2, r.ativo ? 'SIM' : 'NAO', r.cc],
+          values: [r.category, r.responsavel, r.nomeRemetente, r.emailsHora, r.diasFup1, r.diasFup2, r.ativo ? 'SIM' : 'NAO', r.cc, '', r.horaInicio ?? 8, r.horaFim ?? 20],
         }),
       });
       setMessage('Salvo: ' + r.category);
@@ -144,12 +144,12 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'painel',
-          values: [newCat.category, newCat.responsavel, newCat.nomeRemetente, newCat.emailsHora, newCat.diasFup1, newCat.diasFup2, newCat.ativo ? 'SIM' : 'NAO', newCat.cc],
+          values: [newCat.category, newCat.responsavel, newCat.nomeRemetente, newCat.emailsHora, newCat.diasFup1, newCat.diasFup2, newCat.ativo ? 'SIM' : 'NAO', newCat.cc, '', newCat.horaInicio, newCat.horaFim],
         }),
       });
       setMessage('Category "' + newCat.category + '" criada!');
       setShowNewCat(false);
-      setNewCat({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '' });
+      setNewCat({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20 });
       loadData();
     } catch (e: any) {
       setMessage('Erro: ' + e.message);
@@ -273,6 +273,8 @@ export default function SettingsPage() {
             <SettingField label="CC (opcional)" value={newCat.cc} onChange={v => setNewCat({...newCat, cc: v})} />
             <SettingField label="Dias ate FUP1" value={newCat.diasFup1.toString()} onChange={v => setNewCat({...newCat, diasFup1: parseInt(v) || 3})} type="number" />
             <SettingField label="Dias ate FUP2" value={newCat.diasFup2.toString()} onChange={v => setNewCat({...newCat, diasFup2: parseInt(v) || 7})} type="number" />
+            <SettingField label="Hora inicio (ex: 8)" value={newCat.horaInicio.toString()} onChange={v => setNewCat({...newCat, horaInicio: parseInt(v) || 0})} type="number" />
+            <SettingField label="Hora fim (ex: 20)" value={newCat.horaFim.toString()} onChange={v => setNewCat({...newCat, horaFim: parseInt(v) || 24})} type="number" />
           </div>
           <div className="flex gap-3">
             <button onClick={handleCreateCategory} disabled={creatingCat}
@@ -369,6 +371,19 @@ export default function SettingsPage() {
                 <SettingField label="CC (opcional)" value={row.cc} onChange={v => updateField(idx, 'cc', v)} />
                 <SettingField label="Dias ate FUP1" value={row.diasFup1.toString()} onChange={v => updateField(idx, 'diasFup1', parseInt(v) || 3)} type="number" />
                 <SettingField label="Dias ate FUP2" value={row.diasFup2.toString()} onChange={v => updateField(idx, 'diasFup2', parseInt(v) || 7)} type="number" />
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Janela de envio</label>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={0} max={23} value={row.horaInicio ?? 8}
+                      onChange={e => updateField(idx, 'horaInicio', parseInt(e.target.value) || 0)}
+                      className="w-16 px-2 py-2 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+                    <span className="text-xs text-slate-400">h ate</span>
+                    <input type="number" min={1} max={24} value={row.horaFim ?? 20}
+                      onChange={e => updateField(idx, 'horaFim', parseInt(e.target.value) || 24)}
+                      className="w-16 px-2 py-2 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+                    <span className="text-xs text-slate-400">h</span>
+                  </div>
+                </div>
               </div>
             </div>
           );

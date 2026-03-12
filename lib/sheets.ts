@@ -50,7 +50,7 @@ export async function appendSheet(range: string, values: any[][], spreadsheetId?
 }
 
 export async function readPainel(spreadsheetId?: string) {
-  const rows = await readSheet('Painel!A:I', spreadsheetId);
+  const rows = await readSheet('Painel!A:K', spreadsheetId);
   if (rows.length < 2) return [];
   return rows.slice(1).filter(r => r[0]).map((r, i) => ({
     rowIndex: i + 2,
@@ -63,6 +63,8 @@ export async function readPainel(spreadsheetId?: string) {
     ativo: (r[6] || '').toString().toUpperCase() === 'SIM',
     cc: r[7] || '',
     ultimoEnvio: r[8] || '',
+    horaInicio: parseInt(r[9]) || 0,
+    horaFim: parseInt(r[10]) || 24,
   }));
 }
 

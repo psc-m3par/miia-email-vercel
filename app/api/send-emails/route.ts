@@ -24,6 +24,16 @@ async function runSendEmails(category?: string, force = false) {
       if (!cat.ativo) continue;
       if (category && cat.category.normalize('NFC') !== category.normalize('NFC')) continue;
 
+      // Janela de horário: só roda entre horaInicio e horaFim (hora local de Brasília)
+      if (!force) {
+        const horaBrasilia = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
+        const horaAtual = parseInt(horaBrasilia);
+        if (horaAtual < cat.horaInicio || horaAtual >= cat.horaFim) {
+          pulados.push(`"${cat.category}" fora da janela (${cat.horaInicio}h-${cat.horaFim}h, agora ${horaAtual}h)`);
+          continue;
+        }
+      }
+
       // Rate limiting: skip if last send was less than 55 minutes ago (cron protection)
       if (!force && cat.ultimoEnvio) {
         const minutosSinceLastSend = (Date.now() - new Date(cat.ultimoEnvio).getTime()) / 60000;
