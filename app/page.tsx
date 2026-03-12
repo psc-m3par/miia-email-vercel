@@ -309,23 +309,93 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {totalGeral.respondidos > 0 && totalGeral.email1 > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mt-3">
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">Eficiencia Geral</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center bg-slate-50 rounded-lg p-3">
-                  <div className="text-2xl font-bold text-miia-500 font-display">{Math.round((totalGeral.respondidos / totalGeral.email1) * 100)}%</div>
-                  <div className="text-[10px] text-slate-400">Taxa de resposta</div>
-                </div>
-                <div className="text-center bg-slate-50 rounded-lg p-3">
-                  <div className="text-2xl font-bold text-miia-500 font-display">{Math.round(totalGeral.email1 / totalGeral.respondidos)}</div>
-                  <div className="text-[10px] text-slate-400">Emails por resposta</div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {totalGeral.email1 > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="font-display text-base font-bold text-slate-800">Eficiência de Conversão</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">Taxa de resposta por categoria e etapa</p>
+            </div>
+            {totalGeral.respondidos > 0 && (
+              <div className="flex gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold font-display text-miia-500">{Math.round((totalGeral.respondidos / totalGeral.email1) * 100)}%</div>
+                  <div className="text-[10px] text-slate-400">Taxa geral</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold font-display text-miia-500">{Math.round(totalGeral.email1 / totalGeral.respondidos)}</div>
+                  <div className="text-[10px] text-slate-400">Emails/resposta</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold font-display text-green-500">{totalGeral.respondidos}</div>
+                  <div className="text-[10px] text-slate-400">Total respondidos</div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-2.5 text-slate-500 font-medium">Categoria</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Enviados</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Respondidos</th>
+                  <th className="text-center px-4 py-2.5 text-blue-600 font-medium">Email 1 %</th>
+                  <th className="text-center px-4 py-2.5 text-indigo-600 font-medium">FUP1 %</th>
+                  <th className="text-center px-4 py-2.5 text-purple-600 font-medium">FUP2 %</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Emails/resp</th>
+                  <th className="text-center px-4 py-2.5 text-slate-500 font-medium">Melhor etapa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(stats).map(([cat, s]) => {
+                  const taxaEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
+                  const taxaFup1   = s.fup1 > 0   ? Math.round((s.respondidos / s.fup1) * 100)   : 0;
+                  const taxaFup2   = s.fup2 > 0   ? Math.round((s.respondidos / s.fup2) * 100)   : 0;
+                  const emailsResp = s.respondidos > 0 ? Math.round(s.email1 / s.respondidos) : 0;
+                  const taxas = [
+                    { label: 'Email 1', v: taxaEmail1 },
+                    { label: 'FUP1',   v: taxaFup1 },
+                    { label: 'FUP2',   v: taxaFup2 },
+                  ];
+                  const melhor = taxas.reduce((a, b) => b.v > a.v ? b : a, taxas[0]);
+                  return (
+                    <tr key={cat} className="border-b border-slate-50 hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 font-medium text-slate-700">{cat}</td>
+                      <td className="px-4 py-2.5 text-center text-slate-600">{s.email1}</td>
+                      <td className="px-4 py-2.5 text-center font-bold text-green-600">{s.respondidos}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`font-bold ${taxaEmail1 > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{taxaEmail1 > 0 ? taxaEmail1 + '%' : '—'}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`font-bold ${taxaFup1 > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>{taxaFup1 > 0 ? taxaFup1 + '%' : '—'}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`font-bold ${taxaFup2 > 0 ? 'text-purple-600' : 'text-slate-300'}`}>{taxaFup2 > 0 ? taxaFup2 + '%' : '—'}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {emailsResp > 0 ? <span className="font-bold text-miia-500">{emailsResp}</span> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {melhor.v > 0 ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            melhor.label === 'Email 1' ? 'bg-blue-100 text-blue-700' :
+                            melhor.label === 'FUP1'   ? 'bg-indigo-100 text-indigo-700' :
+                                                        'bg-purple-100 text-purple-700'
+                          }`}>{melhor.label}</span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
