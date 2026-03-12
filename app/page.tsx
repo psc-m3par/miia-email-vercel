@@ -416,18 +416,18 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+
+          {/* Relatório Diário */}
+          <ReportConfigSection
+            reportConfig={reportConfig}
+            setReportConfig={setReportConfig}
+            connectedEmails={connectedEmails}
+            savingReport={savingReport}
+            reportMsg={reportMsg}
+            onSave={saveReportConfig}
+          />
         </div>
       </div>
-
-      {/* Relatório Diário */}
-      <ReportConfigSection
-        reportConfig={reportConfig}
-        setReportConfig={setReportConfig}
-        connectedEmails={connectedEmails}
-        savingReport={savingReport}
-        reportMsg={reportMsg}
-        onSave={saveReportConfig}
-      />
     </div>
   );
 }
@@ -495,7 +495,7 @@ function ReportConfigSection({ reportConfig, setReportConfig, connectedEmails, s
   const availableToAdd = connectedEmails.filter(e => !emailList.includes(e));
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-6">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div>
           <h2 className="font-display text-base font-bold text-slate-800">Relatório Diário</h2>
