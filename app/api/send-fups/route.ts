@@ -55,7 +55,7 @@ async function runSendFups(category?: string, force = false) {
       );
       if (pendentes.length > 0) continue;
 
-      const hoje = new Date();
+      const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
       let enviadosCat = 0;
 
       const prontosFup1 = contacts.filter(c => {
@@ -119,7 +119,7 @@ async function runSendFups(category?: string, force = false) {
           cat.cc, spreadsheetId, cat.nomeRemetente
         );
 
-        const hojeStr = hoje.toISOString().split('T')[0];
+        const hojeStr = hoje;
         await writeSheet(
           'Contatos!I' + contato.rowIndex,
           [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
@@ -164,7 +164,7 @@ async function runSendFups(category?: string, force = false) {
           cat.cc, spreadsheetId, cat.nomeRemetente
         );
 
-        const hojeStr = hoje.toISOString().split('T')[0];
+        const hojeStr = hoje;
         await writeSheet(
           'Contatos!J' + contato.rowIndex,
           [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],

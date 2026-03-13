@@ -90,7 +90,7 @@ async function runSendEmails(category?: string, force = false) {
           cat.nomeRemetente
         );
 
-        const hoje = new Date().toISOString().split('T')[0];
+        const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
         if (result.success) {
           await writeSheet(

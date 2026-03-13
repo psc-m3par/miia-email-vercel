@@ -7,6 +7,7 @@
   "crons": [
     { "path": "/api/send-emails", "schedule": "0 * * * *" },
     { "path": "/api/send-fups",   "schedule": "5 * * * *" },
-    { "path": "/api/check-replies", "schedule": "* * * * *" }
+    { "path": "/api/check-replies", "schedule": "* * * * *" },
+    { "path": "/api/send-report", "schedule": "0 * * * *" }
   ]
 }
