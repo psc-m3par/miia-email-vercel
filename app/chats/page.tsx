@@ -34,6 +34,11 @@ export default function ChatsPage() {
   const [internalDraft, setInternalDraft] = useState('');
   const [sendingInternal, setSendingInternal] = useState(false);
   const [movingPipeline, setMovingPipeline] = useState(false);
+  const [consultarModal, setConsultarModal] = useState(false);
+  const [consultarTo, setConsultarTo] = useState('');
+  const [consultarNote, setConsultarNote] = useState('');
+  const [consultarLoading, setConsultarLoading] = useState(false);
+  const [consultarDone, setConsultarDone] = useState('');
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +133,25 @@ export default function ChatsPage() {
     setRespondidos(prev => prev.map(x => x.rowIndex === r.rowIndex && x.spreadsheetId === r.spreadsheetId ? { ...x, pipeline: stage } : x));
     if (selectedProspect?.rowIndex === r.rowIndex) setSelectedProspect(prev => prev ? { ...prev, pipeline: stage } : prev);
     setMovingPipeline(false);
+  };
+
+  const sendConsultar = async () => {
+    if (!selectedProspect || !consultarTo.trim()) return;
+    setConsultarLoading(true);
+    const nome = [selectedProspect.firstName, selectedProspect.lastName].filter(Boolean).join(' ') || selectedProspect.email;
+    const lastMsg = [...gmailThread].reverse().find(m => !m.isMine);
+    const mensagem = consultarNote.trim()
+      ? `${consultarNote.trim()}\n\n---\nÚltima mensagem de ${nome}:\n"${lastMsg?.body?.slice(0, 500) || '(sem mensagem carregada)'}"`
+      : `Consulta sobre ${nome} (${selectedProspect.email}):\n"${lastMsg?.body?.slice(0, 500) || '(sem mensagem carregada)'}"`;
+    try {
+      await fetch('/api/internal-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ para: consultarTo.trim(), mensagem, prospectRef: `${nome} <${selectedProspect.email}>` }),
+      });
+      setConsultarDone('Enviado!');
+      setTimeout(() => { setConsultarModal(false); setConsultarTo(''); setConsultarNote(''); setConsultarDone(''); }, 1500);
+    } finally { setConsultarLoading(false); }
   };
 
   const sendInternal = async () => {
@@ -271,13 +295,19 @@ export default function ChatsPage() {
                 {selectedProspect.companyName && <span className="text-slate-400 text-xs ml-2">· {selectedProspect.companyName}</span>}
                 <div className="text-xs text-slate-400 mt-0.5">{selectedProspect.email} · via {selectedProspect.responsavel}</div>
               </div>
-              <div className="flex gap-1 flex-wrap justify-end">
-                {PIPELINE_STAGES.map(s => (
-                  <button key={s.key} onClick={() => movePipeline(selectedProspect, s.key)} disabled={movingPipeline}
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${selectedProspect.pipeline === s.key ? s.color + ' border-current shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}>
-                    {s.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <button onClick={() => { setConsultarModal(true); setConsultarDone(''); }}
+                  className="px-3 py-1 rounded-xl text-[10px] font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                  ↗ Consultar
+                </button>
+                <div className="flex gap-1 flex-wrap">
+                  {PIPELINE_STAGES.map(s => (
+                    <button key={s.key} onClick={() => movePipeline(selectedProspect, s.key)} disabled={movingPipeline}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${selectedProspect.pipeline === s.key ? s.color + ' border-current shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -360,5 +390,42 @@ export default function ChatsPage() {
         )}
       </div>
     </div>
+
+    {/* Consultar modal */}
+    {consultarModal && selectedProspect && (
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+          <h3 className="font-semibold text-slate-800 mb-1">Consultar colega</h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Encaminha a mensagem de <strong>{[selectedProspect.firstName, selectedProspect.lastName].filter(Boolean).join(' ') || selectedProspect.email}</strong> como chat interno
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Para (email do colega)</label>
+              <input type="email" value={consultarTo} onChange={e => setConsultarTo(e.target.value)}
+                placeholder="jal@miia.tech" autoFocus
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+            </div>
+            <div>
+              <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Nota (opcional)</label>
+              <textarea value={consultarNote} onChange={e => setConsultarNote(e.target.value)}
+                placeholder="O que você acha desse prospect?" rows={2}
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-none" />
+            </div>
+          </div>
+          {consultarDone && <p className="text-xs text-green-600 font-medium mt-3">{consultarDone}</p>}
+          <div className="flex gap-2 mt-4">
+            <button onClick={() => setConsultarModal(false)}
+              className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+              Cancelar
+            </button>
+            <button onClick={sendConsultar} disabled={consultarLoading || !consultarTo.trim()}
+              className="flex-1 px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600 disabled:opacity-50">
+              {consultarLoading ? '...' : 'Enviar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
