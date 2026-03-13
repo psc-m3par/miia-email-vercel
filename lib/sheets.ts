@@ -83,7 +83,7 @@ export async function readTemplates(spreadsheetId?: string) {
 }
 
 export async function readContatos(spreadsheetId?: string) {
-  const rows = await readSheet('Contatos!A:L', spreadsheetId);
+  const rows = await readSheet('Contatos!A:M', spreadsheetId);
   if (rows.length < 2) return { headers: rows[0] || [], contacts: [] };
   const headers = rows[0];
   const contacts = rows.slice(1).filter(r => r[0] || r[3]).map((r, i) => ({
@@ -100,8 +100,13 @@ export async function readContatos(spreadsheetId?: string) {
     fup2Enviado: r[9] || '',
     threadId: r[10] || '',
     atendido: r[11] || '',
+    pipeline: r[12] || '',
   }));
   return { headers, contacts };
+}
+
+export async function writePipeline(rowIndex: number, value: string, spreadsheetId?: string): Promise<void> {
+  await writeSheet('Contatos!M' + rowIndex, [[value]], spreadsheetId);
 }
 
 export async function getDashboardStats() {

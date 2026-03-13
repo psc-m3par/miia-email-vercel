@@ -84,6 +84,16 @@ function IconReply({ className }: { className?: string }) {
   );
 }
 
+function IconPipeline({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="4" height="18" rx="1" />
+      <rect x="9" y="7" width="4" height="14" rx="1" />
+      <rect x="16" y="11" width="4" height="10" rx="1" />
+    </svg>
+  );
+}
+
 function IconChevron({ className, collapsed }: { className?: string; collapsed: boolean }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -97,6 +107,7 @@ function IconChevron({ className, collapsed }: { className?: string; collapsed: 
 const NAV = [
   { href: '/', label: 'Dashboard', Icon: IconDashboard },
   { href: '/monitor', label: 'Monitor', Icon: IconMonitor },
+  { href: '/pipeline', label: 'Pipeline', Icon: IconPipeline },
   { href: '/upload', label: 'Upload Apollo', Icon: IconUpload },
   { href: '/templates', label: 'Templates', Icon: IconTemplates },
   { href: '/contacts', label: 'Contatos', Icon: IconContatos },

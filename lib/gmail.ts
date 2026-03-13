@@ -159,6 +159,44 @@ function extractTextBody(payload: any): string {
   return '';
 }
 
+export interface ThreadMessage {
+  id: string;
+  from: string;
+  fromName: string;
+  date: string;
+  body: string;
+  isMine: boolean;
+}
+
+export async function getFullThread(
+  senderEmail: string,
+  threadId: string,
+  spreadsheetId?: string
+): Promise<ThreadMessage[]> {
+  try {
+    const accessToken = await getValidAccessToken(senderEmail, spreadsheetId);
+    if (!accessToken) return [];
+    const res = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=full',
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const messages: any[] = data.messages || [];
+    return messages.map(msg => {
+      const headers = msg.payload?.headers || [];
+      const fromHeader = headers.find((h: any) => h.name.toLowerCase() === 'from');
+      const dateHeader = headers.find((h: any) => h.name.toLowerCase() === 'date');
+      const fromVal = fromHeader?.value || '';
+      const nameMatch = fromVal.match(/^([^<]+)</);
+      const fromName = nameMatch ? nameMatch[1].trim() : fromVal;
+      const isMine = fromVal.toLowerCase().includes(senderEmail.toLowerCase());
+      const body = extractTextBody(msg.payload).slice(0, 3000);
+      return { id: msg.id, from: fromVal, fromName, date: dateHeader?.value || '', body, isMine };
+    });
+  } catch { return []; }
+}
+
 export async function getReplyText(
   senderEmail: string,
   threadId: string,
