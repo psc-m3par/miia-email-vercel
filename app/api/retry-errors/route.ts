@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -31,8 +31,10 @@ async function runRetryErrors(category?: string) {
       );
 
       totalErros += comErro.length;
+      if (comErro.length === 0) continue;
 
       const lote = comErro.slice(0, 5);
+      let corrigidosCat = 0;
 
       for (const contato of lote) {
         await writeSheet(
@@ -70,6 +72,7 @@ async function runRetryErrors(category?: string) {
             spreadsheetId
           );
           totalCorrigidos++;
+          corrigidosCat++;
         } else {
           await writeSheet(
             'Contatos!H' + contato.rowIndex,
@@ -79,6 +82,13 @@ async function runRetryErrors(category?: string) {
           erros.push(contato.email + ': ' + result.error);
         }
       }
+
+      await appendLog(
+        'Email 1', cat.category, corrigidosCat,
+        erros.length > 0 ? 'erro' : 'ok',
+        corrigidosCat > 0 ? `${corrigidosCat} erro(s) corrigido(s)` : `Sem correções bem-sucedidas`,
+        spreadsheetId
+      );
     }
   }
 
