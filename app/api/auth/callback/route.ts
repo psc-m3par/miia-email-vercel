@@ -48,6 +48,14 @@ export async function GET(req: NextRequest) {
     expiry,
   });
 
-  // Redirecionar de volta pro frontend
-  return NextResponse.redirect(`${req.nextUrl.origin}/?auth=success&email=${encodeURIComponent(email)}`);
+  // Setar cookie de sessão e redirecionar
+  const response = NextResponse.redirect(`${req.nextUrl.origin}/chats`);
+  response.cookies.set('miia_user', email, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 30,
+    path: '/',
+    sameSite: 'lax',
+  });
+  return response;
 }

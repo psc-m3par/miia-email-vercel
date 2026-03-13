@@ -357,3 +357,73 @@ export async function deleteCategoryFromTemplates(category: string, spreadsheetI
 export async function writeAtendido(rowIndex: number, value: string, spreadsheetId?: string): Promise<void> {
   await writeSheet('Contatos!L' + rowIndex, [[value]], spreadsheetId);
 }
+
+// ── Internal Chat ─────────────────────────────────────────────────────────────
+
+export interface InternalMessage {
+  id: string;
+  de: string;
+  para: string;
+  mensagem: string;
+  timestamp: string;
+  lido: string;
+  prospectRef: string;
+}
+
+export async function readInternalChats(userEmail: string): Promise<InternalMessage[]> {
+  try {
+    const rows = await readSheet('Chat!A:G');
+    if (rows.length < 2) return [];
+    return rows.slice(1)
+      .filter((r: any[]) => r[1] === userEmail || r[2] === userEmail)
+      .map((r: any[]) => ({
+        id: r[0] || '',
+        de: r[1] || '',
+        para: r[2] || '',
+        mensagem: r[3] || '',
+        timestamp: r[4] || '',
+        lido: r[5] || 'NAO',
+        prospectRef: r[6] || '',
+      }));
+  } catch { return []; }
+}
+
+export async function appendInternalChat(
+  de: string, para: string, mensagem: string, prospectRef = ''
+): Promise<string> {
+  const id = Date.now().toString();
+  const timestamp = new Date().toISOString();
+  try {
+    await appendSheet('Chat!A:G', [[id, de, para, mensagem, timestamp, 'NAO', prospectRef]]);
+  } catch {
+    // create sheet if it doesn't exist
+    const sheets = getSheets();
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: { requests: [{ addSheet: { properties: { title: 'Chat' } } }] },
+    });
+    await writeSheet('Chat!A1:G1', [['id', 'de', 'para', 'mensagem', 'timestamp', 'lido', 'prospectRef']]);
+    await appendSheet('Chat!A:G', [[id, de, para, mensagem, timestamp, 'NAO', prospectRef]]);
+  }
+  return id;
+}
+
+export async function markChatRead(userEmail: string, fromEmail: string): Promise<void> {
+  try {
+    const rows = await readSheet('Chat!A:G');
+    if (rows.length < 2) return;
+    const sheets = getSheets();
+    const updates: any[] = [];
+    rows.slice(1).forEach((r: any[], i: number) => {
+      if (r[2] === userEmail && r[1] === fromEmail && r[5] !== 'SIM') {
+        updates.push({ range: `Chat!F${i + 2}`, values: [['SIM']] });
+      }
+    });
+    if (updates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: { valueInputOption: 'USER_ENTERED', data: updates },
+      });
+    }
+  } catch { /* best-effort */ }
+}

@@ -102,6 +102,24 @@ function IconPipeline({ className }: { className?: string }) {
   );
 }
 
+function IconChats({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  );
+}
+
+function IconLogout({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
 function IconChevron({ className, collapsed }: { className?: string; collapsed: boolean }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -114,6 +132,7 @@ function IconChevron({ className, collapsed }: { className?: string; collapsed: 
 
 const NAV = [
   { href: '/', label: 'Dashboard', Icon: IconDashboard },
+  { href: '/chats', label: 'Chats', Icon: IconChats },
   { href: '/monitor', label: 'Monitor', Icon: IconMonitor },
   { href: '/pipeline', label: 'Pipeline', Icon: IconPipeline },
   { href: '/copilot', label: 'Copiloto', Icon: IconCopilot },
@@ -132,6 +151,12 @@ interface SidebarProps {
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [respondidosCount, setRespondidosCount] = useState(0);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [unreadChats, setUnreadChats] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/session').then(r => r.json()).then(d => setCurrentUser(d.user)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchCount = () => {
@@ -145,12 +170,32 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     return () => clearInterval(interval);
   }, [pathname]);
 
-  const allNav = [
-    ...NAV,
-    ...(respondidosCount > 0
+  useEffect(() => {
+    const fetchUnread = () => {
+      fetch('/api/internal-chat', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => {
+          const count = d.messages?.filter((m: any) => m.para === currentUser && m.lido !== 'SIM').length || 0;
+          setUnreadChats(count);
+        })
+        .catch(() => {});
+    };
+    if (currentUser) {
+      fetchUnread();
+      const interval = setInterval(fetchUnread, 20000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
+  const allNav = NAV.map(item =>
+    item.href === '/chats' && unreadChats > 0
+      ? { ...item, badge: unreadChats }
+      : item
+  ).concat(
+    respondidosCount > 0
       ? [{ href: '/respondidos', label: 'Respondidos', Icon: IconReply, badge: respondidosCount }]
-      : []),
-  ];
+      : []
+  );
 
   return (
     <aside className={`fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex flex-col z-50 transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
@@ -218,6 +263,9 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
       {/* Footer */}
       {collapsed ? (
         <div className="px-2 py-4 border-t border-slate-100 flex flex-col items-center gap-2">
+          <a href="/api/auth/logout" title="Sair" className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+            <IconLogout className="w-4 h-4" />
+          </a>
           {onToggle && (
             <button onClick={onToggle} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
               <IconChevron className="w-4 h-4" collapsed={collapsed} />
@@ -225,7 +273,18 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           )}
         </div>
       ) : (
-        <div className="px-6 py-4 border-t border-slate-100">
+        <div className="px-4 py-4 border-t border-slate-100">
+          {currentUser && (
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-full bg-miia-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-miia-600 font-bold text-xs">{currentUser[0].toUpperCase()}</span>
+              </div>
+              <span className="text-xs text-slate-500 truncate flex-1">{currentUser}</span>
+              <a href="/api/auth/logout" title="Sair" className="p-1 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                <IconLogout className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          )}
           <p className="text-xs text-slate-400">v4.0 - Marco 2026</p>
           <a
             href={'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit'}
