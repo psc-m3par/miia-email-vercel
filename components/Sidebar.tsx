@@ -150,25 +150,12 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const [respondidosCount, setRespondidosCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [unreadChats, setUnreadChats] = useState(0);
 
   useEffect(() => {
     fetch('/api/session').then(r => r.json()).then(d => setCurrentUser(d.user)).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    const fetchCount = () => {
-      fetch('/api/respondidos', { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => setRespondidosCount(d.respondidos?.filter((r: any) => r.atendido !== 'SIM').length || 0))
-        .catch(() => {});
-    };
-    fetchCount();
-    const interval = setInterval(fetchCount, 15000);
-    return () => clearInterval(interval);
-  }, [pathname]);
 
   useEffect(() => {
     const fetchUnread = () => {
@@ -191,10 +178,6 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     item.href === '/chats' && unreadChats > 0
       ? { ...item, badge: unreadChats }
       : item
-  ).concat(
-    respondidosCount > 0
-      ? [{ href: '/respondidos', label: 'Respondidos', Icon: IconReply, badge: respondidosCount }]
-      : []
   );
 
   return (
