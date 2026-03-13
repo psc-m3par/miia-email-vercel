@@ -57,6 +57,12 @@ export default function RespondidosPage() {
   const [meetLoading, setMeetLoading] = useState(false);
   const [meetResult, setMeetResult] = useState<{ link: string; eventLink: string } | null>(null);
   const [meetError, setMeetError] = useState('');
+  const [fwdModal, setFwdModal] = useState<{ r: Respondido } | null>(null);
+  const [fwdTo, setFwdTo] = useState('');
+  const [fwdNote, setFwdNote] = useState('');
+  const [fwdLoading, setFwdLoading] = useState(false);
+  const [fwdDone, setFwdDone] = useState(false);
+  const [fwdError, setFwdError] = useState('');
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -180,6 +186,39 @@ export default function RespondidosPage() {
     }
   };
 
+  const sendForward = async () => {
+    if (!fwdModal || !fwdTo.trim()) return;
+    setFwdLoading(true);
+    setFwdError('');
+    const { r } = fwdModal;
+    const msgs = threads[r.threadId] || [];
+    const lastProspectMsg = [...msgs].reverse().find(m => !m.isMine);
+    const forwardedBody = lastProspectMsg?.body || '(sem mensagem carregada — abra "Ver conversa" primeiro)';
+    const nome = [r.firstName, r.lastName].filter(Boolean).join(' ') || r.email;
+    try {
+      const res = await fetch('/api/forward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderEmail: r.responsavel,
+          spreadsheetId: r.spreadsheetId,
+          toEmail: fwdTo.trim(),
+          note: fwdNote.trim(),
+          contactName: nome,
+          contactCompany: r.companyName,
+          forwardedBody,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) setFwdDone(true);
+      else setFwdError(data.error || 'Erro ao encaminhar');
+    } catch (e: any) {
+      setFwdError(e.message);
+    } finally {
+      setFwdLoading(false);
+    }
+  };
+
   const categorias = Array.from(new Set(respondidos.map(r => r.category))).filter(Boolean);
   const ativos = respondidos.filter(r => r.pipeline !== 'GANHO' && r.pipeline !== 'PERDIDO');
   const fechados = respondidos.filter(r => r.pipeline === 'GANHO' || r.pipeline === 'PERDIDO');
@@ -272,6 +311,13 @@ export default function RespondidosPage() {
                   <div className="flex gap-2 flex-shrink-0">
                     {!isClosed && (
                       <button
+                        onClick={() => { setFwdModal({ r }); setFwdTo(''); setFwdNote(''); setFwdDone(false); setFwdError(''); }}
+                        className="px-3 py-1.5 text-xs font-medium text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                        ↗ Consultar
+                      </button>
+                    )}
+                    {!isClosed && (
+                      <button
                         onClick={() => { setMeetModal({ r }); setMeetResult(null); setMeetError(''); }}
                         className="px-3 py-1.5 text-xs font-medium text-purple-600 border border-purple-200 rounded-xl hover:bg-purple-50 transition-colors">
                         📅 Meet
@@ -333,6 +379,56 @@ export default function RespondidosPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {fwdModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setFwdModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-base font-bold text-slate-800 mb-1">Consultar colega</h3>
+            <p className="text-xs text-slate-400 mb-4">
+              A mensagem do prospect será colada no corpo do email — sem estar na cadeia original.
+            </p>
+            {fwdDone ? (
+              <div className="text-center space-y-3">
+                <div className="text-3xl">✅</div>
+                <p className="text-sm font-medium text-green-700">Email enviado para {fwdTo}</p>
+                <button onClick={() => setFwdModal(null)} className="w-full py-2 text-xs text-slate-400 hover:text-slate-600">Fechar</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Enviar para</label>
+                  <input type="email" value={fwdTo} onChange={e => setFwdTo(e.target.value)}
+                    placeholder="email@colega.com"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Sua mensagem (opcional)</label>
+                  <textarea value={fwdNote} onChange={e => setFwdNote(e.target.value)}
+                    placeholder="Ex: o que você responderia aqui? faz sentido avançar?"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-none" />
+                </div>
+                {!threads[fwdModal.r.threadId] && (
+                  <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                    Dica: abra "Ver conversa" primeiro para incluir a mensagem do prospect.
+                  </p>
+                )}
+                {fwdError && <p className="text-xs text-red-500">{fwdError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setFwdModal(null)}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+                    Cancelar
+                  </button>
+                  <button onClick={sendForward} disabled={fwdLoading || !fwdTo.trim()}
+                    className="flex-1 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600 disabled:opacity-50">
+                    {fwdLoading ? 'Enviando...' : 'Enviar'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
