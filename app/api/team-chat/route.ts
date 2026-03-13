@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ threads: [] });
 
   const domain = user.split('@')[1];
-  const query = encodeURIComponent(`from:@${domain} OR to:@${domain}`);
+  const query = encodeURIComponent(`from:@${domain} to:@${domain}`);
 
   const listRes = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${query}&maxResults=30`,
@@ -75,6 +75,9 @@ export async function POST(req: NextRequest) {
     result = await sendEmail(user, to, subject || 'Consulta MIIA', htmlBody);
   }
 
-  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
+  if (!result.success) {
+    console.error('[team-chat] sendEmail failed:', result.error);
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, threadId: (result as any).threadId });
 }

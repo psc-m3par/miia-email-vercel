@@ -97,7 +97,11 @@ export async function sendReply(
 }
 
 const UNSUBSCRIBE_KEYWORDS = [
-  'não tenho interesse', 'nao tenho interesse', 'sem interesse', 'não tenho interesse',
+  'não tenho interesse', 'nao tenho interesse',
+  'não temos interesse', 'nao temos interesse',
+  'sem interesse', 'não é o momento', 'nao é o momento',
+  'não faz sentido', 'nao faz sentido',
+  'não tenho interesse', 'não estamos interessados', 'nao estamos interessados',
   'unsubscribe', 'remova', 'descadastrar', 'descadastre', 'me descadastre', 'me remova',
   'não quero', 'nao quero', 'para de mandar', 'pare de mandar', 'parar de receber',
   'não me contate', 'nao me contate', 'não entre em contato', 'nao entre em contato',
