@@ -85,6 +85,7 @@ async function runCheckReplies(category?: string) {
               ).catch(() => {});
             }
           }
+        }
 
         await new Promise(r => setTimeout(r, 150));
       }
