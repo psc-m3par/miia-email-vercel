@@ -96,11 +96,19 @@ export async function sendReply(
   return { success: true };
 }
 
+const UNSUBSCRIBE_KEYWORDS = [
+  'não tenho interesse', 'nao tenho interesse', 'sem interesse', 'não tenho interesse',
+  'unsubscribe', 'remova', 'descadastrar', 'descadastre', 'me descadastre', 'me remova',
+  'não quero', 'nao quero', 'para de mandar', 'pare de mandar', 'parar de receber',
+  'não me contate', 'nao me contate', 'não entre em contato', 'nao entre em contato',
+  'please remove', 'remove me', 'stop sending', 'opt out', 'opt-out',
+];
+
 export async function checkReplies(
   senderEmail: string,
   threadId: string,
   spreadsheetId?: string
-): Promise<{ hasReply: boolean; isBounce?: boolean; error?: string }> {
+): Promise<{ hasReply: boolean; isBounce?: boolean; isUnsubscribe?: boolean; error?: string }> {
   const accessToken = await getValidAccessToken(senderEmail, spreadsheetId);
   if (!accessToken) {
     return { hasReply: false, error: 'Token nao encontrado para ' + senderEmail };
@@ -134,7 +142,23 @@ export async function checkReplies(
     const isBounce =
       BOUNCE_FROM_PATTERNS.some(p => fromVal.includes(p)) ||
       BOUNCE_SUBJECT_PATTERNS.some(p => subjectVal.includes(p));
-    return { hasReply: true, isBounce };
+    if (isBounce) return { hasReply: true, isBounce: true };
+
+    // Fetch message body to check for unsubscribe keywords
+    let isUnsubscribe = false;
+    try {
+      const msgRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+        { headers: { Authorization: 'Bearer ' + accessToken } }
+      );
+      if (msgRes.ok) {
+        const msgData = await msgRes.json();
+        const body = extractTextBody(msgData.payload).toLowerCase().slice(0, 1000);
+        isUnsubscribe = UNSUBSCRIBE_KEYWORDS.some(k => body.includes(k));
+      }
+    } catch { /* ignore body fetch errors */ }
+
+    return { hasReply: true, isBounce: false, isUnsubscribe };
   }
 
   return { hasReply: false };

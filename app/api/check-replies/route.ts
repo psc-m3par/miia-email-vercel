@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
+import { readPainel, readContatos, writeSheet, writePipeline, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { checkReplies, sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +37,7 @@ async function runCheckReplies(category?: string) {
 
         if (result.hasReply) {
           const marcador = result.isBounce ? 'BOUNCE' : 'RESPONDIDO';
+          const isBlacklist = !result.isBounce && result.isUnsubscribe;
 
           if (!contato.fup1Enviado) {
             await writeSheet(
@@ -59,26 +60,31 @@ async function runCheckReplies(category?: string) {
           }
 
           if (!result.isBounce) {
-            totalRespondidos++;
-            respondidosCat++;
-            const nome = [contato.firstName, contato.lastName].filter(Boolean).join(' ') || contato.email;
-            const empresa = contato.companyName ? ` · ${contato.companyName}` : '';
-            await sendEmail(
-              cat.responsavel,
-              cat.responsavel,
-              `Nova resposta: ${nome}${empresa}`,
-              `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">
-                <p><strong>${nome}</strong> respondeu ao seu email de prospecção.</p>
-                <p><strong>Empresa:</strong> ${contato.companyName || '—'}<br>
-                <strong>Email:</strong> ${contato.email}<br>
-                <strong>Categoria:</strong> ${cat.category}</p>
-                <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://miia.vercel.app'}/respondidos" style="background:#6366f1;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600">Ver conversa →</a></p>
-              </div>`,
-              undefined,
-              spreadsheetId
-            ).catch(() => {});
+            if (isBlacklist) {
+              await writePipeline(contato.rowIndex, 'PERDIDO', spreadsheetId);
+              await appendLog('Check Replies', cat.category, 0, 'ok',
+                `Blacklist: ${contato.email} pediu remoção`, spreadsheetId);
+            } else {
+              totalRespondidos++;
+              respondidosCat++;
+              const nome = [contato.firstName, contato.lastName].filter(Boolean).join(' ') || contato.email;
+              const empresa = contato.companyName ? ` · ${contato.companyName}` : '';
+              await sendEmail(
+                cat.responsavel,
+                cat.responsavel,
+                `Nova resposta: ${nome}${empresa}`,
+                `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">
+                  <p><strong>${nome}</strong> respondeu ao seu email de prospecção.</p>
+                  <p><strong>Empresa:</strong> ${contato.companyName || '—'}<br>
+                  <strong>Email:</strong> ${contato.email}<br>
+                  <strong>Categoria:</strong> ${cat.category}</p>
+                  <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://miia.vercel.app'}/respondidos" style="background:#6366f1;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600">Ver conversa →</a></p>
+                </div>`,
+                undefined,
+                spreadsheetId
+              ).catch(() => {});
+            }
           }
-        }
 
         await new Promise(r => setTimeout(r, 150));
       }
