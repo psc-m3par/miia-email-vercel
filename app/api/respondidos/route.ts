@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
         readContatos(sid),
         readPainel(sid),
       ]);
-      const painelMap: Record<string, string> = {};
-      for (const p of painel) painelMap[p.category] = p.responsavel;
+      const painelMap: Record<string, { responsavel: string; nomeRemetente: string }> = {};
+      for (const p of painel) painelMap[p.category] = { responsavel: p.responsavel, nomeRemetente: p.nomeRemetente };
 
       for (const c of contacts) {
         const isRespondido = c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO';
@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
           category: c.category,
           threadId: c.threadId,
           atendido: c.atendido,
-          responsavel: painelMap[c.category] || '',
+          responsavel: painelMap[c.category]?.responsavel || '',
+          nomeRemetente: painelMap[c.category]?.nomeRemetente || '',
         });
       }
     } catch (e) {
