@@ -7,7 +7,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Código não encontrado' }, { status: 400 });
   }
 
-  const redirectUri = `${req.nextUrl.origin}/api/auth/callback`;
+  const redirectUri = process.env.NEXTAUTH_URL
+    ? `${process.env.NEXTAUTH_URL}/api/auth/callback`
+    : `${req.nextUrl.origin}/api/auth/callback`;
 
   // Trocar o code por tokens
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
