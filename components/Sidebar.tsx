@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 const SHEET_ID = '1njKJ8Bm0JMJlh0kvycfYU6xqg1CWu4nSqAldEp2-fak';
 
@@ -74,6 +75,15 @@ function IconMonitor({ className }: { className?: string }) {
   );
 }
 
+function IconReply({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 17 4 12 9 7" />
+      <path d="M20 18v-2a4 4 0 00-4-4H4" />
+    </svg>
+  );
+}
+
 const NAV = [
   { href: '/', label: 'Dashboard', Icon: IconDashboard },
   { href: '/monitor', label: 'Monitor', Icon: IconMonitor },
@@ -86,6 +96,13 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [respondidosCount, setRespondidosCount] = useState(0);
+  useEffect(() => {
+    fetch('/api/respondidos', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setRespondidosCount(d.respondidos?.filter((r: any) => r.atendido !== 'SIM').length || 0))
+      .catch(() => {});
+  }, []);
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-slate-200 flex flex-col z-50">
       <div className="px-6 py-6 border-b border-slate-100">
@@ -117,6 +134,22 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {respondidosCount > 0 && (
+          <Link
+            href="/respondidos"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              pathname === '/respondidos'
+                ? 'bg-miia-500 text-white shadow-lg shadow-miia-500/25'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
+            }`}
+          >
+            <IconReply className={`w-5 h-5 ${pathname === '/respondidos' ? 'text-white' : 'text-slate-400'}`} />
+            <span className="flex-1">Respondidos</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pathname === '/respondidos' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+              {respondidosCount}
+            </span>
+          </Link>
+        )}
       </nav>
       <div className="px-6 py-4 border-t border-slate-100">
         <p className="text-xs text-slate-400">v4.0 - Marco 2026</p>

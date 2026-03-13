@@ -83,7 +83,7 @@ export async function readTemplates(spreadsheetId?: string) {
 }
 
 export async function readContatos(spreadsheetId?: string) {
-  const rows = await readSheet('Contatos!A:K', spreadsheetId);
+  const rows = await readSheet('Contatos!A:L', spreadsheetId);
   if (rows.length < 2) return { headers: rows[0] || [], contacts: [] };
   const headers = rows[0];
   const contacts = rows.slice(1).filter(r => r[0] || r[3]).map((r, i) => ({
@@ -99,6 +99,7 @@ export async function readContatos(spreadsheetId?: string) {
     fup1Enviado: r[8] || '',
     fup2Enviado: r[9] || '',
     threadId: r[10] || '',
+    atendido: r[11] || '',
   }));
   return { headers, contacts };
 }
@@ -346,4 +347,8 @@ export async function deleteCategoryFromPainel(category: string, spreadsheetId?:
 
 export async function deleteCategoryFromTemplates(category: string, spreadsheetId?: string): Promise<number> {
   return deleteRowsByFirstColumn('Templates', category, spreadsheetId);
+}
+
+export async function writeAtendido(rowIndex: number, value: string, spreadsheetId?: string): Promise<void> {
+  await writeSheet('Contatos!L' + rowIndex, [[value]], spreadsheetId);
 }

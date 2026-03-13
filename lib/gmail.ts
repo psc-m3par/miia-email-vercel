@@ -135,3 +135,48 @@ export async function checkReplies(
 
   return { hasReply: false };
 }
+
+function extractTextBody(payload: any): string {
+  if (!payload) return '';
+  if (payload.body?.data) {
+    try { return Buffer.from(payload.body.data, 'base64url').toString('utf-8'); } catch { return ''; }
+  }
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/plain' && part.body?.data) {
+        try { return Buffer.from(part.body.data, 'base64url').toString('utf-8'); } catch { continue; }
+      }
+    }
+    for (const part of payload.parts) {
+      const t = extractTextBody(part);
+      if (t) return t;
+    }
+  }
+  return '';
+}
+
+export async function getReplyText(
+  senderEmail: string,
+  threadId: string,
+  spreadsheetId?: string
+): Promise<string> {
+  try {
+    const accessToken = await getValidAccessToken(senderEmail, spreadsheetId);
+    if (!accessToken) return '';
+    const res = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=full',
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if (!res.ok) return '';
+    const data = await res.json();
+    const messages = data.messages || [];
+    for (const msg of messages) {
+      const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === 'from');
+      if (!fromHeader) continue;
+      if (fromHeader.value.toLowerCase().includes(senderEmail.toLowerCase())) continue;
+      const text = extractTextBody(msg.payload);
+      if (text) return text.slice(0, 2000);
+    }
+    return '';
+  } catch { return ''; }
+}
