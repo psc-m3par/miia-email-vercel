@@ -20,6 +20,50 @@ const ROTINA_COLORS: Record<string, { bg: string; text: string; dot: string }> =
   'Check Replies':{ bg: 'bg-green-50',  text: 'text-green-700',  dot: 'bg-green-500' },
 };
 
+// Calcula quando a rotina vai rodar para uma categoria
+function nextRunLabel(cat: any, rotina: string): string {
+  if (!cat.ativo) return 'pausado';
+  if (rotina === 'Check Replies') return 'em <1min';
+
+  const RATE_LIMIT = 55; // minutos
+  const cronMinute = rotina === 'Email 1' ? 0 : 5; // :00 ou :05
+
+  const now = new Date();
+
+  // Quando podemos rodar (rate limit)
+  const earliestRun = cat.ultimoEnvio
+    ? new Date(new Date(cat.ultimoEnvio).getTime() + RATE_LIMIT * 60000)
+    : now;
+
+  // Próximo tick do cron (horário UTC)
+  const candidate = new Date(now);
+  candidate.setUTCSeconds(0, 0);
+  candidate.setUTCMinutes(cronMinute);
+  if (candidate <= now) candidate.setUTCHours(candidate.getUTCHours() + 1);
+
+  // Avança enquanto ainda está dentro do rate limit
+  while (candidate < earliestRun) {
+    candidate.setUTCHours(candidate.getUTCHours() + 1);
+  }
+
+  // Avança até cair dentro da janela de horário (máx 25h)
+  const maxLook = new Date(now.getTime() + 25 * 3600000);
+  while (candidate < maxLook) {
+    const horaBR = parseInt(
+      new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false }).format(candidate)
+    );
+    if (horaBR >= (cat.horaInicio || 0) && horaBR < (cat.horaFim || 24)) break;
+    candidate.setUTCHours(candidate.getUTCHours() + 1);
+  }
+
+  const diffMin = Math.round((candidate.getTime() - now.getTime()) / 60000);
+  if (diffMin <= 1) return 'agora';
+  if (diffMin < 60) return `em ${diffMin}min`;
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+  return m > 0 ? `em ${h}h${m}min` : `em ${h}h`;
+}
+
 function timeAgo(tsStr: string): string {
   // pt-BR format: "dd/mm/yyyy, HH:MM:SS"
   try {
@@ -217,13 +261,22 @@ export default function MonitorPage() {
                       <div className="flex flex-col items-center gap-1">
                         {(() => {
                           const last = lastPerRotina[key];
-                          if (!last) return <span className="text-slate-300 text-[10px]">sem registro</span>;
+                          if (!last) return (
+                            <div className="text-center">
+                              <span className="text-slate-300 text-[10px]">sem registro</span>
+                              <div className="text-[10px] text-slate-400">{nextRunLabel(cat, rotina)}</div>
+                            </div>
+                          );
                           const displayQty = rotina === 'Check Replies'
                             ? (todayTotals[key] || 0)
                             : last.quantidade;
+                          const next = nextRunLabel(cat, rotina);
                           return (
-                            <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
-                              {displayQty} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
+                            <div className="text-center">
+                              <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
+                                {displayQty} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400">{next}</div>
                             </div>
                           );
                         })()}
