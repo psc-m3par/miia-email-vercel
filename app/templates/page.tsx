@@ -47,7 +47,7 @@ function AIPanel({ category, onApply }: { category: string; onApply: (t: Partial
         className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-violet-700 hover:bg-violet-100 transition-colors"
       >
         <span className="flex items-center gap-2">
-          <span className="text-base">✨</span> Gerar com IA (Gemini)
+          <span className="text-base">✨</span> Gerar com IA
         </span>
         <span className="text-violet-400 text-xs">{open ? '▲' : '▼'}</span>
       </button>
