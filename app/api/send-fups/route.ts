@@ -5,7 +5,6 @@ import { sendReply, checkReplies } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MINUTOS_ENTRE_LOTES = 55;
 
 async function runSendFups(category?: string, force = false) {
   const allIds = getAllSpreadsheetIds();
@@ -29,16 +28,6 @@ async function runSendFups(category?: string, force = false) {
         const horaAtual = parseInt(horaBrasilia);
         if (horaAtual < cat.horaInicio || horaAtual >= cat.horaFim) {
           pulados.push(`"${cat.category}" fora da janela (${cat.horaInicio}h-${cat.horaFim}h, agora ${horaAtual}h)`);
-          continue;
-        }
-      }
-
-      // Rate limiting: mesma lógica do send-emails (55 min entre lotes)
-      if (!force && cat.ultimoEnvio) {
-        const minutosSinceLastSend = (Date.now() - new Date(cat.ultimoEnvio).getTime()) / 60000;
-        if (minutosSinceLastSend < MINUTOS_ENTRE_LOTES) {
-          const proxEnvio = Math.ceil(MINUTOS_ENTRE_LOTES - minutosSinceLastSend);
-          pulados.push(`"${cat.category}" aguardando ${proxEnvio}min`);
           continue;
         }
       }
@@ -81,9 +70,6 @@ async function runSendFups(category?: string, force = false) {
       });
 
       if (prontosFup1.length === 0 && prontosFup2.length === 0) continue;
-
-      // Só bloqueia o slot de 55min se há FUPs reais para enviar
-      await writeSheet('Painel!I' + cat.rowIndex, [[new Date().toISOString()]], spreadsheetId);
 
       for (const contato of prontosFup1) {
         if (enviadosCat >= limite) break;
