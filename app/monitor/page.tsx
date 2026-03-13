@@ -108,6 +108,15 @@ export default function MonitorPage() {
     if (!lastPerRotina[key]) lastPerRotina[key] = log;
   }
 
+  // Total hoje por rotina+categoria (para Check Replies mostrar acumulado do dia)
+  const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
+  const todayTotals: Record<string, number> = {};
+  for (const log of logs) {
+    if (!log.timestamp.startsWith(hoje)) continue;
+    const key = log.rotina + '||' + log.categoria;
+    todayTotals[key] = (todayTotals[key] || 0) + log.quantidade;
+  }
+
   if (loading) return (
     <div className="max-w-6xl mx-auto animate-pulse">
       <div className="h-8 bg-slate-200 rounded w-48 mb-8" />
@@ -208,11 +217,15 @@ export default function MonitorPage() {
                       <div className="flex flex-col items-center gap-1">
                         {(() => {
                           const last = lastPerRotina[key];
-                          return last ? (
+                          if (!last) return <span className="text-slate-300 text-[10px]">sem registro</span>;
+                          const displayQty = rotina === 'Check Replies'
+                            ? (todayTotals[key] || 0)
+                            : last.quantidade;
+                          return (
                             <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
-                              {last.quantidade} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
+                              {displayQty} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
                             </div>
-                          ) : <span className="text-slate-300 text-[10px]">sem registro</span>;
+                          );
                         })()}
                         {res && <span className={`text-[10px] font-medium ${res.ok ? 'text-green-600' : 'text-red-500'}`}>{res.msg}</span>}
                         <button

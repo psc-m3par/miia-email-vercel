@@ -35,6 +35,7 @@ async function runRetryErrors(category?: string) {
 
       const lote = comErro.slice(0, 5);
       let corrigidosCat = 0;
+      const errosCat: string[] = [];
 
       for (const contato of lote) {
         await writeSheet(
@@ -79,13 +80,14 @@ async function runRetryErrors(category?: string) {
             [['ERRO ' + hoje + ': ' + result.error]],
             spreadsheetId
           );
+          errosCat.push(contato.email + ': ' + result.error);
           erros.push(contato.email + ': ' + result.error);
         }
       }
 
       await appendLog(
         'Email 1', cat.category, corrigidosCat,
-        erros.length > 0 ? 'erro' : 'ok',
+        errosCat.length > 0 ? 'erro' : 'ok',
         corrigidosCat > 0 ? `${corrigidosCat} erro(s) corrigido(s)` : `Sem correções bem-sucedidas`,
         spreadsheetId
       );
