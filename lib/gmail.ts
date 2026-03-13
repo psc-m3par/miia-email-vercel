@@ -107,7 +107,7 @@ export async function checkReplies(
   }
 
   const res = await fetch(
-    'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=metadata&metadataHeaders=From',
+    'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject',
     { headers: { Authorization: 'Bearer ' + accessToken } }
   );
 
@@ -120,17 +120,21 @@ export async function checkReplies(
 
   if (messages.length <= 1) return { hasReply: false };
 
-  const BOUNCE_PATTERNS = ['mailer-daemon', 'postmaster', 'mail delivery subsystem', 'delivery status notification', 'mailer-daemon@'];
+  const BOUNCE_FROM_PATTERNS = ['mailer-daemon', 'postmaster', 'mail delivery subsystem', 'delivery status notification', 'microsoftexchange', 'noreply', 'no-reply'];
+  const BOUNCE_SUBJECT_PATTERNS = ['undeliverable', 'delivery failed', 'delivery failure', 'mail delivery failed', 'failure notice', 'não entregue', 'nao entregue', 'returned mail', 'address not found', 'user unknown'];
 
   for (const msg of messages) {
-    const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === 'from');
+    const headers = msg.payload?.headers || [];
+    const fromHeader = headers.find((h: any) => h.name.toLowerCase() === 'from');
+    const subjectHeader = headers.find((h: any) => h.name.toLowerCase() === 'subject');
     if (!fromHeader) continue;
     const fromVal = fromHeader.value.toLowerCase();
     if (fromVal.includes(senderEmail.toLowerCase())) continue;
-    if (BOUNCE_PATTERNS.some(p => fromVal.includes(p))) {
-      return { hasReply: true, isBounce: true };
-    }
-    return { hasReply: true, isBounce: false };
+    const subjectVal = (subjectHeader?.value || '').toLowerCase();
+    const isBounce =
+      BOUNCE_FROM_PATTERNS.some(p => fromVal.includes(p)) ||
+      BOUNCE_SUBJECT_PATTERNS.some(p => subjectVal.includes(p));
+    return { hasReply: true, isBounce };
   }
 
   return { hasReply: false };
