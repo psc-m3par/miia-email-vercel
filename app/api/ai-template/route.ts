@@ -35,14 +35,20 @@ PLACEHOLDERS — insira no texto sempre que fizer sentido, exatamente neste form
 
 O usuário vai te passar uma TESE — contexto de mercado + público-alvo + argumento de venda. Use essa tese para gerar os emails. Não invente contexto que não está na tese.
 
+FORMATAÇÃO DO CORPO:
+- Separe cada parágrafo com \n\n (linha dupla)
+- Nunca escreva o corpo como um bloco único de texto corrido
+- Exemplo de estrutura do corpo:
+  "Olá [First Name],\n\nContexto/urgência do mercado em 1-2 frases.\n\nComo a MIIA resolve isso com 2-3 funcionalidades relevantes.\n\nFaria sentido conversar 15 min esta semana?"
+
 FORMATO DE RESPOSTA (JSON puro, sem markdown, sem explicações):
 {
   "assunto": "assunto do email 1",
-  "corpo": "corpo do email 1",
+  "corpo": "parágrafo 1\n\nparágrafo 2\n\nparágrafo 3",
   "fup1Assunto": "assunto do follow-up 1",
-  "fup1Corpo": "corpo do follow-up 1",
+  "fup1Corpo": "parágrafo 1\n\nparágrafo 2",
   "fup2Assunto": "assunto do follow-up 2",
-  "fup2Corpo": "corpo do follow-up 2"
+  "fup2Corpo": "parágrafo 1\n\nparágrafo 2"
 }
 
 Responda APENAS com o JSON, nada mais.`;
