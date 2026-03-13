@@ -52,45 +52,45 @@ export async function POST(req: NextRequest) {
     const { prompt, category } = await req.json();
     if (!prompt) return NextResponse.json({ error: 'Prompt obrigatório' }, { status: 400 });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY não configurada' }, { status: 500 });
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return NextResponse.json({ error: 'GROQ_API_KEY não configurada' }, { status: 500 });
 
     const userMessage = category
       ? `Categoria: ${category}\n\n${prompt}`
       : prompt;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 2048,
-          },
-        }),
-      }
-    );
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userMessage },
+        ],
+        temperature: 0.8,
+        max_tokens: 2048,
+      }),
+    });
 
     if (!response.ok) {
       const err = await response.text();
-      return NextResponse.json({ error: 'Gemini API error: ' + err }, { status: 500 });
+      return NextResponse.json({ error: 'Groq API error: ' + err }, { status: 500 });
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data.choices?.[0]?.message?.content || '';
 
-    // Strip markdown code blocks if present
     const cleaned = text.replace(/```(?:json)?\n?/g, '').trim();
 
     let parsed;
     try {
       parsed = JSON.parse(cleaned);
     } catch {
-      return NextResponse.json({ error: 'Resposta inválida do Gemini: ' + text }, { status: 500 });
+      return NextResponse.json({ error: 'Resposta inválida: ' + text }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, template: parsed });
