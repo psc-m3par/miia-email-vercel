@@ -84,6 +84,16 @@ function IconReply({ className }: { className?: string }) {
   );
 }
 
+function IconChevron({ className, collapsed }: { className?: string; collapsed: boolean }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {collapsed
+        ? <polyline points="9 18 15 12 9 6" />
+        : <polyline points="15 18 9 12 15 6" />}
+    </svg>
+  );
+}
+
 const NAV = [
   { href: '/', label: 'Dashboard', Icon: IconDashboard },
   { href: '/monitor', label: 'Monitor', Icon: IconMonitor },
@@ -94,9 +104,15 @@ const NAV = [
   { href: '/connect', label: 'Conectar Gmail', Icon: IconGmail },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [respondidosCount, setRespondidosCount] = useState(0);
+
   useEffect(() => {
     const fetchCount = () => {
       fetch('/api/respondidos', { cache: 'no-store' })
@@ -108,65 +124,99 @@ export default function Sidebar() {
     const interval = setInterval(fetchCount, 15000);
     return () => clearInterval(interval);
   }, [pathname]);
+
+  const allNav = [
+    ...NAV,
+    ...(respondidosCount > 0
+      ? [{ href: '/respondidos', label: 'Respondidos', Icon: IconReply, badge: respondidosCount }]
+      : []),
+  ];
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-slate-200 flex flex-col z-50">
-      <div className="px-6 py-6 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-miia-500 flex items-center justify-center">
+    <aside className={`fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex flex-col z-50 transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
+      {/* Header */}
+      <div className={`border-b border-slate-100 flex items-center ${collapsed ? 'px-3 py-6 justify-center' : 'px-6 py-6 justify-between'}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-miia-500 flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold font-display text-lg">M</span>
           </div>
-          <div>
-            <h1 className="font-display font-bold text-miia-500 text-lg leading-tight">MIIA</h1>
-            <p className="text-xs text-slate-400 leading-tight">Email Automation</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <h1 className="font-display font-bold text-miia-500 text-lg leading-tight">MIIA</h1>
+              <p className="text-xs text-slate-400 leading-tight">Email Automation</p>
+            </div>
+          )}
         </div>
+        {!collapsed && onToggle && (
+          <button onClick={onToggle} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0">
+            <IconChevron className="w-4 h-4" collapsed={collapsed} />
+          </button>
+        )}
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map((item) => {
+
+      {/* Nav */}
+      <nav className={`flex-1 py-4 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
+        {allNav.map((item) => {
           const isActive = pathname === item.href;
+          const badge = (item as any).badge;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center rounded-xl text-sm font-medium transition-all ${
+                collapsed ? 'justify-center px-0 py-3' : 'gap-3 px-4 py-3'
+              } ${
                 isActive
                   ? 'bg-miia-500 text-white shadow-lg shadow-miia-500/25'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
               }`}
             >
-              <item.Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-              {item.label}
+              <div className="relative flex-shrink-0">
+                <item.Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                {collapsed && badge ? (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                ) : null}
+              </div>
+              {!collapsed && (
+                <>
+                  <span className="flex-1">{item.label}</span>
+                  {badge ? (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                      {badge}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </Link>
           );
         })}
-        {respondidosCount > 0 && (
-          <Link
-            href="/respondidos"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-              pathname === '/respondidos'
-                ? 'bg-miia-500 text-white shadow-lg shadow-miia-500/25'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
-            }`}
-          >
-            <IconReply className={`w-5 h-5 ${pathname === '/respondidos' ? 'text-white' : 'text-slate-400'}`} />
-            <span className="flex-1">Respondidos</span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pathname === '/respondidos' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
-              {respondidosCount}
-            </span>
-          </Link>
-        )}
       </nav>
-      <div className="px-6 py-4 border-t border-slate-100">
-        <p className="text-xs text-slate-400">v4.0 - Marco 2026</p>
-        <a
-          href={'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit'}
-          target="_blank"
-          rel="noopener"
-          className="text-xs text-miia-400 hover:text-miia-500 mt-1 inline-block"
-        >
-          Abrir Planilha
-        </a>
-      </div>
+
+      {/* Footer */}
+      {collapsed ? (
+        <div className="px-2 py-4 border-t border-slate-100 flex flex-col items-center gap-2">
+          {onToggle && (
+            <button onClick={onToggle} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+              <IconChevron className="w-4 h-4" collapsed={collapsed} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="px-6 py-4 border-t border-slate-100">
+          <p className="text-xs text-slate-400">v4.0 - Marco 2026</p>
+          <a
+            href={'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit'}
+            target="_blank"
+            rel="noopener"
+            className="text-xs text-miia-400 hover:text-miia-500 mt-1 inline-block"
+          >
+            Abrir Planilha
+          </a>
+        </div>
+      )}
     </aside>
   );
 }

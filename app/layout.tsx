@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import Sidebar from '@/components/Sidebar';
+import SidebarLayout from '@/components/SidebarLayout';
 
 export const metadata: Metadata = {
   title: 'MIIA Email Automation',
@@ -11,10 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <body className="flex min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 ml-64 p-8">
-          {children}
-        </main>
+        <SidebarLayout>{children}</SidebarLayout>
       </body>
     </html>
   );
