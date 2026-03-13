@@ -52,6 +52,9 @@ export async function GET(req: NextRequest) {
       const isMine = fromEmail.toLowerCase() === user.toLowerCase();
       const colleague = isMine ? toEmail : fromEmail;
       if (!colleague || colleague.toLowerCase() === user.toLowerCase()) return null;
+      // Only show threads where the other party is from the same domain (internal)
+      const collegeDomain = colleague.split('@')[1] || '';
+      if (collegeDomain !== domain) return null;
       return { id: t.id, colleague, snippet: t.snippet || '', date, subject };
     })
   )).filter(Boolean) as { id: string; colleague: string; snippet: string; date: string; subject: string }[];
