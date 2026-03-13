@@ -27,11 +27,12 @@ interface Respondido {
 }
 
 const PIPELINE_STAGES = [
-  { key: 'NOVO',       label: 'Novo',           color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  { key: 'NEGOCIACAO', label: 'Em negociação',   color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { key: 'REUNIAO',    label: 'Reunião marcada', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { key: 'GANHO',      label: 'Ganho',           color: 'bg-green-100 text-green-700 border-green-200' },
-  { key: 'PERDIDO',    label: 'Perdido',         color: 'bg-red-100 text-red-600 border-red-200' },
+  { key: 'NOVO',          label: 'Novo',           color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  { key: 'NEGOCIACAO',    label: 'Conversando',    color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { key: 'REUNIAO',       label: 'Reunião marcada',color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { key: 'GANHO',         label: 'Ganho',          color: 'bg-green-100 text-green-700 border-green-200' },
+  { key: 'PERDIDO',       label: 'Perdido',        color: 'bg-red-100 text-red-600 border-red-200' },
+  { key: 'SEM_INTERESSE', label: 'Sem interesse',  color: 'bg-slate-100 text-slate-500 border-slate-200' },
 ];
 
 function pipelineStage(key: string) {
@@ -104,12 +105,17 @@ export default function RespondidosPage() {
     const k = cardKey(r);
     setMovingPipeline(k + stage);
     try {
+      const semInteresse = stage === 'SEM_INTERESSE';
       await fetch('/api/respondidos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rowIndex: r.rowIndex, pipeline: stage, spreadsheetId: r.spreadsheetId }),
+        body: JSON.stringify({ rowIndex: r.rowIndex, pipeline: semInteresse ? 'PERDIDO' : stage, atendido: semInteresse ? true : undefined, spreadsheetId: r.spreadsheetId }),
       });
-      setRespondidos(prev => prev.map(x => cardKey(x) === k ? { ...x, pipeline: stage } : x));
+      if (semInteresse) {
+        setRespondidos(prev => prev.filter(x => cardKey(x) !== k));
+      } else {
+        setRespondidos(prev => prev.map(x => cardKey(x) === k ? { ...x, pipeline: stage } : x));
+      }
     } finally {
       setMovingPipeline(null);
     }

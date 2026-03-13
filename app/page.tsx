@@ -257,7 +257,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-5 gap-2 text-center">
             {[
               { key: 'NOVO',       label: 'Novo',         color: 'bg-amber-50 text-amber-700 border-amber-200' },
-              { key: 'NEGOCIACAO', label: 'Negociação',   color: 'bg-blue-50 text-blue-700 border-blue-200' },
+              { key: 'NEGOCIACAO', label: 'Conversando',  color: 'bg-blue-50 text-blue-700 border-blue-200' },
               { key: 'REUNIAO',    label: 'Reunião',      color: 'bg-purple-50 text-purple-700 border-purple-200' },
               { key: 'GANHO',      label: 'Ganho',        color: 'bg-green-50 text-green-700 border-green-200' },
               { key: 'PERDIDO',    label: 'Perdido',      color: 'bg-red-50 text-red-600 border-red-200' },

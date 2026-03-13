@@ -18,7 +18,7 @@ interface Deal {
 
 const STAGES = [
   { key: 'NOVO',       label: 'Novo',           color: 'border-t-amber-400',   badge: 'bg-amber-100 text-amber-700',   count: 'text-amber-600' },
-  { key: 'NEGOCIACAO', label: 'Em negociação',   color: 'border-t-blue-400',    badge: 'bg-blue-100 text-blue-700',     count: 'text-blue-600' },
+  { key: 'NEGOCIACAO', label: 'Conversando',      color: 'border-t-blue-400',    badge: 'bg-blue-100 text-blue-700',     count: 'text-blue-600' },
   { key: 'REUNIAO',    label: 'Reunião marcada', color: 'border-t-purple-400',  badge: 'bg-purple-100 text-purple-700', count: 'text-purple-600' },
   { key: 'GANHO',      label: 'Ganho',           color: 'border-t-green-400',   badge: 'bg-green-100 text-green-700',   count: 'text-green-600' },
   { key: 'PERDIDO',    label: 'Perdido',         color: 'border-t-slate-300',   badge: 'bg-slate-100 text-slate-500',   count: 'text-slate-400' },

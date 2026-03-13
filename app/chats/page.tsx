@@ -12,10 +12,11 @@ interface TeamThread { id: string; colleague: string; snippet: string; date: str
 
 const PIPELINE_STAGES = [
   { key: 'NOVO', label: 'Novo', color: 'bg-amber-100 text-amber-700' },
-  { key: 'NEGOCIACAO', label: 'Em negociação', color: 'bg-blue-100 text-blue-700' },
+  { key: 'NEGOCIACAO', label: 'Conversando', color: 'bg-blue-100 text-blue-700' },
   { key: 'REUNIAO', label: 'Reunião marcada', color: 'bg-purple-100 text-purple-700' },
   { key: 'GANHO', label: 'Ganho', color: 'bg-green-100 text-green-700' },
   { key: 'PERDIDO', label: 'Perdido', color: 'bg-red-100 text-red-600' },
+  { key: 'SEM_INTERESSE', label: 'Sem interesse', color: 'bg-slate-100 text-slate-500' },
 ];
 
 export default function ChatsPage() {
@@ -130,9 +131,19 @@ export default function ChatsPage() {
 
   const movePipeline = async (r: Respondido, stage: string) => {
     setMovingPipeline(true);
-    await fetch('/api/respondidos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.rowIndex, pipeline: stage, spreadsheetId: r.spreadsheetId }) });
-    setRespondidos(prev => prev.map(x => x.rowIndex === r.rowIndex && x.spreadsheetId === r.spreadsheetId ? { ...x, pipeline: stage } : x));
-    if (selectedProspect?.rowIndex === r.rowIndex) setSelectedProspect(prev => prev ? { ...prev, pipeline: stage } : prev);
+    const semInteresse = stage === 'SEM_INTERESSE';
+    await fetch('/api/respondidos', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rowIndex: r.rowIndex, pipeline: semInteresse ? 'PERDIDO' : stage, atendido: semInteresse ? true : undefined, spreadsheetId: r.spreadsheetId }),
+    });
+    if (semInteresse) {
+      setRespondidos(prev => prev.filter(x => !(x.rowIndex === r.rowIndex && x.spreadsheetId === r.spreadsheetId)));
+      setSelectedProspect(null);
+    } else {
+      setRespondidos(prev => prev.map(x => x.rowIndex === r.rowIndex && x.spreadsheetId === r.spreadsheetId ? { ...x, pipeline: stage } : x));
+      if (selectedProspect?.rowIndex === r.rowIndex) setSelectedProspect(prev => prev ? { ...prev, pipeline: stage } : prev);
+    }
     setMovingPipeline(false);
   };
 
