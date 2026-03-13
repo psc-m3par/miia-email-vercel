@@ -20,6 +20,10 @@ interface DashboardData {
   totalContatos: number;
 }
 
+interface PipelineCount {
+  NOVO: number; NEGOCIACAO: number; REUNIAO: number; GANHO: number; PERDIDO: number;
+}
+
 function getEstado(s: Stats, ativo: boolean): { label: string; color: string } {
   if (!ativo) return { label: 'Pausado', color: 'bg-slate-100 text-slate-500' };
   if (s.total === 0) return { label: 'Sem base', color: 'bg-slate-100 text-slate-400' };
@@ -56,6 +60,7 @@ export default function DashboardPage() {
   const [savingReport, setSavingReport] = useState(false);
   const [reportMsg, setReportMsg] = useState('');
   const [connectedEmails, setConnectedEmails] = useState<string[]>([]);
+  const [pipeline, setPipeline] = useState<PipelineCount | null>(null);
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -63,7 +68,8 @@ export default function DashboardPage() {
       fetch('/api/sheets?type=contacts', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/config', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/tokens', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([dashData, contactsData, configData, tokensData]) => {
+      fetch('/api/respondidos', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([dashData, contactsData, configData, tokensData, respData]) => {
       if (dashData.error) setError(dashData.error);
       else setData(dashData);
       if (contactsData.contacts) setContacts(contactsData.contacts);
@@ -75,6 +81,14 @@ export default function DashboardPage() {
       }
       if (Array.isArray(tokensData)) {
         setConnectedEmails(tokensData.map((t: any) => t.email));
+      }
+      if (respData.respondidos) {
+        const counts: PipelineCount = { NOVO: 0, NEGOCIACAO: 0, REUNIAO: 0, GANHO: 0, PERDIDO: 0 };
+        for (const r of respData.respondidos) {
+          const stage = (r.pipeline || 'NOVO') as keyof PipelineCount;
+          if (stage in counts) counts[stage]++;
+        }
+        setPipeline(counts);
       }
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
@@ -236,6 +250,26 @@ export default function DashboardPage() {
         <StatBox label="Respondidos" value={totalGeral.respondidos} color="green" />
         <StatBox label="Erros" value={totalGeral.erros} color="red" />
       </div>
+
+      {pipeline && (pipeline.NOVO + pipeline.NEGOCIACAO + pipeline.REUNIAO + pipeline.GANHO + pipeline.PERDIDO) > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
+          <h2 className="font-display text-sm font-bold text-slate-700 mb-3">Pipeline Comercial</h2>
+          <div className="grid grid-cols-5 gap-2 text-center">
+            {[
+              { key: 'NOVO',       label: 'Novo',         color: 'bg-amber-50 text-amber-700 border-amber-200' },
+              { key: 'NEGOCIACAO', label: 'Negociação',   color: 'bg-blue-50 text-blue-700 border-blue-200' },
+              { key: 'REUNIAO',    label: 'Reunião',      color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { key: 'GANHO',      label: 'Ganho',        color: 'bg-green-50 text-green-700 border-green-200' },
+              { key: 'PERDIDO',    label: 'Perdido',      color: 'bg-red-50 text-red-600 border-red-200' },
+            ].map(s => (
+              <div key={s.key} className={`rounded-xl border p-3 ${s.color}`}>
+                <div className="text-xl font-bold font-display">{pipeline[s.key as keyof PipelineCount]}</div>
+                <div className="text-[10px] mt-0.5 opacity-70">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div>

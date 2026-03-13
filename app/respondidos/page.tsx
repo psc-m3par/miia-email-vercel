@@ -50,6 +50,13 @@ export default function RespondidosPage() {
   const [sendingReply, setSendingReply] = useState<Record<string, boolean>>({});
   const [replyResult, setReplyResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
   const [movingPipeline, setMovingPipeline] = useState<string | null>(null);
+  const [meetModal, setMeetModal] = useState<{ r: Respondido } | null>(null);
+  const [meetDate, setMeetDate] = useState('');
+  const [meetTime, setMeetTime] = useState('');
+  const [meetDur, setMeetDur] = useState(30);
+  const [meetLoading, setMeetLoading] = useState(false);
+  const [meetResult, setMeetResult] = useState<{ link: string; eventLink: string } | null>(null);
+  const [meetError, setMeetError] = useState('');
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -134,6 +141,42 @@ export default function RespondidosPage() {
       setReplyResult(prev => ({ ...prev, [k]: { ok: false, msg: e.message } }));
     } finally {
       setSendingReply(prev => ({ ...prev, [k]: false }));
+    }
+  };
+
+  const scheduleMeet = async () => {
+    if (!meetModal || !meetDate || !meetTime) return;
+    setMeetLoading(true);
+    setMeetError('');
+    setMeetResult(null);
+    try {
+      const { r } = meetModal;
+      const nome = [r.firstName, r.lastName].filter(Boolean).join(' ') || r.email;
+      const res = await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderEmail: r.responsavel,
+          spreadsheetId: r.spreadsheetId,
+          contactEmail: r.email,
+          contactName: nome,
+          dateTime: `${meetDate}T${meetTime}:00`,
+          durationMin: meetDur,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMeetResult({ link: data.meetLink, eventLink: data.eventLink });
+        if (r.pipeline === 'NOVO' || r.pipeline === 'NEGOCIACAO') {
+          movePipeline(r, 'REUNIAO');
+        }
+      } else {
+        setMeetError(data.error || 'Erro ao criar evento');
+      }
+    } catch (e: any) {
+      setMeetError(e.message);
+    } finally {
+      setMeetLoading(false);
     }
   };
 
@@ -226,10 +269,19 @@ export default function RespondidosPage() {
                       ))}
                     </div>
                   </div>
-                  <button onClick={() => toggleThread(r)}
-                    className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-miia-500 border border-slate-200 rounded-xl hover:border-miia-300 transition-colors">
-                    {isOpen ? 'Fechar' : 'Ver conversa'}
-                  </button>
+                  <div className="flex gap-2 flex-shrink-0">
+                    {!isClosed && (
+                      <button
+                        onClick={() => { setMeetModal({ r }); setMeetResult(null); setMeetError(''); }}
+                        className="px-3 py-1.5 text-xs font-medium text-purple-600 border border-purple-200 rounded-xl hover:bg-purple-50 transition-colors">
+                        📅 Meet
+                      </button>
+                    )}
+                    <button onClick={() => toggleThread(r)}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-miia-500 border border-slate-200 rounded-xl hover:border-miia-300 transition-colors">
+                      {isOpen ? 'Fechar' : 'Ver conversa'}
+                    </button>
+                  </div>
                 </div>
 
                 {isOpen && (
@@ -281,6 +333,67 @@ export default function RespondidosPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {meetModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setMeetModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-base font-bold text-slate-800 mb-1">Agendar Google Meet</h3>
+            <p className="text-xs text-slate-400 mb-4">com {[meetModal.r.firstName, meetModal.r.lastName].filter(Boolean).join(' ') || meetModal.r.email}</p>
+
+            {meetResult ? (
+              <div className="space-y-3 text-center">
+                <div className="text-3xl">✅</div>
+                <p className="text-sm font-medium text-green-700">Reunião criada! Convite enviado para {meetModal.r.email}</p>
+                <a href={meetResult.link} target="_blank" rel="noopener noreferrer"
+                  className="block w-full py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 text-center">
+                  Entrar no Meet →
+                </a>
+                {meetResult.eventLink && (
+                  <a href={meetResult.eventLink} target="_blank" rel="noopener noreferrer"
+                    className="block text-xs text-slate-400 hover:text-slate-600">Ver no Calendar</a>
+                )}
+                <button onClick={() => setMeetModal(null)} className="block w-full py-2 text-xs text-slate-400 hover:text-slate-600">Fechar</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Data</label>
+                    <input type="date" value={meetDate} onChange={e => setMeetDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Horário</label>
+                    <input type="time" value={meetTime} onChange={e => setMeetTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Duração</label>
+                  <select value={meetDur} onChange={e => setMeetDur(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white">
+                    <option value={15}>15 min</option>
+                    <option value={30}>30 min</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>1 hora</option>
+                  </select>
+                </div>
+                {meetError && <p className="text-xs text-red-500">{meetError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setMeetModal(null)}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+                    Cancelar
+                  </button>
+                  <button onClick={scheduleMeet} disabled={meetLoading || !meetDate || !meetTime}
+                    className="flex-1 py-2.5 bg-purple-500 text-white rounded-xl text-sm font-medium hover:bg-purple-600 disabled:opacity-50">
+                    {meetLoading ? 'Criando...' : 'Criar Meet'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
