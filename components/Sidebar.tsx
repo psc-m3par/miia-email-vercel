@@ -98,11 +98,16 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [respondidosCount, setRespondidosCount] = useState(0);
   useEffect(() => {
-    fetch('/api/respondidos', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => setRespondidosCount(d.respondidos?.filter((r: any) => r.atendido !== 'SIM').length || 0))
-      .catch(() => {});
-  }, []);
+    const fetchCount = () => {
+      fetch('/api/respondidos', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => setRespondidosCount(d.respondidos?.filter((r: any) => r.atendido !== 'SIM').length || 0))
+        .catch(() => {});
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 15000);
+    return () => clearInterval(interval);
+  }, [pathname]);
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-slate-200 flex flex-col z-50">
       <div className="px-6 py-6 border-b border-slate-100">
