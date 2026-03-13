@@ -172,6 +172,7 @@ export default function ChatsPage() {
   if (loading) return <div className="flex items-center justify-center h-64 text-slate-400 text-sm">Carregando...</div>;
 
   return (
+    <>
     <div className="flex h-[calc(100vh-2rem)] -mt-8 -mx-8">
       {/* Left panel */}
       <div className="w-72 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col">
@@ -427,5 +428,6 @@ export default function ChatsPage() {
         </div>
       </div>
     )}
+    </>
   );
 }
