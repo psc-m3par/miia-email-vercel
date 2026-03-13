@@ -12,6 +12,73 @@ interface Template {
   fup2Corpo: string;
 }
 
+function AIPanel({ category, onApply }: { category: string; onApply: (t: Partial<Template>) => void }) {
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const generate = async () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ai-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt.trim(), category }),
+      });
+      const data = await res.json();
+      if (!data.ok) { setError(data.error || 'Erro desconhecido'); return; }
+      onApply(data.template);
+      setOpen(false);
+      setPrompt('');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mb-6 rounded-2xl border border-violet-200 bg-violet-50 overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-violet-700 hover:bg-violet-100 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <span className="text-base">✨</span> Gerar com IA (Gemini)
+        </span>
+        <span className="text-violet-400 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t border-violet-200">
+          <p className="text-xs text-violet-600 pt-3">Descreva o produto/serviço, tom, público-alvo e qualquer detalhe relevante. A IA vai preencher todos os 6 campos automaticamente.</p>
+          <textarea
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) generate(); }}
+            placeholder="Ex: Somos uma empresa de software de RH para PMEs. Queremos prospectar diretores de RH de empresas 50-500 funcionários. Tom profissional mas descontraído."
+            rows={4}
+            className="w-full px-3 py-2 border border-violet-200 rounded-xl text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400/50 resize-none"
+          />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={generate}
+              disabled={loading || !prompt.trim()}
+              className="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-medium hover:bg-violet-700 disabled:opacity-50"
+            >
+              {loading ? 'Gerando...' : '✨ Gerar templates'}
+            </button>
+            <span className="text-[10px] text-violet-400">⌘+Enter para gerar</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selected, setSelected] = useState<number>(-1);
@@ -162,6 +229,10 @@ export default function TemplatesPage() {
                   <p className="text-xs text-slate-400">Todas as categories ja tem template. Crie uma nova category no Painel primeiro.</p>
                 )}
               </div>
+              <AIPanel
+                category={newTemplate.category}
+                onApply={t => setNewTemplate(prev => ({ ...prev, ...t }))}
+              />
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
                 <span className="text-xs text-slate-400">Placeholders:</span>
                 {PLACEHOLDERS.map(p => (
@@ -193,7 +264,11 @@ export default function TemplatesPage() {
             </div>
           ) : editing ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-in">
-              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+              <AIPanel
+                category={editing.category}
+                onApply={t => setEditing(prev => prev ? { ...prev, ...t } : prev)}
+              />
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
                 <span className="text-xs text-slate-400">Placeholders:</span>
                 {PLACEHOLDERS.map(p => (
                   <span key={p} className="text-xs bg-miia-50 text-miia-600 px-2.5 py-1 rounded-lg font-mono">{p}</span>
