@@ -82,21 +82,11 @@ export default function CopilotPage() {
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.length === 0 ? (
           <div className="py-8">
-            <div className="text-center mb-8">
+            <div className="text-center">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-miia-400 to-miia-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-miia-500/20">
                 <span className="text-white text-2xl">✦</span>
               </div>
               <p className="text-slate-500 text-sm">Como posso ajudar hoje?</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {QUICK_PROMPTS.map((p, i) => (
-                <button
-                  key={i}
-                  onClick={() => send(p)}
-                  className="text-left px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:border-miia-300 hover:text-miia-600 hover:bg-miia-50 transition-all">
-                  {p}
-                </button>
-              ))}
             </div>
           </div>
         ) : (
