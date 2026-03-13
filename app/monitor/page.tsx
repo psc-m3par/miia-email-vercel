@@ -140,7 +140,11 @@ export default function MonitorPage() {
           const totalHoje = rotina === 'Check Replies'
             ? logsHoje.length
             : logsHoje.reduce((s, l) => s + l.quantidade, 0);
-          const erros = rotinaLogs.filter(l => l.status === 'erro').length;
+          const lastPerCat: Record<string, LogEntry> = {};
+          for (const log of rotinaLogs) {
+            if (!lastPerCat[log.categoria]) lastPerCat[log.categoria] = log;
+          }
+          const erros = Object.values(lastPerCat).filter(l => l.status === 'erro').length;
           const c = ROTINA_COLORS[rotina] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-400' };
 
           return (
