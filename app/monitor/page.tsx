@@ -225,12 +225,19 @@ export default function MonitorPage() {
         const hojeFup2 = logsHoje.filter(l => l.rotina === 'FUP2').reduce((s, l) => s + l.quantidade, 0);
         const hojeReplies = logsHoje.filter(l => l.rotina === 'Check Replies').length;
 
+        // Last log per rotina (for timestamp)
+        const lastLogPerRotina: Record<string, LogEntry> = {};
+        for (const log of logs) {
+          if (!lastLogPerRotina[log.rotina]) lastLogPerRotina[log.rotina] = log;
+        }
+
         const cards = [
           {
             rotina: 'Email 1',
             mainValue: totalEmail1,
             mainLabel: 'enviados',
             hojeValue: hojeEmail1,
+            hojeLabel: 'enviados hoje',
             status: totalPendentes > 0
               ? { text: `${totalPendentes} pendentes`, color: 'text-amber-600' }
               : totalEmail1 > 0
@@ -242,6 +249,7 @@ export default function MonitorPage() {
             mainValue: totalFup1,
             mainLabel: 'enviados',
             hojeValue: hojeFup1,
+            hojeLabel: 'enviados hoje',
             status: totalFup1Prontos > 0
               ? { text: `${totalFup1Prontos} pronto(s) agora`, color: 'text-green-600' }
               : totalFup1Aguardando > 0
@@ -255,6 +263,7 @@ export default function MonitorPage() {
             mainValue: totalFup2,
             mainLabel: 'enviados',
             hojeValue: hojeFup2,
+            hojeLabel: 'enviados hoje',
             status: totalFup2Prontos > 0
               ? { text: `${totalFup2Prontos} pronto(s) agora`, color: 'text-green-600' }
               : totalFup2Aguardando > 0
@@ -268,6 +277,7 @@ export default function MonitorPage() {
             mainValue: totalMonitorados,
             mainLabel: 'monitorados',
             hojeValue: hojeReplies,
+            hojeLabel: 'verificações hoje',
             status: totalRespondidos + totalBounced > 0
               ? { text: `${totalRespondidos} resp. · ${totalBounced} bounce`, color: 'text-slate-500' }
               : null,
@@ -278,20 +288,33 @@ export default function MonitorPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {cards.map(card => {
               const c = ROTINA_COLORS[card.rotina] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-400' };
-              const hasActivity = card.mainValue > 0 || card.hojeValue > 0;
+              const lastLog = lastLogPerRotina[card.rotina];
+              const isRecent = lastLog && (Date.now() - new Date(lastLog.timestamp.replace(' ', 'T') + '-03:00').getTime()) < 120000;
               return (
                 <div key={card.rotina} className={`rounded-xl border p-4 ${c.bg} border-slate-200`}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className={`w-2 h-2 rounded-full ${hasActivity ? c.dot : 'bg-slate-300'}`} />
+                    {isRecent ? (
+                      <span className="relative flex h-2 w-2">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${c.dot} opacity-75`} />
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${c.dot}`} />
+                      </span>
+                    ) : (
+                      <span className={`w-2 h-2 rounded-full ${card.mainValue > 0 ? c.dot : 'bg-slate-300'}`} />
+                    )}
                     <span className={`text-sm font-semibold ${c.text}`}>{card.rotina}</span>
                   </div>
                   <div className="text-2xl font-bold font-display text-slate-800 mb-1">{card.mainValue}</div>
                   <div className="text-[10px] text-slate-500 mb-1">{card.mainLabel}</div>
                   {card.hojeValue > 0 && (
-                    <div className="text-[10px] text-slate-500">+{card.hojeValue} hoje</div>
+                    <div className="text-[10px] text-slate-500">+{card.hojeValue} {card.hojeLabel}</div>
                   )}
                   {card.status && (
                     <div className={`text-[10px] font-medium ${card.status.color}`}>{card.status.text}</div>
+                  )}
+                  {lastLog ? (
+                    <div className="text-[10px] text-slate-400 mt-1">Ultimo: {timeAgo(lastLog.timestamp)}</div>
+                  ) : (
+                    <div className="text-[10px] text-slate-300 mt-1">Aguardando 1ª execução</div>
                   )}
                 </div>
               );
