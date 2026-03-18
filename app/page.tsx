@@ -6,6 +6,9 @@ interface Stats {
   total: number; pendentes: number; email1: number; fup1: number; fup2: number;
   respondidos: number; bounced: number; erros: number; semThread: number;
   hojeEmail1: number; hojeFup1: number; hojeFup2: number;
+  e1Respondidos: number; e1Bounced: number;
+  fup1Respondidos: number; fup1Bounced: number;
+  fup2Respondidos: number; fup2Bounced: number;
 }
 
 interface FupForecast {
