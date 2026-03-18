@@ -130,14 +130,21 @@ export async function getDashboardStats() {
 
   const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const stats: Record<string, any> = {};
-  let totalGeral = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, bounced: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
+  const emptyStats = {
+    total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0,
+    respondidos: 0, bounced: 0, erros: 0, semThread: 0,
+    hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0,
+    // Per-stage breakdown
+    e1Respondidos: 0, e1Bounced: 0,
+    fup1Respondidos: 0, fup1Bounced: 0,
+    fup2Respondidos: 0, fup2Bounced: 0,
+  };
+  let totalGeral = { ...emptyStats };
 
   for (const c of allContacts) {
     const cat = c.category;
     if (!cat) continue;
-    if (!stats[cat]) {
-      stats[cat] = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, bounced: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
-    }
+    if (!stats[cat]) stats[cat] = { ...emptyStats };
     stats[cat].total++; totalGeral.total++;
 
     const e1 = c.email1Enviado.toString();
@@ -146,11 +153,22 @@ export async function getDashboardStats() {
 
     if (e1.startsWith('OK')) { stats[cat].email1++; totalGeral.email1++; }
     else if (e1.startsWith('ERRO')) { stats[cat].erros++; totalGeral.erros++; }
-    else if (e1.startsWith('BOUNCE')) { stats[cat].email1++; totalGeral.email1++; stats[cat].bounced++; totalGeral.bounced++; }
+    else if (e1.startsWith('BOUNCE')) { stats[cat].email1++; totalGeral.email1++; stats[cat].e1Bounced++; totalGeral.e1Bounced++; stats[cat].bounced++; totalGeral.bounced++; }
     else { stats[cat].pendentes++; totalGeral.pendentes++; }
 
     if (f1.startsWith('OK')) { stats[cat].fup1++; totalGeral.fup1++; }
     if (f2.startsWith('OK')) { stats[cat].fup2++; totalGeral.fup2++; }
+
+    // Per-stage respondidos/bounced
+    // E1 stage: responded/bounced before FUP1 was sent (fup1Enviado = RESPONDIDO/BOUNCE)
+    if (f1 === 'RESPONDIDO') { stats[cat].e1Respondidos++; totalGeral.e1Respondidos++; }
+    if (f1 === 'BOUNCE') { stats[cat].e1Bounced++; totalGeral.e1Bounced++; }
+    // FUP1 stage: FUP1 sent (OK), response before FUP2 (fup2 = RESPONDIDO/BOUNCE, not OK)
+    if (f1.startsWith('OK') && f2 === 'RESPONDIDO') { stats[cat].fup1Respondidos++; totalGeral.fup1Respondidos++; }
+    if (f1.startsWith('OK') && f2 === 'BOUNCE') { stats[cat].fup1Bounced++; totalGeral.fup1Bounced++; }
+    // FUP2 stage: hard to distinguish from FUP1 stage in current data model, tracked together above
+
+    // Totals (backward compat)
     if (f1 === 'RESPONDIDO' || f2 === 'RESPONDIDO') { stats[cat].respondidos++; totalGeral.respondidos++; }
     if (f1 === 'BOUNCE' || f2 === 'BOUNCE') { stats[cat].bounced++; totalGeral.bounced++; }
     if (e1.startsWith('OK') && !c.threadId) { stats[cat].semThread++; totalGeral.semThread++; }

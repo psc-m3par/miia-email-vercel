@@ -335,13 +335,37 @@ export default function DashboardPage() {
                     <div className="h-full bg-gradient-to-r from-miia-400 to-miia-600 rounded-full transition-all" style={{ width: progresso + '%' }} />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-center mb-2">
-                    <MiniStat label="Pendentes" value={s.pendentes} color="text-amber-600" />
-                    <MiniStat label="Enviados" value={s.email1} color="text-blue-600" />
-                    <MiniStat label="FUP1" value={s.fup1} color="text-indigo-600" />
-                    <MiniStat label="FUP2" value={s.fup2} color="text-purple-600" />
-                    <MiniStat label="Respondidos" value={s.respondidos} color="text-green-600" />
-                    <MiniStat label="Bounced" value={s.bounced} color="text-red-500" />
+                  <div className="mb-2">
+                    {/* Email 1 */}
+                    <div className="flex items-center gap-1 py-1.5 border-b border-slate-50">
+                      <span className="text-[10px] font-semibold text-blue-600 w-10">E1</span>
+                      <div className="flex-1 grid grid-cols-4 gap-1 text-center">
+                        <MiniStat label="Enviados" value={s.email1} color="text-blue-600" />
+                        <MiniStat label="Pendentes" value={s.pendentes} color="text-amber-600" />
+                        <MiniStat label="Resp." value={s.e1Respondidos} color="text-green-600" />
+                        <MiniStat label="Bounce" value={s.e1Bounced} color="text-red-500" />
+                      </div>
+                    </div>
+                    {/* FUP1 */}
+                    <div className="flex items-center gap-1 py-1.5 border-b border-slate-50">
+                      <span className="text-[10px] font-semibold text-indigo-600 w-10">FUP1</span>
+                      <div className="flex-1 grid grid-cols-4 gap-1 text-center">
+                        <MiniStat label="Enviados" value={s.fup1} color="text-indigo-600" />
+                        <MiniStat label="Pendentes" value={Math.max(0, s.email1 - s.fup1 - s.e1Respondidos - s.e1Bounced)} color="text-amber-600" />
+                        <MiniStat label="Resp." value={s.fup1Respondidos} color="text-green-600" />
+                        <MiniStat label="Bounce" value={s.fup1Bounced} color="text-red-500" />
+                      </div>
+                    </div>
+                    {/* FUP2 */}
+                    <div className="flex items-center gap-1 py-1.5">
+                      <span className="text-[10px] font-semibold text-purple-600 w-10">FUP2</span>
+                      <div className="flex-1 grid grid-cols-4 gap-1 text-center">
+                        <MiniStat label="Enviados" value={s.fup2} color="text-purple-600" />
+                        <MiniStat label="Pendentes" value={Math.max(0, s.fup1 - s.fup2 - s.fup1Respondidos - s.fup1Bounced)} color="text-amber-600" />
+                        <MiniStat label="Resp." value={s.fup2Respondidos} color="text-green-600" />
+                        <MiniStat label="Bounce" value={s.fup2Bounced} color="text-red-500" />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Previsão de FUPs */}
