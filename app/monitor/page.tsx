@@ -349,7 +349,6 @@ export default function MonitorPage() {
                             ? (todayTotals[key] || 0)
                             : last.quantidade;
                           const next = nextRunLabel(cat, rotina);
-                          const statusLabel = getStatusLabel(rotina);
                           return (
                             <div className="text-center">
                               <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
