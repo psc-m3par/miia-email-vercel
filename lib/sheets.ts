@@ -130,13 +130,13 @@ export async function getDashboardStats() {
 
   const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const stats: Record<string, any> = {};
-  let totalGeral = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
+  let totalGeral = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, bounced: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
 
   for (const c of allContacts) {
     const cat = c.category;
     if (!cat) continue;
     if (!stats[cat]) {
-      stats[cat] = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
+      stats[cat] = { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, bounced: 0, erros: 0, semThread: 0, hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0 };
     }
     stats[cat].total++; totalGeral.total++;
 
@@ -146,6 +146,7 @@ export async function getDashboardStats() {
 
     if (e1.startsWith('OK')) { stats[cat].email1++; totalGeral.email1++; }
     else if (e1.startsWith('ERRO')) { stats[cat].erros++; totalGeral.erros++; }
+    else if (e1.startsWith('BOUNCE')) { stats[cat].email1++; totalGeral.email1++; stats[cat].bounced++; totalGeral.bounced++; }
     else { stats[cat].pendentes++; totalGeral.pendentes++; }
 
     if (f1.startsWith('OK')) { stats[cat].fup1++; totalGeral.fup1++; }
@@ -207,7 +208,13 @@ export async function appendLog(
   status: 'ok' | 'erro', detalhes: string, spreadsheetId?: string
 ) {
   const sid = spreadsheetId || SPREADSHEET_ID;
-  const ts = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });
+  const now = new Date();
+  const spStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(now).replace('T', ' ');
+  const ts = spStr; // format: "2026-03-16 16:57:01"
   const row = [[ts, rotina, categoria, quantidade, status, detalhes]];
   try {
     await appendSheet('Logs!A:F', row, sid);

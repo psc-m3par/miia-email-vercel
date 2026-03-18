@@ -4,8 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 
 interface Stats {
   total: number; pendentes: number; email1: number; fup1: number; fup2: number;
-  respondidos: number; erros: number; semThread: number;
+  respondidos: number; bounced: number; erros: number; semThread: number;
   hojeEmail1: number; hojeFup1: number; hojeFup2: number;
+}
+
+interface FupForecast {
+  fup1Aguardando: number; fup1ProximaData: string | null; fup1Prontos: number;
+  fup2Aguardando: number; fup2ProximaData: string | null; fup2Prontos: number;
 }
 
 interface Contact {
@@ -61,6 +66,7 @@ export default function DashboardPage() {
   const [reportMsg, setReportMsg] = useState('');
   const [connectedEmails, setConnectedEmails] = useState<string[]>([]);
   const [pipeline, setPipeline] = useState<PipelineCount | null>(null);
+  const [fupForecast, setFupForecast] = useState<Record<string, FupForecast>>({});
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -69,7 +75,8 @@ export default function DashboardPage() {
       fetch('/api/config', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/tokens', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/respondidos', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([dashData, contactsData, configData, tokensData, respData]) => {
+      fetch('/api/monitor', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([dashData, contactsData, configData, tokensData, respData, monitorData]) => {
       if (dashData.error) setError(dashData.error);
       else setData(dashData);
       if (contactsData.contacts) setContacts(contactsData.contacts);
@@ -82,6 +89,7 @@ export default function DashboardPage() {
       if (Array.isArray(tokensData)) {
         setConnectedEmails(tokensData.map((t: any) => t.email));
       }
+      if (monitorData?.fupForecast) setFupForecast(monitorData.fupForecast);
       if (respData.respondidos) {
         const counts: PipelineCount = { NOVO: 0, NEGOCIACAO: 0, REUNIAO: 0, GANHO: 0, PERDIDO: 0 };
         for (const r of respData.respondidos) {
@@ -180,10 +188,16 @@ export default function DashboardPage() {
   const alerts: string[] = [];
   for (const cat in stats) {
     const s = stats[cat];
+    const painelCat = painel.find((p: any) => p.category === cat);
     if (s.semThread > 0) alerts.push(s.semThread + ' contatos de "' + cat + '" sem Thread ID (FUPs bloqueados)');
-    if (s.pendentes > 0 && s.pendentes <= 5) alerts.push('Base de "' + cat + '" quase vazia: ' + s.pendentes + ' pendentes');
-    if (s.pendentes === 0 && s.total > 0 && s.email1 === s.total) alerts.push('Base de "' + cat + '" esgotada');
+    if (s.pendentes > 0 && s.pendentes <= 5) alerts.push('Base de "' + cat + '" quase vazia: ' + s.pendentes + ' pendentes Email 1');
     if (s.erros > 0) alerts.push(s.erros + ' erros em "' + cat + '"');
+    if (s.pendentes === 0 && s.total > 0) {
+      const estado = getEstado(s, painelCat?.ativo ?? true);
+      if (estado.label === 'Ciclo completo') {
+        alerts.push('Base de "' + cat + '" esgotada (ciclo completo)');
+      }
+    }
   }
 
   return (
@@ -321,12 +335,65 @@ export default function DashboardPage() {
                     <div className="h-full bg-gradient-to-r from-miia-400 to-miia-600 rounded-full transition-all" style={{ width: progresso + '%' }} />
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2 text-center mb-2">
+                  <div className="grid grid-cols-3 gap-2 text-center mb-2">
                     <MiniStat label="Pendentes" value={s.pendentes} color="text-amber-600" />
                     <MiniStat label="Enviados" value={s.email1} color="text-blue-600" />
                     <MiniStat label="FUP1" value={s.fup1} color="text-indigo-600" />
                     <MiniStat label="FUP2" value={s.fup2} color="text-purple-600" />
+                    <MiniStat label="Respondidos" value={s.respondidos} color="text-green-600" />
+                    <MiniStat label="Bounced" value={s.bounced} color="text-red-500" />
                   </div>
+
+                  {/* Previsão de FUPs */}
+                  {(() => {
+                    const fc = fupForecast[cat];
+                    if (!fc) return null;
+                    const hasFup1Info = fc.fup1Aguardando > 0 || fc.fup1Prontos > 0;
+                    const hasFup2Info = fc.fup2Aguardando > 0 || fc.fup2Prontos > 0;
+                    if (!hasFup1Info && !hasFup2Info) return null;
+
+                    const formatProx = (isoDate: string | null) => {
+                      if (!isoDate) return '';
+                      const diff = Math.floor((new Date(isoDate).getTime() - Date.now()) / 3600000);
+                      if (diff <= 0) return 'agora';
+                      if (diff < 24) return `em ${diff}h`;
+                      return `em ${Math.ceil(diff / 24)}d`;
+                    };
+
+                    return (
+                      <div className="bg-indigo-50/50 rounded-lg px-3 py-2 mb-2 text-[10px]">
+                        <div className="font-semibold text-indigo-700 mb-1">Próximos FUPs</div>
+                        <div className="flex gap-4">
+                          {hasFup1Info && (
+                            <div>
+                              <span className="text-indigo-600 font-medium">FUP1:</span>{' '}
+                              {fc.fup1Prontos > 0 ? (
+                                <span className="text-green-600 font-semibold">{fc.fup1Prontos} pronto(s)</span>
+                              ) : (
+                                <span className="text-slate-500">
+                                  {fc.fup1Aguardando} aguardando
+                                  {fc.fup1ProximaData && <> — próx {formatProx(fc.fup1ProximaData)}</>}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {hasFup2Info && (
+                            <div>
+                              <span className="text-purple-600 font-medium">FUP2:</span>{' '}
+                              {fc.fup2Prontos > 0 ? (
+                                <span className="text-green-600 font-semibold">{fc.fup2Prontos} pronto(s)</span>
+                              ) : (
+                                <span className="text-slate-500">
+                                  {fc.fup2Aguardando} aguardando
+                                  {fc.fup2ProximaData && <> — próx {formatProx(fc.fup2ProximaData)}</>}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {(ultimoLabel || proximoLabel) && (
                     <div className="bg-slate-50 rounded-lg px-3 py-2 mb-2 flex items-center justify-between flex-wrap gap-1">
