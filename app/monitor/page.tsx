@@ -65,11 +65,17 @@ function nextRunLabel(cat: any, rotina: string): string {
 }
 
 function timeAgo(tsStr: string): string {
-  // pt-BR format: "dd/mm/yyyy, HH:MM:SS"
+  // supports both "2026-03-16 16:57:01" (new) and "dd/mm/yyyy, HH:MM:SS" (legacy)
   try {
-    const [datePart, timePart] = tsStr.split(', ');
-    const [d, m, y] = datePart.split('/');
-    const iso = `${y}-${m}-${d}T${timePart}`;
+    let iso: string;
+    if (tsStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+      // new format: "2026-03-16 16:57:01" — treat as Sao Paulo time
+      iso = tsStr.replace(' ', 'T') + '-03:00';
+    } else {
+      const [datePart, timePart] = tsStr.split(', ');
+      const [d, m, y] = datePart.split('/');
+      iso = `${y}-${m}-${d}T${timePart}-03:00`;
+    }
     const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
     if (diff < 60) return `há ${diff}s`;
     if (diff < 3600) return `há ${Math.floor(diff / 60)}min`;
@@ -81,6 +87,7 @@ function timeAgo(tsStr: string): string {
 export default function MonitorPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [painel, setPainel] = useState<any[]>([]);
+  const [fupForecast, setFupForecast] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
   const [filterRotina, setFilterRotina] = useState<string>('');
@@ -97,6 +104,7 @@ export default function MonitorPage() {
       fetch('/api/sheets?type=painel&t=' + t, { cache: 'no-store' }).then(r => r.json()),
     ]).then(([monitorData, painelData]) => {
       if (monitorData.logs) setLogs(monitorData.logs);
+      if (monitorData.fupForecast) setFupForecast(monitorData.fupForecast);
       if (Array.isArray(painelData)) setPainel(painelData);
       setLastUpdate(new Date().toLocaleTimeString('pt-BR'));
     }).catch(() => {
@@ -152,11 +160,12 @@ export default function MonitorPage() {
     if (!lastPerRotina[key]) lastPerRotina[key] = log;
   }
 
-  // Total hoje por rotina+categoria (para Check Replies mostrar acumulado do dia)
-  const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
+  // Total hoje por rotina+categoria
+  const hojeISO = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date()); // "2026-03-16"
+  const hojeOld = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()); // legacy "16/03/2026"
   const todayTotals: Record<string, number> = {};
   for (const log of logs) {
-    if (!log.timestamp.startsWith(hoje)) continue;
+    if (!log.timestamp.startsWith(hojeISO) && !log.timestamp.startsWith(hojeOld)) continue;
     const key = log.rotina + '||' + log.categoria;
     todayTotals[key] = (todayTotals[key] || 0) + log.quantidade;
   }
@@ -188,8 +197,7 @@ export default function MonitorPage() {
         {ROTINAS.map(rotina => {
           const rotinaLogs = logs.filter(l => l.rotina === rotina);
           const last = rotinaLogs[0];
-          const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
-          const logsHoje = rotinaLogs.filter(l => l.timestamp.startsWith(hoje));
+          const logsHoje = rotinaLogs.filter(l => l.timestamp.startsWith(hojeISO) || l.timestamp.startsWith(hojeOld));
           const totalHoje = rotina === 'Check Replies'
             ? logsHoje.length
             : logsHoje.reduce((s, l) => s + l.quantidade, 0);
@@ -253,6 +261,46 @@ export default function MonitorPage() {
                   const lastFup2  = lastPerRotina[mkKey('FUP2')];
                   const lastReply = lastPerRotina[mkKey('Check Replies')];
 
+                  const forecast = fupForecast[cat.category];
+
+                  const ForecastLabel = ({ rotina }: { rotina: string }) => {
+                    if (!forecast) return null;
+                    const isFup1 = rotina === 'FUP1';
+                    const isFup2 = rotina === 'FUP2';
+                    if (!isFup1 && !isFup2) return null;
+
+                    const aguardando = isFup1 ? forecast.fup1Aguardando : forecast.fup2Aguardando;
+                    const prontos = isFup1 ? forecast.fup1Prontos : forecast.fup2Prontos;
+                    const proxData = isFup1 ? forecast.fup1ProximaData : forecast.fup2ProximaData;
+
+                    if (aguardando === 0 && prontos === 0) return null;
+
+                    let proxLabel = '';
+                    if (proxData) {
+                      const diff = Math.floor((new Date(proxData).getTime() - Date.now()) / 3600000);
+                      if (diff <= 0) proxLabel = 'agora';
+                      else if (diff < 24) proxLabel = `em ${diff}h`;
+                      else proxLabel = `em ${Math.ceil(diff / 24)}d`;
+                    }
+
+                    return (
+                      <div className="text-[9px] mt-1 leading-tight">
+                        {prontos > 0 && (
+                          <div className="text-green-600 font-semibold">{prontos} pronto(s) agora</div>
+                        )}
+                        {aguardando > 0 && prontos === 0 && (
+                          <div className="text-amber-600">{aguardando} aguardando</div>
+                        )}
+                        {aguardando > 0 && prontos === 0 && proxLabel && (
+                          <div className="text-slate-400">próx: {proxLabel}</div>
+                        )}
+                        {aguardando > 0 && prontos > 0 && (
+                          <div className="text-slate-400">+{aguardando - prontos} depois</div>
+                        )}
+                      </div>
+                    );
+                  };
+
                   const ForceBtn = ({ rotina, color }: { rotina: string; color: string }) => {
                     const key = mkKey(rotina);
                     const running = forçando === key;
@@ -265,6 +313,7 @@ export default function MonitorPage() {
                             <div className="text-center">
                               <span className="text-slate-300 text-[10px]">sem registro</span>
                               <div className="text-[10px] text-slate-400">{nextRunLabel(cat, rotina)}</div>
+                              <ForecastLabel rotina={rotina} />
                             </div>
                           );
                           const displayQty = rotina === 'Check Replies'
@@ -277,6 +326,7 @@ export default function MonitorPage() {
                                 {displayQty} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
                               </div>
                               <div className="text-[10px] text-slate-400">{next}</div>
+                              <ForecastLabel rotina={rotina} />
                             </div>
                           );
                         })()}
