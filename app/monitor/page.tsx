@@ -202,42 +202,103 @@ export default function MonitorPage() {
         </button>
       </div>
 
-      {/* Cards de status por rotina */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {ROTINAS.map(rotina => {
-          const rotinaLogs = logs.filter(l => l.rotina === rotina);
-          const last = rotinaLogs[0];
-          const logsHoje = rotinaLogs.filter(l => l.timestamp.startsWith(hojeISO) || l.timestamp.startsWith(hojeOld));
-          const totalHoje = rotina === 'Check Replies'
-            ? logsHoje.length
-            : logsHoje.reduce((s, l) => s + l.quantidade, 0);
-          const lastPerCat: Record<string, LogEntry> = {};
-          for (const log of rotinaLogs) {
-            if (!lastPerCat[log.categoria]) lastPerCat[log.categoria] = log;
-          }
-          const erros = Object.values(lastPerCat).filter(l => l.status === 'erro').length;
-          const c = ROTINA_COLORS[rotina] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-400' };
+      {/* Cards de status por rotina - baseados em dados reais do forecast */}
+      {(() => {
+        // Aggregate forecast across all categories
+        const allFc = Object.values(fupForecast);
+        const totalEmail1 = allFc.reduce((s, f) => s + (f.email1Ok || 0), 0);
+        const totalPendentes = allFc.reduce((s, f) => s + (f.email1Pendentes || 0), 0);
+        const totalFup1 = allFc.reduce((s, f) => s + (f.fup1Ok || 0), 0);
+        const totalFup1Aguardando = allFc.reduce((s, f) => s + (f.fup1Aguardando || 0), 0);
+        const totalFup1Prontos = allFc.reduce((s, f) => s + (f.fup1Prontos || 0), 0);
+        const totalFup2 = allFc.reduce((s, f) => s + (f.fup2Ok || 0), 0);
+        const totalFup2Aguardando = allFc.reduce((s, f) => s + (f.fup2Aguardando || 0), 0);
+        const totalFup2Prontos = allFc.reduce((s, f) => s + (f.fup2Prontos || 0), 0);
+        const totalMonitorados = allFc.reduce((s, f) => s + (f.checkReplyTargets || 0), 0);
+        const totalRespondidos = allFc.reduce((s, f) => s + (f.respondidos || 0), 0);
+        const totalBounced = allFc.reduce((s, f) => s + (f.bounced || 0), 0);
 
-          return (
-            <div key={rotina} className={`rounded-xl border p-4 ${c.bg} border-slate-200`}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`w-2 h-2 rounded-full ${last ? c.dot : 'bg-slate-300'}`} />
-                <span className={`text-sm font-semibold ${c.text}`}>{rotina}</span>
-              </div>
-              <div className="text-2xl font-bold font-display text-slate-800 mb-1">{totalHoje}</div>
-              <div className="text-[10px] text-slate-500 mb-2">{rotina === 'Check Replies' ? 'execuções hoje' : 'hoje'}</div>
-              {last ? (
-                <div className="text-[10px] text-slate-500">
-                  Ultimo: <strong>{timeAgo(last.timestamp)}</strong>
-                  {erros > 0 && <span className="ml-2 text-red-500">{erros} erro(s)</span>}
+        // Logs-based hoje counts
+        const logsHoje = logs.filter(l => l.timestamp.startsWith(hojeISO) || l.timestamp.startsWith(hojeOld));
+        const hojeEmail1 = logsHoje.filter(l => l.rotina === 'Email 1').reduce((s, l) => s + l.quantidade, 0);
+        const hojeFup1 = logsHoje.filter(l => l.rotina === 'FUP1').reduce((s, l) => s + l.quantidade, 0);
+        const hojeFup2 = logsHoje.filter(l => l.rotina === 'FUP2').reduce((s, l) => s + l.quantidade, 0);
+        const hojeReplies = logsHoje.filter(l => l.rotina === 'Check Replies').length;
+
+        const cards = [
+          {
+            rotina: 'Email 1',
+            mainValue: totalEmail1,
+            mainLabel: 'enviados',
+            hojeValue: hojeEmail1,
+            status: totalPendentes > 0
+              ? { text: `${totalPendentes} pendentes`, color: 'text-amber-600' }
+              : totalEmail1 > 0
+                ? { text: 'Base esgotada', color: 'text-green-600' }
+                : null,
+          },
+          {
+            rotina: 'FUP1',
+            mainValue: totalFup1,
+            mainLabel: 'enviados',
+            hojeValue: hojeFup1,
+            status: totalFup1Prontos > 0
+              ? { text: `${totalFup1Prontos} pronto(s) agora`, color: 'text-green-600' }
+              : totalFup1Aguardando > 0
+                ? { text: `${totalFup1Aguardando} aguardando`, color: 'text-amber-600' }
+                : totalFup1 > 0
+                  ? { text: 'Esgotado', color: 'text-green-600' }
+                  : null,
+          },
+          {
+            rotina: 'FUP2',
+            mainValue: totalFup2,
+            mainLabel: 'enviados',
+            hojeValue: hojeFup2,
+            status: totalFup2Prontos > 0
+              ? { text: `${totalFup2Prontos} pronto(s) agora`, color: 'text-green-600' }
+              : totalFup2Aguardando > 0
+                ? { text: `${totalFup2Aguardando} aguardando`, color: 'text-amber-600' }
+                : totalFup2 > 0
+                  ? { text: 'Esgotado', color: 'text-green-600' }
+                  : null,
+          },
+          {
+            rotina: 'Check Replies',
+            mainValue: totalMonitorados,
+            mainLabel: 'monitorados',
+            hojeValue: hojeReplies,
+            status: totalRespondidos + totalBounced > 0
+              ? { text: `${totalRespondidos} resp. · ${totalBounced} bounce`, color: 'text-slate-500' }
+              : null,
+          },
+        ];
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {cards.map(card => {
+              const c = ROTINA_COLORS[card.rotina] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-400' };
+              const hasActivity = card.mainValue > 0 || card.hojeValue > 0;
+              return (
+                <div key={card.rotina} className={`rounded-xl border p-4 ${c.bg} border-slate-200`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`w-2 h-2 rounded-full ${hasActivity ? c.dot : 'bg-slate-300'}`} />
+                    <span className={`text-sm font-semibold ${c.text}`}>{card.rotina}</span>
+                  </div>
+                  <div className="text-2xl font-bold font-display text-slate-800 mb-1">{card.mainValue}</div>
+                  <div className="text-[10px] text-slate-500 mb-1">{card.mainLabel}</div>
+                  {card.hojeValue > 0 && (
+                    <div className="text-[10px] text-slate-500">+{card.hojeValue} hoje</div>
+                  )}
+                  {card.status && (
+                    <div className={`text-[10px] font-medium ${card.status.color}`}>{card.status.text}</div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-[10px] text-slate-400">Sem atividade registrada</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Painel de execução por categoria */}
       {painel.length > 0 && (
