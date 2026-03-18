@@ -140,11 +140,21 @@ export default function MonitorPage() {
     }
   };
 
+  const triggerScheduler = useCallback(() => {
+    fetch('/api/send-emails').catch(() => {});
+    fetch('/api/send-fups').catch(() => {});
+    fetch('/api/check-replies').catch(() => {});
+  }, []);
+
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000);
+    triggerScheduler();
+    const interval = setInterval(() => {
+      loadData();
+      triggerScheduler();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, triggerScheduler]);
 
   const categorias = Array.from(new Set(logs.map(l => l.categoria))).filter(Boolean);
 
