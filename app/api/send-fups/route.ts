@@ -40,7 +40,7 @@ async function runSendFups(category?: string, force = false) {
       const template = templates.find(t => t.category.normalize('NFC') === cat.category.normalize('NFC'));
       if (!template) {
         pulados.push(`"${cat.category}" sem template`);
-        await appendLog('FUP1', cat.category, 0, 'erro', 'Template nao encontrado para categoria', spreadsheetId);
+        if (force) await appendLog('FUP1', cat.category, 0, 'erro', 'Template nao encontrado para categoria', spreadsheetId);
         continue;
       }
 
@@ -51,7 +51,7 @@ async function runSendFups(category?: string, force = false) {
       );
       if (pendentes.length > 0) {
         pulados.push(`"${cat.category}" bloqueado: ${pendentes.length} pendente(s) de Email 1`);
-        await appendLog('FUP1', cat.category, 0, 'ok', `Aguardando ${pendentes.length} pendente(s) de Email 1`, spreadsheetId);
+        if (force) await appendLog('FUP1', cat.category, 0, 'ok', `Aguardando ${pendentes.length} pendente(s) de Email 1`, spreadsheetId);
         continue;
       }
 
@@ -89,8 +89,11 @@ async function runSendFups(category?: string, force = false) {
         const diagFup1 = `FUP1: ${catContacts.length} total, ${comOk.length} c/OK, ${semFup1.length} s/fup1, ${comThread.length} c/thread, ${comDias.length} c/dias>=${cat.diasFup1 || 3}`;
         const diagFup2 = `FUP2: ${comFup1Ok.length} c/fup1OK, ${semFup2.length} s/fup2, ${semFup2ComThread.length} c/thread, ${semRespondido.length} s/resp, ${comDiasFup2.length} c/dias>=${cat.diasFup2 || 7}`;
         pulados.push(`"${cat.category}" sem elegíveis: ${diagFup1} | ${diagFup2}`);
-        await appendLog('FUP1', cat.category, 0, 'ok', diagFup1, spreadsheetId);
-        await appendLog('FUP2', cat.category, 0, 'ok', diagFup2, spreadsheetId);
+        // Só loga na planilha quando forçado (POST), não no scheduler automático
+        if (force) {
+          await appendLog('FUP1', cat.category, 0, 'ok', diagFup1, spreadsheetId);
+          await appendLog('FUP2', cat.category, 0, 'ok', diagFup2, spreadsheetId);
+        }
         continue;
       }
 
