@@ -339,36 +339,52 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mb-2">
+                    {/* Header */}
+                    <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1 border-b border-slate-100">
+                      <span />
+                      <span className="text-[9px] text-slate-400 font-medium">Enviados</span>
+                      <span className="text-[9px] text-slate-400 font-medium">Pendentes</span>
+                      <span className="text-[9px] text-slate-400 font-medium">Resp.</span>
+                      <span className="text-[9px] text-slate-400 font-medium">Bounce</span>
+                      <span className="text-[9px] text-slate-400 font-medium">s/ Thread</span>
+                    </div>
                     {/* Email 1 */}
-                    <div className="flex items-center gap-1 py-1.5 border-b border-slate-50">
-                      <span className="text-[10px] font-semibold text-blue-600 w-10">E1</span>
-                      <div className="flex-1 grid grid-cols-4 gap-1 text-center">
-                        <MiniStat label="Enviados" value={s.email1} color="text-blue-600" />
-                        <MiniStat label="Pendentes" value={s.pendentes} color="text-amber-600" />
-                        <MiniStat label="Resp." value={s.e1Respondidos} color="text-green-600" />
-                        <MiniStat label="Bounce" value={s.e1Bounced} color="text-red-500" />
-                      </div>
+                    <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1.5 border-b border-slate-50">
+                      <span className="text-[10px] font-semibold text-blue-600 text-left">E1</span>
+                      <span className="text-xs font-bold text-blue-600">{s.email1}</span>
+                      <span className={`text-xs font-bold ${s.pendentes > 0 ? 'text-amber-600' : 'text-slate-300'}`}>{s.pendentes}</span>
+                      <span className={`text-xs font-bold ${s.e1Respondidos > 0 ? 'text-green-600' : 'text-slate-300'}`}>{s.e1Respondidos}</span>
+                      <span className={`text-xs font-bold ${s.e1Bounced > 0 ? 'text-red-500' : 'text-slate-300'}`}>{s.e1Bounced}</span>
+                      <span className={`text-xs font-bold ${s.semThread > 0 ? 'text-orange-500' : 'text-slate-300'}`}>{s.semThread}</span>
                     </div>
                     {/* FUP1 */}
-                    <div className="flex items-center gap-1 py-1.5 border-b border-slate-50">
-                      <span className="text-[10px] font-semibold text-indigo-600 w-10">FUP1</span>
-                      <div className="flex-1 grid grid-cols-4 gap-1 text-center">
-                        <MiniStat label="Enviados" value={s.fup1} color="text-indigo-600" />
-                        <MiniStat label="Pendentes" value={Math.max(0, s.email1 - s.fup1 - s.e1Respondidos - s.e1Bounced)} color="text-amber-600" />
-                        <MiniStat label="Resp." value={s.fup1Respondidos} color="text-green-600" />
-                        <MiniStat label="Bounce" value={s.fup1Bounced} color="text-red-500" />
-                      </div>
-                    </div>
+                    {(() => {
+                      const fup1Pendentes = Math.max(0, s.email1 - s.fup1 - s.e1Respondidos - s.e1Bounced - s.semThread);
+                      return (
+                        <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1.5 border-b border-slate-50">
+                          <span className="text-[10px] font-semibold text-indigo-600 text-left">FUP1</span>
+                          <span className="text-xs font-bold text-indigo-600">{s.fup1}</span>
+                          <span className={`text-xs font-bold ${fup1Pendentes > 0 ? 'text-amber-600' : 'text-slate-300'}`}>{fup1Pendentes}</span>
+                          <span className={`text-xs font-bold ${s.fup1Respondidos > 0 ? 'text-green-600' : 'text-slate-300'}`}>{s.fup1Respondidos}</span>
+                          <span className={`text-xs font-bold ${s.fup1Bounced > 0 ? 'text-red-500' : 'text-slate-300'}`}>{s.fup1Bounced}</span>
+                          <span className="text-xs text-slate-300">—</span>
+                        </div>
+                      );
+                    })()}
                     {/* FUP2 */}
-                    <div className="flex items-center gap-1 py-1.5">
-                      <span className="text-[10px] font-semibold text-purple-600 w-10">FUP2</span>
-                      <div className="flex-1 grid grid-cols-4 gap-1 text-center">
-                        <MiniStat label="Enviados" value={s.fup2} color="text-purple-600" />
-                        <MiniStat label="Pendentes" value={Math.max(0, s.fup1 - s.fup2 - s.fup1Respondidos - s.fup1Bounced)} color="text-amber-600" />
-                        <MiniStat label="Resp." value={s.fup2Respondidos} color="text-green-600" />
-                        <MiniStat label="Bounce" value={s.fup2Bounced} color="text-red-500" />
-                      </div>
-                    </div>
+                    {(() => {
+                      const fup2Pendentes = Math.max(0, s.fup1 - s.fup2 - s.fup1Respondidos - s.fup1Bounced);
+                      return (
+                        <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1.5">
+                          <span className="text-[10px] font-semibold text-purple-600 text-left">FUP2</span>
+                          <span className="text-xs font-bold text-purple-600">{s.fup2}</span>
+                          <span className={`text-xs font-bold ${fup2Pendentes > 0 ? 'text-amber-600' : 'text-slate-300'}`}>{fup2Pendentes}</span>
+                          <span className={`text-xs font-bold ${s.fup2Respondidos > 0 ? 'text-green-600' : 'text-slate-300'}`}>{s.fup2Respondidos}</span>
+                          <span className={`text-xs font-bold ${s.fup2Bounced > 0 ? 'text-red-500' : 'text-slate-300'}`}>{s.fup2Bounced}</span>
+                          <span className="text-xs text-slate-300">—</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Previsão de FUPs */}

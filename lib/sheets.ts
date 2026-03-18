@@ -153,7 +153,7 @@ export async function getDashboardStats() {
 
     if (e1.startsWith('OK')) { stats[cat].email1++; totalGeral.email1++; }
     else if (e1.startsWith('ERRO')) { stats[cat].erros++; totalGeral.erros++; }
-    else if (e1.startsWith('BOUNCE')) { stats[cat].email1++; totalGeral.email1++; stats[cat].e1Bounced++; totalGeral.e1Bounced++; stats[cat].bounced++; totalGeral.bounced++; }
+    else if (e1.startsWith('BOUNCE')) { stats[cat].e1Bounced++; totalGeral.e1Bounced++; stats[cat].bounced++; totalGeral.bounced++; }
     else { stats[cat].pendentes++; totalGeral.pendentes++; }
 
     if (f1.startsWith('OK')) { stats[cat].fup1++; totalGeral.fup1++; }
