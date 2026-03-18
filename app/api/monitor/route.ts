@@ -68,6 +68,23 @@ export async function GET() {
         }
       }
 
+      // Contagens gerais para status
+      const totalCat = catContacts.length;
+      const email1Ok = catContacts.filter(c => c.email1Enviado.startsWith('OK')).length;
+      const email1Bounce = catContacts.filter(c => c.email1Enviado.startsWith('BOUNCE')).length;
+      const email1Pendentes = catContacts.filter(c => (!c.email1Enviado || c.email1Enviado.startsWith('ERRO')) && c.email).length;
+      const fup1Ok = catContacts.filter(c => c.fup1Enviado.startsWith('OK')).length;
+      const fup1Respondido = catContacts.filter(c => c.fup1Enviado === 'RESPONDIDO').length;
+      const fup2Ok = catContacts.filter(c => c.fup2Enviado.startsWith('OK')).length;
+      const fup2Respondido = catContacts.filter(c => c.fup2Enviado === 'RESPONDIDO').length;
+      const respondidos = catContacts.filter(c => c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO').length;
+      const bounced = catContacts.filter(c => c.email1Enviado.startsWith('BOUNCE') || c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE').length;
+      const checkReplyTargets = catContacts.filter(c =>
+        c.email1Enviado.startsWith('OK') && c.threadId &&
+        !c.fup1Enviado.includes('RESPONDIDO') && !c.fup2Enviado.includes('RESPONDIDO') &&
+        !c.fup1Enviado.includes('BOUNCE') && !c.fup2Enviado.includes('BOUNCE')
+      ).length;
+
       fupForecast[cat.category] = {
         fup1Aguardando: candidatosFup1.length,
         fup1ProximaData,
@@ -75,6 +92,16 @@ export async function GET() {
         fup2Aguardando: candidatosFup2.length,
         fup2ProximaData,
         fup2Prontos,
+        // Extra stats for monitor status
+        totalCat,
+        email1Ok,
+        email1Pendentes,
+        fup1Ok,
+        fup1Respondido,
+        fup2Ok,
+        respondidos,
+        bounced,
+        checkReplyTargets,
       };
     }
 

@@ -301,6 +301,30 @@ export default function MonitorPage() {
                     );
                   };
 
+                  // Status contextual quando não há log
+                  const getStatusLabel = (rotina: string): { text: string; color: string } | null => {
+                    if (!forecast) return null;
+                    if (rotina === 'Email 1') {
+                      if (forecast.email1Pendentes === 0 && forecast.email1Ok > 0)
+                        return { text: `esgotado (${forecast.email1Ok})`, color: 'text-green-600' };
+                    }
+                    if (rotina === 'FUP1') {
+                      if (forecast.fup1Aguardando === 0 && forecast.fup1Prontos === 0 && forecast.fup1Ok > 0)
+                        return { text: `esgotado (${forecast.fup1Ok})`, color: 'text-green-600' };
+                    }
+                    if (rotina === 'FUP2') {
+                      if (forecast.fup2Aguardando === 0 && forecast.fup2Prontos === 0 && forecast.fup2Ok > 0)
+                        return { text: `esgotado (${forecast.fup2Ok})`, color: 'text-green-600' };
+                    }
+                    if (rotina === 'Check Replies') {
+                      if (forecast.checkReplyTargets > 0)
+                        return { text: `${forecast.checkReplyTargets} monitorados`, color: 'text-green-600' };
+                      if (forecast.respondidos > 0 || forecast.bounced > 0)
+                        return { text: 'todos resolvidos', color: 'text-slate-400' };
+                    }
+                    return null;
+                  };
+
                   const ForceBtn = ({ rotina, color }: { rotina: string; color: string }) => {
                     const key = mkKey(rotina);
                     const running = forçando === key;
@@ -309,9 +333,14 @@ export default function MonitorPage() {
                       <div className="flex flex-col items-center gap-1">
                         {(() => {
                           const last = lastPerRotina[key];
+                          const statusLabel = getStatusLabel(rotina);
                           if (!last) return (
                             <div className="text-center">
-                              <span className="text-slate-300 text-[10px]">sem registro</span>
+                              {statusLabel ? (
+                                <span className={`text-[10px] font-semibold ${statusLabel.color}`}>{statusLabel.text}</span>
+                              ) : (
+                                <span className="text-slate-300 text-[10px]">sem registro</span>
+                              )}
                               <div className="text-[10px] text-slate-400">{nextRunLabel(cat, rotina)}</div>
                               <ForecastLabel rotina={rotina} />
                             </div>
@@ -320,12 +349,17 @@ export default function MonitorPage() {
                             ? (todayTotals[key] || 0)
                             : last.quantidade;
                           const next = nextRunLabel(cat, rotina);
+                          const statusLabel = getStatusLabel(rotina);
                           return (
                             <div className="text-center">
                               <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
                                 {displayQty} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
                               </div>
-                              <div className="text-[10px] text-slate-400">{next}</div>
+                              {statusLabel && displayQty === 0 ? (
+                                <div className={`text-[10px] font-medium ${statusLabel.color}`}>{statusLabel.text}</div>
+                              ) : (
+                                <div className="text-[10px] text-slate-400">{next}</div>
+                              )}
                               <ForecastLabel rotina={rotina} />
                             </div>
                           );
