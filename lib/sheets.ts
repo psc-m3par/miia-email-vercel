@@ -152,6 +152,7 @@ export async function getDashboardStats() {
     if (f1.startsWith('OK')) { stats[cat].fup1++; totalGeral.fup1++; }
     if (f2.startsWith('OK')) { stats[cat].fup2++; totalGeral.fup2++; }
     if (f1 === 'RESPONDIDO' || f2 === 'RESPONDIDO') { stats[cat].respondidos++; totalGeral.respondidos++; }
+    if (f1 === 'BOUNCE' || f2 === 'BOUNCE') { stats[cat].bounced++; totalGeral.bounced++; }
     if (e1.startsWith('OK') && !c.threadId) { stats[cat].semThread++; totalGeral.semThread++; }
     if (e1.includes(hoje)) { stats[cat].hojeEmail1++; totalGeral.hojeEmail1++; }
     if (f1.includes(hoje)) { stats[cat].hojeFup1++; totalGeral.hojeFup1++; }
