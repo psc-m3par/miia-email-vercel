@@ -16,9 +16,18 @@ async function runCheckReplies(category?: string) {
       readContatos(spreadsheetId),
     ]);
 
-    for (const cat of painel) {
-      if (!category && !cat.ativo) continue;
-      if (category && cat.category.normalize('NFC') !== category.normalize('NFC')) continue;
+    // Filtra categorias ativas
+    const activeCats = painel.filter(c => {
+      if (!category && !c.ativo) return false;
+      if (category && c.category.normalize('NFC') !== category.normalize('NFC')) return false;
+      return true;
+    });
+
+    // Divide tempo igualmente entre categorias
+    const timePerCat = activeCats.length > 0 ? Math.floor(40_000 / activeCats.length) : 0;
+
+    for (const cat of activeCats) {
+      const catDeadline = Math.min(Date.now() + timePerCat, deadline);
 
       const enviados = contacts.filter(c =>
         c.category.normalize('NFC') === cat.category.normalize('NFC') &&
@@ -36,7 +45,7 @@ async function runCheckReplies(category?: string) {
 
       if (!deadlineHit) {
         for (const contato of enviados) {
-          if (Date.now() > deadline) break;
+          if (Date.now() > catDeadline) break;
           verificados++;
           let result: { hasReply: boolean; isBounce?: boolean; isUnsubscribe?: boolean; error?: string };
           try {
