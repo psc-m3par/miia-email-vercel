@@ -24,6 +24,15 @@ export async function GET() {
       fup2Aguardando: number;
       fup2ProximaData: string | null;
       fup2Prontos: number;
+      totalCat: number;
+      email1Ok: number;
+      email1Pendentes: number;
+      fup1Ok: number;
+      fup1Respondido: number;
+      fup2Ok: number;
+      respondidos: number;
+      bounced: number;
+      checkReplyTargets: number;
     }> = {};
 
     for (const cat of painel) {
