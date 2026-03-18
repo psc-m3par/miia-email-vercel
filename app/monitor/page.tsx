@@ -174,10 +174,12 @@ export default function MonitorPage() {
   const hojeISO = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date()); // "2026-03-16"
   const hojeOld = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()); // legacy "16/03/2026"
   const todayTotals: Record<string, number> = {};
+  const todayExecs: Record<string, number> = {};
   for (const log of logs) {
     if (!log.timestamp.startsWith(hojeISO) && !log.timestamp.startsWith(hojeOld)) continue;
     const key = log.rotina + '||' + log.categoria;
     todayTotals[key] = (todayTotals[key] || 0) + log.quantidade;
+    todayExecs[key] = (todayExecs[key] || 0) + 1;
   }
 
   if (loading) return (
@@ -423,35 +425,26 @@ export default function MonitorPage() {
                     const key = mkKey(rotina);
                     const running = forçando === key;
                     const res = resultado?.key === key ? resultado : null;
+                    const execCount = todayExecs[key] || 0;
                     return (
                       <div className="flex flex-col items-center gap-1">
                         {(() => {
                           const last = lastPerRotina[key];
                           const statusLabel = getStatusLabel(rotina);
-                          if (!last) return (
+                          if (!last && !statusLabel) return (
                             <div className="text-center">
-                              {statusLabel ? (
-                                <span className={`text-[10px] font-semibold ${statusLabel.color}`}>{statusLabel.text}</span>
-                              ) : (
-                                <span className="text-slate-300 text-[10px]">sem registro</span>
-                              )}
+                              <span className="text-slate-300 text-[10px]">sem registro</span>
                               <div className="text-[10px] text-slate-400">{nextRunLabel(cat, rotina)}</div>
-                              <ForecastLabel rotina={rotina} />
                             </div>
                           );
-                          const displayQty = rotina === 'Check Replies'
-                            ? (todayTotals[key] || 0)
-                            : last.quantidade;
-                          const next = nextRunLabel(cat, rotina);
                           return (
                             <div className="text-center">
-                              <div className={`font-bold ${last.status === 'ok' ? color : 'text-red-500'}`}>
-                                {displayQty} <span className="font-normal text-slate-400 text-[10px]">{timeAgo(last.timestamp)}</span>
+                              <div className={`font-bold ${color}`}>
+                                {execCount}<span className="font-normal text-slate-400 text-[10px]"> exec</span>
+                                {last && <span className="font-normal text-slate-400 text-[10px]"> · {timeAgo(last.timestamp)}</span>}
                               </div>
-                              {statusLabel && displayQty === 0 ? (
+                              {statusLabel && (
                                 <div className={`text-[10px] font-medium ${statusLabel.color}`}>{statusLabel.text}</div>
-                              ) : (
-                                <div className="text-[10px] text-slate-400">{next}</div>
                               )}
                               <ForecastLabel rotina={rotina} />
                             </div>
