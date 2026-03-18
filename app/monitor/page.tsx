@@ -231,53 +231,53 @@ export default function MonitorPage() {
           if (!lastLogPerRotina[log.rotina]) lastLogPerRotina[log.rotina] = log;
         }
 
+        // Execution counts from logs
+        const execHoje = (rotina: string) => logsHoje.filter(l => l.rotina === rotina).length;
+        const enviadosHoje = (rotina: string) => logsHoje.filter(l => l.rotina === rotina).reduce((s, l) => s + l.quantidade, 0);
+
         const cards = [
           {
             rotina: 'Email 1',
-            mainValue: totalEmail1,
-            mainLabel: 'enviados',
-            hojeValue: hojeEmail1,
-            hojeLabel: 'enviados hoje',
+            mainValue: execHoje('Email 1'),
+            mainLabel: 'execuções hoje',
+            extra: hojeEmail1 > 0 ? `${hojeEmail1} enviados` : null,
             status: totalPendentes > 0
-              ? { text: `${totalPendentes} pendentes`, color: 'text-amber-600' }
+              ? { text: `${totalPendentes} pendentes · ${totalEmail1} enviados`, color: 'text-amber-600' }
               : totalEmail1 > 0
-                ? { text: 'Base esgotada', color: 'text-green-600' }
+                ? { text: `Base esgotada · ${totalEmail1} enviados`, color: 'text-green-600' }
                 : null,
           },
           {
             rotina: 'FUP1',
-            mainValue: totalFup1,
-            mainLabel: 'enviados',
-            hojeValue: hojeFup1,
-            hojeLabel: 'enviados hoje',
+            mainValue: execHoje('FUP1'),
+            mainLabel: 'execuções hoje',
+            extra: hojeFup1 > 0 ? `${hojeFup1} enviados` : null,
             status: totalFup1Prontos > 0
-              ? { text: `${totalFup1Prontos} pronto(s) agora`, color: 'text-green-600' }
+              ? { text: `${totalFup1Prontos} pronto(s) · ${totalFup1} total`, color: 'text-green-600' }
               : totalFup1Aguardando > 0
-                ? { text: `${totalFup1Aguardando} aguardando`, color: 'text-amber-600' }
+                ? { text: `${totalFup1Aguardando} aguardando · ${totalFup1} enviados`, color: 'text-amber-600' }
                 : totalFup1 > 0
-                  ? { text: 'Esgotado', color: 'text-green-600' }
+                  ? { text: `Esgotado · ${totalFup1} enviados`, color: 'text-green-600' }
                   : null,
           },
           {
             rotina: 'FUP2',
-            mainValue: totalFup2,
-            mainLabel: 'enviados',
-            hojeValue: hojeFup2,
-            hojeLabel: 'enviados hoje',
+            mainValue: execHoje('FUP2'),
+            mainLabel: 'execuções hoje',
+            extra: hojeFup2 > 0 ? `${hojeFup2} enviados` : null,
             status: totalFup2Prontos > 0
-              ? { text: `${totalFup2Prontos} pronto(s) agora`, color: 'text-green-600' }
+              ? { text: `${totalFup2Prontos} pronto(s) · ${totalFup2} total`, color: 'text-green-600' }
               : totalFup2Aguardando > 0
-                ? { text: `${totalFup2Aguardando} aguardando`, color: 'text-amber-600' }
+                ? { text: `${totalFup2Aguardando} aguardando · ${totalFup2} enviados`, color: 'text-amber-600' }
                 : totalFup2 > 0
-                  ? { text: 'Esgotado', color: 'text-green-600' }
+                  ? { text: `Esgotado · ${totalFup2} enviados`, color: 'text-green-600' }
                   : null,
           },
           {
             rotina: 'Check Replies',
-            mainValue: totalMonitorados,
-            mainLabel: 'monitorados',
-            hojeValue: hojeReplies,
-            hojeLabel: 'verificações hoje',
+            mainValue: execHoje('Check Replies'),
+            mainLabel: 'execuções hoje',
+            extra: `${totalMonitorados} monitorados`,
             status: totalRespondidos + totalBounced > 0
               ? { text: `${totalRespondidos} resp. · ${totalBounced} bounce`, color: 'text-slate-500' }
               : null,
@@ -305,8 +305,8 @@ export default function MonitorPage() {
                   </div>
                   <div className="text-2xl font-bold font-display text-slate-800 mb-1">{card.mainValue}</div>
                   <div className="text-[10px] text-slate-500 mb-1">{card.mainLabel}</div>
-                  {card.hojeValue > 0 && (
-                    <div className="text-[10px] text-slate-500">+{card.hojeValue} {card.hojeLabel}</div>
+                  {card.extra && (
+                    <div className="text-[10px] text-slate-500">{card.extra}</div>
                   )}
                   {card.status && (
                     <div className={`text-[10px] font-medium ${card.status.color}`}>{card.status.text}</div>
