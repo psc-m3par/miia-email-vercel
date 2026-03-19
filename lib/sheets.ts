@@ -86,8 +86,8 @@ export async function readContatos(spreadsheetId?: string) {
   const rows = await readSheet('Contatos!A:N', spreadsheetId);
   if (rows.length < 2) return { headers: rows[0] || [], contacts: [] };
   const headers = rows[0];
-  const contacts = rows.slice(1).filter(r => r[0] || r[3]).map((r, i) => ({
-    rowIndex: i + 2,
+  const contacts = rows.slice(1).map((r, i) => ({ r, actualRow: i + 2 })).filter(({ r }) => r[0] || r[3]).map(({ r, actualRow }) => ({
+    rowIndex: actualRow,
     firstName: r[0] || '',
     lastName: r[1] || '',
     companyName: r[2] || '',
