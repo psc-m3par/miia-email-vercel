@@ -29,8 +29,8 @@ interface Respondido {
 const PIPELINE_STAGES = [
   { key: 'NOVO',          label: 'Novo',           color: 'bg-amber-100 text-amber-700 border-amber-200' },
   { key: 'NEGOCIACAO',    label: 'Conversando',    color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { key: 'REUNIAO',       label: 'Reunião marcada',color: 'bg-purple-100 text-purple-700 border-purple-200' },
   { key: 'AGUARDANDO_MATERIAIS', label: 'Aguardando materiais', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { key: 'REUNIAO',       label: 'Reunião marcada',color: 'bg-purple-100 text-purple-700 border-purple-200' },
   { key: 'GANHO',         label: 'Ganho',          color: 'bg-green-100 text-green-700 border-green-200' },
   { key: 'PERDIDO',       label: 'Perdido',        color: 'bg-red-100 text-red-600 border-red-200' },
   { key: 'SEM_INTERESSE', label: 'Sem interesse',  color: 'bg-slate-100 text-slate-500 border-slate-200' },

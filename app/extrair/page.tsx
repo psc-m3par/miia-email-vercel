@@ -15,8 +15,8 @@ const STATUS_OPTIONS = [
 const PIPE_OPTIONS = [
   { key: 'NOVO', label: 'Novo', color: 'bg-amber-100 text-amber-700' },
   { key: 'NEGOCIACAO', label: 'Conversando', color: 'bg-blue-100 text-blue-700' },
-  { key: 'REUNIAO', label: 'Reunião marcada', color: 'bg-purple-100 text-purple-700' },
   { key: 'AGUARDANDO_MATERIAIS', label: 'Aguardando materiais', color: 'bg-orange-100 text-orange-700' },
+  { key: 'REUNIAO', label: 'Reunião marcada', color: 'bg-purple-100 text-purple-700' },
   { key: 'GANHO', label: 'Ganho', color: 'bg-green-100 text-green-700' },
   { key: 'PERDIDO', label: 'Perdido', color: 'bg-slate-100 text-slate-500' },
   { key: 'SEM_PIPELINE', label: 'Sem pipeline', color: 'bg-slate-50 text-slate-400' },
