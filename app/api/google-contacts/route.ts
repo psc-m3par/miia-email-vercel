@@ -13,8 +13,10 @@ interface ContactInput {
 }
 
 async function createContact(accessToken: string, contact: ContactInput) {
+  // Sobrenome = lastName + empresa pra fácil identificação
+  const familyName = [contact.lastName, contact.companyName].filter(Boolean).join(' - ');
   const body: any = {
-    names: [{ givenName: contact.firstName, familyName: contact.lastName }],
+    names: [{ givenName: contact.firstName, familyName }],
   };
 
   if (contact.companyName) {
