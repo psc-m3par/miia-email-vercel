@@ -62,9 +62,14 @@ export default function ExtrairPage() {
     fetch('/api/sheets?type=painel').then(r => r.json()).then(data => {
       if (Array.isArray(data)) {
         setAllCategorias(data.map((c: any) => c.category));
-        const emails = Array.from(new Set(data.map((c: any) => c.responsavel).filter(Boolean)));
-        setAccounts(emails as string[]);
-        if (emails.length > 0) setGoogleAccount(emails[0] as string);
+      }
+    });
+    // Load all connected accounts from tokens
+    fetch('/api/tokens').then(r => r.json()).then(data => {
+      if (data.tokens && Array.isArray(data.tokens)) {
+        const emails = data.tokens.map((t: any) => t.email).filter(Boolean);
+        setAccounts(emails);
+        if (emails.length > 0) setGoogleAccount(emails[0]);
       }
     });
   }, []);
@@ -91,6 +96,34 @@ export default function ExtrairPage() {
     }, 400);
     return () => clearTimeout(timer);
   }, [selectedCats, selectedStatus, selectedPipe, campos]);
+
+  const handleVcard = () => {
+    if (contacts.length === 0) return;
+    const vcards = contacts.map(c => {
+      const familyName = [c.lastName, c.companyName].filter(Boolean).join(' - ');
+      const phone = c.phone ? (c.phone.startsWith('+') ? c.phone : '+' + c.phone) : '';
+      return [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `N:${familyName};${c.firstName};;;`,
+        `FN:${c.firstName} ${familyName}`,
+        c.companyName ? `ORG:${c.companyName}` : '',
+        c.email ? `EMAIL;TYPE=WORK:${c.email}` : '',
+        phone ? `TEL;TYPE=CELL:${phone}` : '',
+        'END:VCARD',
+      ].filter(Boolean).join('\r\n');
+    }).join('\r\n');
+
+    const blob = new Blob([vcards], { type: 'text/vcard;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contatos_${new Date().toISOString().slice(0, 10)}.vcf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
   const handleCsv = async () => {
     setLoadingCsv(true);
