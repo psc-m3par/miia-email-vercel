@@ -192,7 +192,7 @@ export default function ExtrairPage() {
         setExactContacts(parsed);
         setExactFileName(file.name);
         // Extract unique companies
-        const companies = [...new Set(parsed.map(c => c.companyName))].filter(Boolean).sort();
+        const companies = Array.from(new Set(parsed.map(c => c.companyName))).filter(Boolean).sort();
         setExactCompanies(companies);
         setSelectedExactCompanies([]);
       } catch (err) {
