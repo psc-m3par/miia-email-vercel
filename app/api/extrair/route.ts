@@ -48,6 +48,15 @@ export async function POST(req: NextRequest) {
       filtered = filtered.filter(c => statusPipe.includes(c.pipeline || 'SEM_PIPELINE'));
     }
 
+    // Filtrar por campos selecionados: só inclui quem tem o dado
+    if (campos.whatsapp && !campos.email) {
+      filtered = filtered.filter(c => c.mobilePhone);
+    } else if (campos.email && !campos.whatsapp) {
+      filtered = filtered.filter(c => c.email);
+    } else if (campos.email && campos.whatsapp) {
+      filtered = filtered.filter(c => c.email || c.mobilePhone);
+    }
+
     // Montar cabeçalho
     const headers = ['Nome', 'Sobrenome', 'Empresa', 'Categoria', 'Status', 'Pipeline'];
     if (campos.email) headers.push('Email');
