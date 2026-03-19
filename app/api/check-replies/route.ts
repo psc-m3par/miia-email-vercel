@@ -3,12 +3,12 @@ import { readPainel, readContatos, writeSheet, writePipeline, getAllSpreadsheetI
 import { checkReplies, sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function runCheckReplies(category?: string) {
   const allIds = getAllSpreadsheetIds();
   let totalRespondidos = 0;
-  const deadline = Date.now() + 45_000; // 45s para garantir que dá tempo de logar antes do timeout
+  const deadline = Date.now() + 270_000; // 270s (4.5min) para garantir que dá tempo de logar antes do timeout
 
   for (const spreadsheetId of allIds) {
     const [painel, { contacts }] = await Promise.all([
@@ -23,8 +23,8 @@ async function runCheckReplies(category?: string) {
       return true;
     });
 
-    // Divide tempo igualmente entre categorias
-    const timePerCat = activeCats.length > 0 ? Math.floor(40_000 / activeCats.length) : 0;
+    // Divide tempo igualmente entre categorias (250s disponível para processar)
+    const timePerCat = activeCats.length > 0 ? Math.floor(250_000 / activeCats.length) : 0;
 
     for (const cat of activeCats) {
       const catDeadline = Math.min(Date.now() + timePerCat, deadline);
