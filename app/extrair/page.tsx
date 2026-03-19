@@ -666,6 +666,20 @@ export default function ExtrairPage() {
               </button>
             </div>
 
+            {/* vCard Export */}
+            <div className="flex-1">
+              <h3 className="text-xs font-bold text-slate-700 mb-2">Baixar vCard (importar no celular)</h3>
+              <button onClick={handleVcard} disabled={displayCount === 0}
+                className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  displayCount === 0
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}>
+                {`Baixar .vcf (${displayCount})`}
+              </button>
+              <p className="text-[10px] text-slate-400 mt-1">Abra o arquivo .vcf no celular para importar contatos sem corromper números</p>
+            </div>
+
             {/* Google Contacts Export */}
             <div className="flex-1">
               <h3 className="text-xs font-bold text-slate-700 mb-2">Salvar no Google Contacts</h3>
