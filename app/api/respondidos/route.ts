@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readContatos, readPainel, getAllSpreadsheetIds, writeAtendido, writePipeline } from '@/lib/sheets';
+import { readContatos, readPainel, getAllSpreadsheetIds, writeAtendido, writePipeline, writeNota } from '@/lib/sheets';
 import { getFullThread } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
           threadId: c.threadId,
           atendido: c.atendido,
           pipeline: c.pipeline || 'NOVO',
+          nota: c.nota || '',
           responsavel: painelMap[c.category]?.responsavel || '',
           nomeRemetente: painelMap[c.category]?.nomeRemetente || '',
         });
@@ -58,12 +59,15 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { rowIndex, atendido, pipeline, spreadsheetId } = await req.json();
+    const { rowIndex, atendido, pipeline, nota, spreadsheetId } = await req.json();
     if (atendido !== undefined) {
       await writeAtendido(rowIndex, atendido ? 'SIM' : '', spreadsheetId);
     }
     if (pipeline !== undefined) {
       await writePipeline(rowIndex, pipeline, spreadsheetId);
+    }
+    if (nota !== undefined) {
+      await writeNota(rowIndex, nota, spreadsheetId);
     }
     return NextResponse.json({ ok: true });
   } catch (e: any) {

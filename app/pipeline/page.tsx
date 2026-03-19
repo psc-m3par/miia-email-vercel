@@ -14,6 +14,7 @@ interface Deal {
   threadId: string;
   pipeline: string;
   responsavel: string;
+  nota: string;
 }
 
 const STAGES = [
@@ -59,6 +60,18 @@ export default function PipelinePage() {
     } finally {
       setMoving(null);
     }
+  };
+
+  const saveNota = async (d: Deal, nota: string) => {
+    const k = cardKey(d);
+    try {
+      await fetch('/api/respondidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIndex: d.rowIndex, nota, spreadsheetId: d.spreadsheetId }),
+      });
+      setDeals(prev => prev.map(x => cardKey(x) === k ? { ...x, nota } : x));
+    } catch {}
   };
 
   const categorias = Array.from(new Set(deals.map(d => d.category))).filter(Boolean).sort();
@@ -118,8 +131,6 @@ export default function PipelinePage() {
                   const k = cardKey(d);
                   const nome = [d.firstName, d.lastName].filter(Boolean).join(' ') || d.email;
                   const initials = (d.firstName?.[0] || '') + (d.lastName?.[0] || '');
-                  const prevStage = STAGES[STAGES.findIndex(s => s.key === (d.pipeline || 'NOVO')) - 1];
-                  const nextStage = STAGES[STAGES.findIndex(s => s.key === (d.pipeline || 'NOVO')) + 1];
 
                   return (
                     <div key={k} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow">
@@ -138,28 +149,31 @@ export default function PipelinePage() {
                         <span className="text-[10px] bg-miia-50 text-miia-500 px-1.5 py-0.5 rounded-full">{d.category}</span>
                       </div>
 
-                      {/* Move buttons */}
-                      <div className="flex gap-1 mt-2">
-                        {prevStage && (
-                          <button
-                            onClick={() => moveStage(d, prevStage.key)}
-                            disabled={moving !== null}
-                            className="flex-1 py-1 text-[10px] text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40">
-                            ← {prevStage.label}
-                          </button>
-                        )}
-                        {nextStage && (
-                          <button
-                            onClick={() => moveStage(d, nextStage.key)}
-                            disabled={moving !== null}
-                            className="flex-1 py-1 text-[10px] text-white bg-miia-500 rounded-lg hover:bg-miia-600 transition-colors disabled:opacity-40">
-                            {nextStage.label} →
-                          </button>
-                        )}
-                      </div>
+                      {/* Move dropdown */}
+                      <select
+                        value={d.pipeline || 'NOVO'}
+                        onChange={e => moveStage(d, e.target.value)}
+                        disabled={moving !== null}
+                        className="mt-2 w-full text-[10px] py-1 px-2 border border-slate-200 rounded-lg text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-miia-400 disabled:opacity-40"
+                      >
+                        {STAGES.map(s => (
+                          <option key={s.key} value={s.key}>{s.label}</option>
+                        ))}
+                      </select>
+
+                      {/* Nota */}
+                      <textarea
+                        defaultValue={d.nota}
+                        placeholder="Nota..."
+                        onBlur={e => {
+                          if (e.target.value !== d.nota) saveNota(d, e.target.value);
+                        }}
+                        className="mt-2 w-full text-[10px] py-1.5 px-2 border border-slate-200 rounded-lg text-slate-600 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-miia-400 resize-none placeholder:text-slate-300"
+                        rows={2}
+                      />
 
                       <Link href="/respondidos"
-                        className="mt-1.5 block text-center text-[10px] text-slate-400 hover:text-miia-500 transition-colors">
+                        className="mt-1 block text-center text-[10px] text-slate-400 hover:text-miia-500 transition-colors">
                         Ver conversa
                       </Link>
                     </div>
