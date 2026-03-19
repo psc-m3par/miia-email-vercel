@@ -38,7 +38,7 @@ async function createContact(accessToken: string, contact: ContactInput) {
     } else {
       formatted = '+' + digits;
     }
-    body.phoneNumbers = [{ value: formatted, type: 'mobile' }];
+    body.phoneNumbers = [{ value: formatted, type: 'other' }];
   }
 
   const res = await fetch('https://people.googleapis.com/v1/people:createContact', {
