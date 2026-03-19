@@ -66,11 +66,10 @@ export default function ExtrairPage() {
     });
     // Load all connected accounts from tokens
     fetch('/api/tokens').then(r => r.json()).then(data => {
-      if (data.accounts && Array.isArray(data.accounts)) {
-        const emails = data.accounts.map((t: any) => t.email).filter(Boolean);
-        setAccounts(emails);
-        if (emails.length > 0) setGoogleAccount(emails[0]);
-      }
+      const arr = Array.isArray(data) ? data : data.accounts || data.tokens || [];
+      const emails = arr.map((t: any) => t.email).filter(Boolean);
+      setAccounts(emails);
+      if (emails.length > 0) setGoogleAccount(emails[0]);
     });
   }, []);
 
