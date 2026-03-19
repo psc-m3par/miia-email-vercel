@@ -55,7 +55,7 @@ export default function ExtrairPage() {
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [googleAccount, setGoogleAccount] = useState('');
-  const [googleResult, setGoogleResult] = useState<{ saved: number; errors: number; total: number } | null>(null);
+  const [googleResult, setGoogleResult] = useState<{ saved: number; errors: number; total: number; errorMessages?: string[] } | null>(null);
 
   // Load categories and accounts
   useEffect(() => {
