@@ -29,7 +29,7 @@ interface DashboardData {
 }
 
 interface PipelineCount {
-  NOVO: number; NEGOCIACAO: number; REUNIAO: number; GANHO: number; PERDIDO: number;
+  NOVO: number; NEGOCIACAO: number; REUNIAO: number; AGUARDANDO_MATERIAIS: number; GANHO: number; PERDIDO: number;
 }
 
 function getEstado(s: Stats, ativo: boolean): { label: string; color: string } {
@@ -94,7 +94,7 @@ export default function DashboardPage() {
       }
       if (monitorData?.fupForecast) setFupForecast(monitorData.fupForecast);
       if (respData.respondidos) {
-        const counts: PipelineCount = { NOVO: 0, NEGOCIACAO: 0, REUNIAO: 0, GANHO: 0, PERDIDO: 0 };
+        const counts: PipelineCount = { NOVO: 0, NEGOCIACAO: 0, REUNIAO: 0, AGUARDANDO_MATERIAIS: 0, GANHO: 0, PERDIDO: 0 };
         for (const r of respData.respondidos) {
           const stage = (r.pipeline || 'NOVO') as keyof PipelineCount;
           if (stage in counts) counts[stage]++;
@@ -268,14 +268,15 @@ export default function DashboardPage() {
         <StatBox label="Erros" value={totalGeral.erros} color="red" />
       </div>
 
-      {pipeline && (pipeline.NOVO + pipeline.NEGOCIACAO + pipeline.REUNIAO + pipeline.GANHO + pipeline.PERDIDO) > 0 && (
+      {pipeline && (pipeline.NOVO + pipeline.NEGOCIACAO + pipeline.REUNIAO + pipeline.AGUARDANDO_MATERIAIS + pipeline.GANHO + pipeline.PERDIDO) > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
           <h2 className="font-display text-sm font-bold text-slate-700 mb-3">Pipeline Comercial</h2>
-          <div className="grid grid-cols-5 gap-2 text-center">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">
             {[
               { key: 'NOVO',       label: 'Novo',         color: 'bg-amber-50 text-amber-700 border-amber-200' },
               { key: 'NEGOCIACAO', label: 'Conversando',  color: 'bg-blue-50 text-blue-700 border-blue-200' },
               { key: 'REUNIAO',    label: 'Reunião',      color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { key: 'AGUARDANDO_MATERIAIS', label: 'Ag. Materiais', color: 'bg-orange-50 text-orange-700 border-orange-200' },
               { key: 'GANHO',      label: 'Ganho',        color: 'bg-green-50 text-green-700 border-green-200' },
               { key: 'PERDIDO',    label: 'Perdido',      color: 'bg-red-50 text-red-600 border-red-200' },
             ].map(s => (

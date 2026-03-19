@@ -20,6 +20,7 @@ const STAGES = [
   { key: 'NOVO',       label: 'Novo',           color: 'border-t-amber-400',   badge: 'bg-amber-100 text-amber-700',   count: 'text-amber-600' },
   { key: 'NEGOCIACAO', label: 'Conversando',      color: 'border-t-blue-400',    badge: 'bg-blue-100 text-blue-700',     count: 'text-blue-600' },
   { key: 'REUNIAO',    label: 'Reunião marcada', color: 'border-t-purple-400',  badge: 'bg-purple-100 text-purple-700', count: 'text-purple-600' },
+  { key: 'AGUARDANDO_MATERIAIS', label: 'Aguardando materiais', color: 'border-t-orange-400', badge: 'bg-orange-100 text-orange-700', count: 'text-orange-600' },
   { key: 'GANHO',      label: 'Ganho',           color: 'border-t-green-400',   badge: 'bg-green-100 text-green-700',   count: 'text-green-600' },
   { key: 'PERDIDO',    label: 'Perdido',         color: 'border-t-slate-300',   badge: 'bg-slate-100 text-slate-500',   count: 'text-slate-400' },
 ];
@@ -28,6 +29,7 @@ export default function PipelinePage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [moving, setMoving] = useState<string | null>(null);
+  const [filterCat, setFilterCat] = useState('');
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -59,8 +61,10 @@ export default function PipelinePage() {
     }
   };
 
-  const stageDeals = (key: string) => deals.filter(d => (d.pipeline || 'NOVO') === key);
-  const totalAtivos = deals.filter(d => d.pipeline !== 'GANHO' && d.pipeline !== 'PERDIDO').length;
+  const categorias = Array.from(new Set(deals.map(d => d.category))).filter(Boolean).sort();
+  const filtered = filterCat ? deals.filter(d => d.category === filterCat) : deals;
+  const stageDeals = (key: string) => filtered.filter(d => (d.pipeline || 'NOVO') === key);
+  const totalAtivos = filtered.filter(d => d.pipeline !== 'GANHO' && d.pipeline !== 'PERDIDO').length;
 
   if (loading) return (
     <div className="animate-pulse">
@@ -76,9 +80,14 @@ export default function PipelinePage() {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="font-display text-3xl font-bold text-slate-800">Pipeline</h1>
-          <p className="text-slate-400 text-sm mt-1">{totalAtivos} negociações ativas · {deals.filter(d => d.pipeline === 'GANHO').length} ganhas</p>
+          <p className="text-slate-400 text-sm mt-1">{totalAtivos} negociações ativas · {filtered.filter(d => d.pipeline === 'GANHO').length} ganhas</p>
         </div>
         <div className="flex gap-2">
+          <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+            className="px-3 py-2 text-sm border border-slate-200 rounded-xl text-slate-600 bg-white focus:outline-none hover:bg-slate-50">
+            <option value="">Todas as categorias</option>
+            {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
           <Link href="/respondidos" className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
             Ver conversas
           </Link>
