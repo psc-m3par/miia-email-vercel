@@ -300,9 +300,18 @@ export default function ExtrairPage() {
                 </button>
               </div>
               {googleResult && (
-                <div className={`mt-2 text-xs font-medium ${googleResult.errors > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                  {googleResult.saved}/{googleResult.total} salvos
-                  {googleResult.errors > 0 && ` · ${googleResult.errors} erros`}
+                <div className="mt-2">
+                  <div className={`text-xs font-medium ${googleResult.errors > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                    {googleResult.saved}/{googleResult.total} salvos
+                    {googleResult.errors > 0 && ` · ${googleResult.errors} erros`}
+                  </div>
+                  {googleResult.errorMessages?.length > 0 && (
+                    <div className="mt-1 text-[10px] text-red-500 space-y-0.5">
+                      {googleResult.errorMessages.map((msg: string, i: number) => (
+                        <div key={i}>{msg}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <p className="text-[10px] text-slate-400 mt-1">Requer reconexão do Gmail com permissão de Contatos</p>
