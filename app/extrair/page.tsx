@@ -305,9 +305,9 @@ export default function ExtrairPage() {
                     {googleResult.saved}/{googleResult.total} salvos
                     {googleResult.errors > 0 && ` · ${googleResult.errors} erros`}
                   </div>
-                  {googleResult.errorMessages?.length > 0 && (
+                  {(googleResult.errorMessages ?? []).length > 0 && (
                     <div className="mt-1 text-[10px] text-red-500 space-y-0.5">
-                      {googleResult.errorMessages.map((msg: string, i: number) => (
+                      {(googleResult.errorMessages ?? []).map((msg: string, i: number) => (
                         <div key={i}>{msg}</div>
                       ))}
                     </div>
