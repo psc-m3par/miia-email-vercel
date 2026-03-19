@@ -1,87 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readContatos, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readContatos, getAllSpreadsheetIds } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
+
+// Determinar status de resposta de cada contato
+function getStatus(c: any): string {
+  if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
+  if (c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE' || c.email1Enviado.startsWith('BOUNCE')) return 'bounced';
+  if (c.email1Enviado.startsWith('ERRO') || c.fup1Enviado.startsWith('ERRO') || c.fup2Enviado.startsWith('ERRO')) return 'erro';
+  if (c.fup2Enviado.startsWith('OK')) return 'fup2_enviado';
+  if (c.fup1Enviado.startsWith('OK')) return 'fup1_enviado';
+  if (c.email1Enviado.startsWith('OK')) return 'email1_enviado';
+  if (!c.email1Enviado) return 'pendente';
+  return 'outro';
+}
+
+function filterContacts(contacts: any[], body: any) {
+  const {
+    categorias = [] as string[],
+    statusResposta = [] as string[],
+    statusPipe = [] as string[],
+    campos = { email: true, whatsapp: true },
+  } = body;
+
+  let filtered = contacts;
+
+  if (categorias.length > 0) {
+    filtered = filtered.filter(c =>
+      categorias.some((cat: string) => c.category.normalize('NFC') === cat.normalize('NFC'))
+    );
+  }
+
+  if (statusResposta.length > 0) {
+    filtered = filtered.filter(c => statusResposta.includes(getStatus(c)));
+  }
+
+  if (statusPipe.length > 0) {
+    filtered = filtered.filter(c => statusPipe.includes(c.pipeline || 'SEM_PIPELINE'));
+  }
+
+  // Filtrar por campos selecionados: só inclui quem tem o dado
+  if (campos.whatsapp && !campos.email) {
+    filtered = filtered.filter(c => c.mobilePhone);
+  } else if (campos.email && !campos.whatsapp) {
+    filtered = filtered.filter(c => c.email);
+  } else if (campos.email && campos.whatsapp) {
+    filtered = filtered.filter(c => c.email || c.mobilePhone);
+  }
+
+  return filtered;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      categorias = [] as string[],
-      statusResposta = [] as string[],
-      statusPipe = [] as string[],
-      campos = { email: true, whatsapp: true },
-    } = body;
+    const { format = 'csv', campos = { email: true, whatsapp: true } } = body;
 
     const spreadsheetId = getAllSpreadsheetIds()[0];
-    const [painel, { contacts }] = await Promise.all([
-      readPainel(spreadsheetId),
-      readContatos(spreadsheetId),
-    ]);
+    const { contacts } = await readContatos(spreadsheetId);
+    const filtered = filterContacts(contacts, body);
 
-    // Determinar status de resposta de cada contato
-    const getStatus = (c: any): string => {
-      if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
-      if (c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE' || c.email1Enviado.startsWith('BOUNCE')) return 'bounced';
-      if (c.email1Enviado.startsWith('ERRO') || c.fup1Enviado.startsWith('ERRO') || c.fup2Enviado.startsWith('ERRO')) return 'erro';
-      if (c.fup2Enviado.startsWith('OK')) return 'fup2_enviado';
-      if (c.fup1Enviado.startsWith('OK')) return 'fup1_enviado';
-      if (c.email1Enviado.startsWith('OK')) return 'email1_enviado';
-      if (!c.email1Enviado) return 'pendente';
-      return 'outro';
-    };
-
-    // Filtrar contatos
-    let filtered = contacts;
-
-    if (categorias.length > 0) {
-      filtered = filtered.filter(c =>
-        categorias.some((cat: string) => c.category.normalize('NFC') === cat.normalize('NFC'))
-      );
+    // JSON format — para preview na tabela
+    if (format === 'json') {
+      const data = filtered.map(c => ({
+        firstName: c.firstName,
+        lastName: c.lastName,
+        companyName: c.companyName,
+        category: c.category,
+        status: getStatus(c),
+        pipeline: c.pipeline || '',
+        email: c.email,
+        phone: c.mobilePhone,
+      }));
+      return NextResponse.json({ contacts: data, total: data.length });
     }
 
-    if (statusResposta.length > 0) {
-      filtered = filtered.filter(c => statusResposta.includes(getStatus(c)));
-    }
-
-    if (statusPipe.length > 0) {
-      filtered = filtered.filter(c => statusPipe.includes(c.pipeline || 'SEM_PIPELINE'));
-    }
-
-    // Filtrar por campos selecionados: só inclui quem tem o dado
-    if (campos.whatsapp && !campos.email) {
-      filtered = filtered.filter(c => c.mobilePhone);
-    } else if (campos.email && !campos.whatsapp) {
-      filtered = filtered.filter(c => c.email);
-    } else if (campos.email && campos.whatsapp) {
-      filtered = filtered.filter(c => c.email || c.mobilePhone);
-    }
-
-    // Montar cabeçalho
+    // CSV format — para download
     const headers = ['Nome', 'Sobrenome', 'Empresa', 'Categoria', 'Status', 'Pipeline'];
     if (campos.email) headers.push('Email');
     if (campos.whatsapp) headers.push('WhatsApp');
 
-    // Montar linhas
     const rows = filtered.map(c => {
-      const row = [
-        c.firstName,
-        c.lastName,
-        c.companyName,
-        c.category,
-        getStatus(c),
-        c.pipeline || '',
-      ];
+      const row = [c.firstName, c.lastName, c.companyName, c.category, getStatus(c), c.pipeline || ''];
       if (campos.email) row.push(c.email);
-      // Prefixo = força Excel a tratar como texto, não número científico
       if (campos.whatsapp) row.push(c.mobilePhone ? `="${c.mobilePhone}"` : '');
       return row;
     });
 
-    // Gerar CSV com ; como separador (padrão Excel BR)
     const escapeCsv = (val: string) => {
       if (!val) return '';
-      // Não escapa fórmulas Excel (="...")
       if (val.startsWith('=')) return val;
       if (val.includes(';') || val.includes('"') || val.includes('\n')) {
         return '"' + val.replace(/"/g, '""') + '"';
@@ -89,14 +96,9 @@ export async function POST(req: NextRequest) {
       return val;
     };
 
-    const csv = [headers, ...rows]
-      .map(row => row.map(escapeCsv).join(';'))
-      .join('\n');
+    const csv = [headers, ...rows].map(row => row.map(escapeCsv).join(';')).join('\n');
 
-    // BOM para Excel reconhecer UTF-8
-    const bom = '\uFEFF';
-
-    return new NextResponse(bom + csv, {
+    return new NextResponse('\uFEFF' + csv, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="extracao_${new Date().toISOString().slice(0, 10)}.csv"`,
