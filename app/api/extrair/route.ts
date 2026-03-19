@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
     // Gerar CSV com ; como separador (padrão Excel BR)
     const escapeCsv = (val: string) => {
       if (!val) return '';
+      // Não escapa fórmulas Excel (="...")
+      if (val.startsWith('=')) return val;
       if (val.includes(';') || val.includes('"') || val.includes('\n')) {
         return '"' + val.replace(/"/g, '""') + '"';
       }
