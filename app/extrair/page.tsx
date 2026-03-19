@@ -51,6 +51,11 @@ interface ExactContact {
   email: string;
   phone: string;
   cargo: string;
+  // Cross-check fields (populated after matching with sheet)
+  matched?: boolean;
+  status?: string;
+  pipeline?: string;
+  sheetCategory?: string;
 }
 
 function parseExactCsv(text: string): ExactContact[] {
@@ -116,17 +121,23 @@ export default function ExtrairPage() {
   const [exactContacts, setExactContacts] = useState<ExactContact[] | null>(null);
   const [exactCompanies, setExactCompanies] = useState<string[]>([]);
   const [selectedExactCompanies, setSelectedExactCompanies] = useState<string[]>([]);
+  const [selectedExactStatus, setSelectedExactStatus] = useState<string[]>([]);
+  const [selectedExactPipe, setSelectedExactPipe] = useState<string[]>([]);
   const [exactFileName, setExactFileName] = useState('');
+  const [crossCheckDone, setCrossCheckDone] = useState(false);
+  const [crossCheckLoading, setCrossCheckLoading] = useState(false);
+  const [crossCheckStats, setCrossCheckStats] = useState<{ total: number; matched: number; unmatched: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isExactMode = exactContacts !== null;
 
-  // Filtered exact contacts
+  // Filtered exact contacts (company + status + pipeline)
   const filteredExactContacts = isExactMode
-    ? (selectedExactCompanies.length === 0
-        ? exactContacts
-        : exactContacts.filter(c => selectedExactCompanies.includes(c.companyName)))
+    ? exactContacts
+        .filter(c => selectedExactCompanies.length === 0 || selectedExactCompanies.includes(c.companyName))
+        .filter(c => selectedExactStatus.length === 0 || selectedExactStatus.includes(c.status || 'nao_encontrado'))
+        .filter(c => selectedExactPipe.length === 0 || selectedExactPipe.includes(c.pipeline || 'SEM_PIPELINE'))
     : [];
 
   // The contacts to use for export actions (unified)
@@ -191,10 +202,31 @@ export default function ExtrairPage() {
         }
         setExactContacts(parsed);
         setExactFileName(file.name);
-        // Extract unique companies
         const companies = Array.from(new Set(parsed.map(c => c.companyName))).filter(Boolean).sort();
         setExactCompanies(companies);
         setSelectedExactCompanies([]);
+        setSelectedExactStatus([]);
+        setSelectedExactPipe([]);
+        setCrossCheckDone(false);
+        setCrossCheckStats(null);
+
+        // Auto cross-check with sheet data
+        setCrossCheckLoading(true);
+        fetch('/api/extrair/crosscheck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exactContacts: parsed }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.contacts) {
+              setExactContacts(data.contacts);
+              setCrossCheckDone(true);
+              setCrossCheckStats(data.stats);
+            }
+          })
+          .catch(() => {/* cross-check failed, keep original data */})
+          .finally(() => setCrossCheckLoading(false));
       } catch (err) {
         alert('Erro ao processar CSV: ' + (err as Error).message);
       }
@@ -222,7 +254,11 @@ export default function ExtrairPage() {
     setExactContacts(null);
     setExactCompanies([]);
     setSelectedExactCompanies([]);
+    setSelectedExactStatus([]);
+    setSelectedExactPipe([]);
     setExactFileName('');
+    setCrossCheckDone(false);
+    setCrossCheckStats(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -411,25 +447,68 @@ export default function ExtrairPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
           {/* Categoria / Company filter */}
           {isExactMode ? (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xs font-bold text-slate-700">Empresa (NOME LEAD)</h2>
-                {selectedExactCompanies.length > 0 && (
-                  <button onClick={() => setSelectedExactCompanies([])} className="text-[10px] text-slate-400 hover:text-slate-600">Limpar</button>
-                )}
+            <>
+              {/* Cross-check status */}
+              {crossCheckLoading && (
+                <div className="text-xs text-amber-600 font-medium">Cruzando com dados da planilha...</div>
+              )}
+              {crossCheckDone && crossCheckStats && (
+                <div className="text-xs text-green-600 font-medium">
+                  Cross-check: {crossCheckStats.matched} encontrados na planilha · {crossCheckStats.unmatched} novos
+                </div>
+              )}
+
+              {/* Empresa */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xs font-bold text-slate-700">Empresa (NOME LEAD)</h2>
+                  {selectedExactCompanies.length > 0 && (
+                    <button onClick={() => setSelectedExactCompanies([])} className="text-[10px] text-slate-400 hover:text-slate-600">Limpar</button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {exactCompanies.map(company => (
+                    <Chip
+                      key={company}
+                      label={company}
+                      color="bg-miia-100 text-miia-700"
+                      selected={selectedExactCompanies.includes(company)}
+                      onClick={() => toggleItem(selectedExactCompanies, setSelectedExactCompanies, company)}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {exactCompanies.map(company => (
-                  <Chip
-                    key={company}
-                    label={company}
-                    color="bg-miia-100 text-miia-700"
-                    selected={selectedExactCompanies.includes(company)}
-                    onClick={() => toggleItem(selectedExactCompanies, setSelectedExactCompanies, company)}
-                  />
-                ))}
-              </div>
-            </div>
+
+              {/* Status (only after cross-check) */}
+              {crossCheckDone && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xs font-bold text-slate-700">Status de Resposta</h2>
+                    {selectedExactStatus.length > 0 && <button onClick={() => setSelectedExactStatus([])} className="text-[10px] text-slate-400 hover:text-slate-600">Limpar</button>}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...STATUS_OPTIONS, { key: 'nao_encontrado', label: 'Não encontrado na base', color: 'bg-slate-100 text-slate-500' }].map(s => (
+                      <Chip key={s.key} label={s.label} color={s.color} selected={selectedExactStatus.includes(s.key)} onClick={() => toggleItem(selectedExactStatus, setSelectedExactStatus, s.key)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pipeline (only after cross-check) */}
+              {crossCheckDone && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xs font-bold text-slate-700">Pipeline</h2>
+                    {selectedExactPipe.length > 0 && <button onClick={() => setSelectedExactPipe([])} className="text-[10px] text-slate-400 hover:text-slate-600">Limpar</button>}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PIPE_OPTIONS.map(p => (
+                      <Chip key={p.key} label={p.label} color={p.color} selected={selectedExactPipe.includes(p.key)} onClick={() => toggleItem(selectedExactPipe, setSelectedExactPipe, p.key)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <>
               {/* Categoria */}
@@ -507,18 +586,25 @@ export default function ExtrairPage() {
                     <th className="text-left py-2 px-3 text-slate-500 font-medium">Cargo</th>
                     <th className="text-left py-2 px-3 text-slate-500 font-medium">Telefone</th>
                     <th className="text-left py-2 px-3 text-slate-500 font-medium">Email</th>
+                    {crossCheckDone && <th className="text-left py-2 px-3 text-slate-500 font-medium">Status</th>}
+                    {crossCheckDone && <th className="text-left py-2 px-3 text-slate-500 font-medium">Pipeline</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {filteredExactContacts.slice(0, 100).map((c, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="py-2 px-3 text-slate-700 font-medium">{c.firstName}</td>
-                      <td className="py-2 px-3 text-slate-500">{c.companyName}</td>
-                      <td className="py-2 px-3 text-slate-500">{c.cargo}</td>
-                      <td className="py-2 px-3 text-slate-500">{c.phone}</td>
-                      <td className="py-2 px-3 text-slate-400">{c.email}</td>
-                    </tr>
-                  ))}
+                  {filteredExactContacts.slice(0, 100).map((c, i) => {
+                    const st = STATUS_LABELS[c.status || ''] || { label: c.status === 'nao_encontrado' ? 'Novo' : (c.status || ''), color: 'bg-slate-100 text-slate-500' };
+                    return (
+                      <tr key={i} className="hover:bg-slate-50/50">
+                        <td className="py-2 px-3 text-slate-700 font-medium">{c.firstName}</td>
+                        <td className="py-2 px-3 text-slate-500">{c.companyName}</td>
+                        <td className="py-2 px-3 text-slate-500">{c.cargo}</td>
+                        <td className="py-2 px-3 text-slate-500">{c.phone}</td>
+                        <td className="py-2 px-3 text-slate-400">{c.email}</td>
+                        {crossCheckDone && <td className="py-2 px-3"><span className={`px-1.5 py-0.5 rounded-full text-[10px] ${st.color}`}>{st.label}</span></td>}
+                        {crossCheckDone && <td className="py-2 px-3 text-slate-400">{c.pipeline || '-'}</td>}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
