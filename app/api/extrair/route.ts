@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
         c.pipeline || '',
       ];
       if (campos.email) row.push(c.email);
-      if (campos.whatsapp) row.push(c.mobilePhone);
+      // Prefixo = força Excel a tratar como texto, não número científico
+      if (campos.whatsapp) row.push(c.mobilePhone ? `="${c.mobilePhone}"` : '');
       return row;
     });
 
