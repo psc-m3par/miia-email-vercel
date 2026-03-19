@@ -26,9 +26,19 @@ async function createContact(accessToken: string, contact: ContactInput) {
     body.emailAddresses = [{ value: contact.email, type: 'work' }];
   }
   if (contact.phone) {
-    // Formata telefone com +
-    const phone = contact.phone.startsWith('+') ? contact.phone : '+' + contact.phone;
-    body.phoneNumbers = [{ value: phone, type: 'mobile' }];
+    // Formata telefone: +55 (11) 99547-4505 para evitar conversão numérica
+    const digits = contact.phone.replace(/\D/g, '');
+    let formatted: string;
+    if (digits.length === 13 && digits.startsWith('55')) {
+      // +55 (XX) 9XXXX-XXXX (celular BR)
+      formatted = `+${digits.slice(0,2)} (${digits.slice(2,4)}) ${digits.slice(4,9)}-${digits.slice(9)}`;
+    } else if (digits.length === 12 && digits.startsWith('55')) {
+      // +55 (XX) XXXX-XXXX (fixo BR)
+      formatted = `+${digits.slice(0,2)} (${digits.slice(2,4)}) ${digits.slice(4,8)}-${digits.slice(8)}`;
+    } else {
+      formatted = '+' + digits;
+    }
+    body.phoneNumbers = [{ value: formatted, type: 'mobile' }];
   }
 
   const res = await fetch('https://people.googleapis.com/v1/people:createContact', {
