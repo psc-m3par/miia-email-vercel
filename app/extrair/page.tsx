@@ -199,7 +199,7 @@ export default function ExtrairPage() {
         {/* Campos para extrair */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-display text-sm font-bold text-slate-700 mb-3">O que extrair?</h2>
-          <p className="text-[11px] text-slate-400 mb-3">Nome + Empresa + Categoria + Status + Pipeline + LinkedIn sempre inclusos</p>
+          <p className="text-[11px] text-slate-400 mb-3">Nome + Empresa + Categoria + Status + Pipeline sempre inclusos</p>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input

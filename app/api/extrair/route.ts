@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
     const headers = ['Nome', 'Sobrenome', 'Empresa', 'Categoria', 'Status', 'Pipeline'];
     if (campos.email) headers.push('Email');
     if (campos.whatsapp) headers.push('WhatsApp');
-    headers.push('LinkedIn');
 
     // Montar linhas
     const rows = filtered.map(c => {
@@ -66,21 +65,20 @@ export async function POST(req: NextRequest) {
       ];
       if (campos.email) row.push(c.email);
       if (campos.whatsapp) row.push(c.mobilePhone);
-      row.push(c.linkedinUrl);
       return row;
     });
 
-    // Gerar CSV
+    // Gerar CSV com ; como separador (padrão Excel BR)
     const escapeCsv = (val: string) => {
       if (!val) return '';
-      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+      if (val.includes(';') || val.includes('"') || val.includes('\n')) {
         return '"' + val.replace(/"/g, '""') + '"';
       }
       return val;
     };
 
     const csv = [headers, ...rows]
-      .map(row => row.map(escapeCsv).join(','))
+      .map(row => row.map(escapeCsv).join(';'))
       .join('\n');
 
     // BOM para Excel reconhecer UTF-8
