@@ -91,6 +91,7 @@ const COMERCIAL_ITEMS = [
   { href: '/templates', label: 'Templates' },
   { href: '/pipeline', label: 'Pipeline' },
   { href: '/contacts', label: 'Contatos' },
+  { href: '/extrair', label: 'Extrair' },
 ];
 
 const SETTINGS_ITEMS = [
