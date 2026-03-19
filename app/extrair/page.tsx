@@ -262,8 +262,7 @@ export default function ExtrairPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleVcard = () => {
-    if (activeContacts.length === 0) return;
+  const generateVcardBlob = () => {
     const vcards = activeContacts.map(c => {
       const familyName = [c.lastName, c.companyName].filter(Boolean).join(' - ');
       const phone = c.phone ? (c.phone.startsWith('+') ? c.phone : '+' + c.phone) : '';
@@ -278,8 +277,12 @@ export default function ExtrairPage() {
         'END:VCARD',
       ].filter(Boolean).join('\r\n');
     }).join('\r\n');
+    return new Blob([vcards], { type: 'text/vcard;charset=utf-8' });
+  };
 
-    const blob = new Blob([vcards], { type: 'text/vcard;charset=utf-8' });
+  const handleVcard = () => {
+    if (activeContacts.length === 0) return;
+    const blob = generateVcardBlob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -288,6 +291,25 @@ export default function ExtrairPage() {
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleShareVcard = async () => {
+    if (activeContacts.length === 0) return;
+    const blob = generateVcardBlob();
+    const file = new File([blob], `contatos_${new Date().toISOString().slice(0, 10)}.vcf`, { type: 'text/vcard' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Contatos' });
+      } catch {
+        // User cancelled or share failed — fallback to download
+        handleVcard();
+      }
+    } else {
+      // Browser doesn't support file sharing — fallback to download
+      handleVcard();
+      alert('Seu browser não suporta compartilhamento direto. O arquivo foi baixado — arraste pro WhatsApp Web.');
+    }
   };
 
   const handleCsv = async () => {
@@ -668,16 +690,26 @@ export default function ExtrairPage() {
 
             {/* vCard Export */}
             <div className="flex-1">
-              <h3 className="text-xs font-bold text-slate-700 mb-2">Baixar vCard (importar no celular)</h3>
-              <button onClick={handleVcard} disabled={displayCount === 0}
-                className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  displayCount === 0
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}>
-                {`Baixar .vcf (${displayCount})`}
-              </button>
-              <p className="text-[10px] text-slate-400 mt-1">Abra o arquivo .vcf no celular para importar contatos sem corromper números</p>
+              <h3 className="text-xs font-bold text-slate-700 mb-2">Enviar pro celular</h3>
+              <div className="flex gap-2">
+                <button onClick={handleShareVcard} disabled={displayCount === 0}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    displayCount === 0
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}>
+                  {`Compartilhar .vcf (${displayCount})`}
+                </button>
+                <button onClick={handleVcard} disabled={displayCount === 0}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    displayCount === 0
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}>
+                  Baixar
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Compartilha via WhatsApp/email ou baixa o .vcf. Abra no celular pra importar.</p>
             </div>
 
             {/* Google Contacts Export */}
