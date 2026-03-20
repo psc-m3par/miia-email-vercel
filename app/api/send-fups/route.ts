@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readTemplates, readContatos, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
+import { readPainel, readTemplates, readContatos, readSheet, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
 import { sendReply, checkReplies } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
