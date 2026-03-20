@@ -92,6 +92,7 @@ const COMERCIAL_ITEMS = [
   { href: '/pipeline', label: 'Pipeline' },
   { href: '/contacts', label: 'Contatos' },
   { href: '/extrair', label: 'Extrair' },
+  { href: '/resultados', label: 'Resultados' },
 ];
 
 const SETTINGS_ITEMS = [
