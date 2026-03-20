@@ -5,6 +5,9 @@ import { checkReplies, sendEmail } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+// Previne notificações duplicadas na mesma execução do servidor
+const notifiedContacts = new Set<string>();
+
 async function runCheckReplies(category?: string) {
   const allIds = getAllSpreadsheetIds();
   let totalRespondidos = 0;
@@ -88,7 +91,11 @@ async function runCheckReplies(category?: string) {
                 respondidosCat++;
                 const nome = [contato.firstName, contato.lastName].filter(Boolean).join(' ') || contato.email;
                 const empresa = contato.companyName ? ` · ${contato.companyName}` : '';
-                await sendEmail(
+                // Só notifica se não notificou esse contato recentemente
+                const notifKey = contato.email + '||' + contato.threadId;
+                if (!notifiedContacts.has(notifKey)) {
+                  notifiedContacts.add(notifKey);
+                  await sendEmail(
                   cat.responsavel,
                   cat.responsavel,
                   `Nova resposta: ${nome}${empresa}`,
@@ -102,6 +109,7 @@ async function runCheckReplies(category?: string) {
                   undefined,
                   spreadsheetId
                 ).catch(() => {});
+                }
               }
             }
           }

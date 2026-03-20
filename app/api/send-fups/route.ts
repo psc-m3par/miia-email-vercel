@@ -100,6 +100,14 @@ async function runSendFups(category?: string, force = false) {
       for (const contato of prontosFup1) {
         if (enviadosCat >= limite) break;
 
+        // Guard: re-verificar se fup1 já foi enviado (previne duplicatas entre execuções)
+        try {
+          const cellCheck = await readSheet('Contatos!I' + contato.rowIndex, spreadsheetId);
+          if (cellCheck[0]?.[0]) {
+            continue; // Já tem valor em fup1Enviado, pular
+          }
+        } catch { /* se falhar a leitura, continua normalmente */ }
+
         const replyCheck = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
         if (replyCheck.hasReply) {
           await writeSheet(
@@ -133,17 +141,30 @@ async function runSendFups(category?: string, force = false) {
         );
 
         const hojeStr = hojeSpDate;
-        await writeSheet(
-          'Contatos!I' + contato.rowIndex,
-          [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
-          spreadsheetId
-        );
+        try {
+          await writeSheet(
+            'Contatos!I' + contato.rowIndex,
+            [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
+            spreadsheetId
+          );
+        } catch (writeErr: any) {
+          await appendLog('FUP1', cat.category, 0, 'erro',
+            `WRITE FALHOU row ${contato.rowIndex} ${contato.email}: ${writeErr.message}`, spreadsheetId);
+        }
         if (result.success) { totalFups++; enviadosCat++; }
         await new Promise(r => setTimeout(r, 500));
       }
 
       for (const contato of prontosFup2) {
         if (enviadosCat >= limite) break;
+
+        // Guard: re-verificar se fup2 já foi enviado
+        try {
+          const cellCheck2 = await readSheet('Contatos!J' + contato.rowIndex, spreadsheetId);
+          if (cellCheck2[0]?.[0]) {
+            continue;
+          }
+        } catch { /* continua normalmente */ }
 
         const replyCheck2 = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
         if (replyCheck2.hasReply) {
