@@ -58,44 +58,83 @@ interface ExactContact {
   sheetCategory?: string;
 }
 
+function parseCsvLine(line: string, sep: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === sep && !inQuotes) { result.push(current); current = ''; continue; }
+    current += ch;
+  }
+  result.push(current);
+  return result;
+}
+
 function parseExactCsv(text: string): ExactContact[] {
   // Strip UTF-8 BOM if present
   const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
   const lines = clean.split(/\r?\n/).filter(l => l.trim() !== '');
   if (lines.length < 2) return [];
 
-  const header = lines[0].split(';').map(h => h.trim());
-  const colIdx = (name: string) => header.indexOf(name);
+  // Auto-detect format: semicolon (Exact) or comma (Apollo)
+  const firstLine = lines[0];
+  const isApollo = firstLine.includes('First Name') && firstLine.includes(',');
+  const sep = isApollo ? ',' : ';';
 
-  const iNomeContato = colIdx('NOME CONTATO');
-  const iNomeLead = colIdx('NOME LEAD');
-  const iTelefone = colIdx('TELEFONE');
-  const iEmail = colIdx('EMAIL');
-  const iCargo = colIdx('CARGO');
+  const header = parseCsvLine(firstLine, sep).map(h => h.trim());
+  const colIdx = (name: string) => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
 
-  if (iNomeContato === -1 || iNomeLead === -1 || iTelefone === -1) {
-    throw new Error('CSV inválido: colunas obrigatórias não encontradas (NOME CONTATO, NOME LEAD, TELEFONE)');
+  // Map columns based on format
+  let iFirstName: number, iLastName: number, iCompany: number, iPhone: number, iEmail: number, iCargo: number;
+
+  if (isApollo) {
+    iFirstName = colIdx('First Name');
+    iLastName = colIdx('Last Name');
+    iCompany = colIdx('Company Name');
+    iPhone = colIdx('Mobile Phone');
+    iEmail = colIdx('Email');
+    iCargo = colIdx('Title');
+  } else {
+    iFirstName = colIdx('NOME CONTATO');
+    iLastName = -1; // Exact doesn't have separate last name
+    iCompany = colIdx('NOME LEAD');
+    iPhone = colIdx('TELEFONE');
+    iEmail = colIdx('EMAIL');
+    iCargo = colIdx('CARGO');
   }
 
-  const seenPhones = new Set<string>();
+  if (iFirstName === -1 || iCompany === -1) {
+    throw new Error('CSV inválido: colunas de nome e empresa não encontradas. Formatos aceitos: Exact (;) ou Apollo (,)');
+  }
+
+  const seenEmails = new Set<string>();
   const results: ExactContact[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(';');
-    const phone = (cols[iTelefone] || '').trim();
-    if (!phone) continue; // skip contacts without phone
+    const cols = parseCsvLine(lines[i], sep);
+    const rawPhone = iPhone >= 0 ? (cols[iPhone] || '').trim() : '';
+    // Clean phone: remove quotes, =, +, spaces, hyphens, parens
+    const phoneClean = rawPhone.replace(/[="'+\s\-()]/g, '');
+    const email = iEmail >= 0 ? (cols[iEmail] || '').trim() : '';
 
-    // Deduplicate by phone
-    const phoneKey = phone.replace(/\D/g, '');
-    if (seenPhones.has(phoneKey)) continue;
-    seenPhones.add(phoneKey);
+    // Skip contacts without phone AND without email
+    if (!phoneClean && !email) continue;
+
+    // Deduplicate by email
+    if (email) {
+      const emailKey = email.toLowerCase();
+      if (seenEmails.has(emailKey)) continue;
+      seenEmails.add(emailKey);
+    }
 
     results.push({
-      firstName: (cols[iNomeContato] || '').trim(),
-      lastName: '',
-      companyName: (cols[iNomeLead] || '').trim(),
+      firstName: (cols[iFirstName] || '').trim(),
+      lastName: iLastName >= 0 ? (cols[iLastName] || '').trim() : '',
+      companyName: (cols[iCompany] || '').trim(),
       email: iEmail !== -1 ? (cols[iEmail] || '').trim() : '',
-      phone,
+      phone: phoneClean,
       cargo: iCargo !== -1 ? (cols[iCargo] || '').trim() : '',
     });
   }
