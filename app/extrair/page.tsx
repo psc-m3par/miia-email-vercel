@@ -167,16 +167,18 @@ export default function ExtrairPage() {
   const [crossCheckLoading, setCrossCheckLoading] = useState(false);
   const [crossCheckStats, setCrossCheckStats] = useState<{ total: number; matched: number; unmatched: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [onlyWithPhone, setOnlyWithPhone] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isExactMode = exactContacts !== null;
 
-  // Filtered exact contacts (company + status + pipeline)
+  // Filtered exact contacts (company + status + pipeline + phone filter)
   const filteredExactContacts = isExactMode
     ? exactContacts
         .filter(c => selectedExactCompanies.length === 0 || selectedExactCompanies.includes(c.companyName))
         .filter(c => selectedExactStatus.length === 0 || selectedExactStatus.includes(c.status || 'nao_encontrado'))
         .filter(c => selectedExactPipe.length === 0 || selectedExactPipe.includes(c.pipeline || 'SEM_PIPELINE'))
+        .filter(c => !onlyWithPhone || c.phone)
     : [];
 
   // The contacts to use for export actions (unified)
@@ -569,6 +571,14 @@ export default function ExtrairPage() {
                   </div>
                 </div>
               )}
+
+              {/* WhatsApp filter */}
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={onlyWithPhone} onChange={e => setOnlyWithPhone(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 text-miia-500" />
+                  <span className="text-xs font-bold text-slate-700">Só com WhatsApp</span>
+                </label>
+              </div>
             </>
           ) : (
             <>
@@ -642,10 +652,9 @@ export default function ExtrairPage() {
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 sticky top-0">
                   <tr>
-                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Nome</th>
-                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Empresa</th>
+                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Nome - Empresa (Categoria)</th>
                     <th className="text-left py-2 px-3 text-slate-500 font-medium">Cargo</th>
-                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Telefone</th>
+                    <th className="text-left py-2 px-3 text-slate-500 font-medium">WhatsApp</th>
                     <th className="text-left py-2 px-3 text-slate-500 font-medium">Email</th>
                     {crossCheckDone && <th className="text-left py-2 px-3 text-slate-500 font-medium">Status</th>}
                     {crossCheckDone && <th className="text-left py-2 px-3 text-slate-500 font-medium">Pipeline</th>}
@@ -654,12 +663,14 @@ export default function ExtrairPage() {
                 <tbody className="divide-y divide-slate-50">
                   {filteredExactContacts.slice(0, 100).map((c, i) => {
                     const st = STATUS_LABELS[c.status || ''] || { label: c.status === 'nao_encontrado' ? 'Novo' : (c.status || ''), color: 'bg-slate-100 text-slate-500' };
+                    const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ');
+                    const catLabel = c.sheetCategory ? ` (${c.sheetCategory})` : '';
+                    const displayName = `${fullName} - ${c.companyName}${catLabel}`;
                     return (
                       <tr key={i} className="hover:bg-slate-50/50">
-                        <td className="py-2 px-3 text-slate-700 font-medium">{c.firstName}</td>
-                        <td className="py-2 px-3 text-slate-500">{c.companyName}</td>
+                        <td className="py-2 px-3 text-slate-700 font-medium">{displayName}</td>
                         <td className="py-2 px-3 text-slate-500">{c.cargo}</td>
-                        <td className="py-2 px-3 text-slate-500">{c.phone}</td>
+                        <td className="py-2 px-3 text-slate-500">{c.phone || '-'}</td>
                         <td className="py-2 px-3 text-slate-400">{c.email}</td>
                         {crossCheckDone && <td className="py-2 px-3"><span className={`px-1.5 py-0.5 rounded-full text-[10px] ${st.color}`}>{st.label}</span></td>}
                         {crossCheckDone && <td className="py-2 px-3 text-slate-400">{c.pipeline || '-'}</td>}
