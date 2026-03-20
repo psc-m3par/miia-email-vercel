@@ -168,6 +168,7 @@ export default function ExtrairPage() {
   const [crossCheckStats, setCrossCheckStats] = useState<{ total: number; matched: number; unmatched: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [onlyWithPhone, setOnlyWithPhone] = useState(true);
+  const [uploadCategory, setUploadCategory] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isExactMode = exactContacts !== null;
@@ -238,8 +239,12 @@ export default function ExtrairPage() {
         const text = e.target?.result as string;
         const parsed = parseExactCsv(text);
         if (parsed.length === 0) {
-          alert('Nenhum contato com telefone encontrado no CSV.');
+          alert('Nenhum contato encontrado no CSV.');
           return;
+        }
+        // Apply selected category to all contacts
+        if (uploadCategory) {
+          parsed.forEach(c => { c.sheetCategory = uploadCategory; });
         }
         setExactContacts(parsed);
         setExactFileName(file.name);
@@ -464,33 +469,55 @@ export default function ExtrairPage() {
           </div>
 
           {!isExactMode ? (
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                dragOver
-                  ? 'border-miia-400 bg-miia-50'
-                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Categoria do CSV</label>
+                <select
+                  value={uploadCategory}
+                  onChange={e => setUploadCategory(e.target.value)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                >
+                  <option value="">Selecione a categoria...</option>
+                  {allCategorias.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => {
+                  if (!uploadCategory) { alert('Selecione a categoria primeiro'); return; }
+                  fileInputRef.current?.click();
                 }}
-              />
-              <div className="text-slate-400">
-                <svg className="mx-auto mb-2 w-8 h-8" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                <p className="text-sm font-medium text-slate-500">Arraste o CSV aqui ou clique para selecionar</p>
-                <p className="text-[10px] text-slate-400 mt-1">Formato: CSV do Exact CRM (separador ;)</p>
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                  dragOver
+                    ? 'border-miia-400 bg-miia-50'
+                    : !uploadCategory
+                      ? 'border-slate-100 bg-slate-50 opacity-60'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                  }}
+                />
+                <div className="text-slate-400">
+                  <svg className="mx-auto mb-2 w-8 h-8" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <p className="text-sm font-medium text-slate-500">
+                    {uploadCategory ? 'Arraste o CSV aqui ou clique para selecionar' : 'Selecione a categoria acima primeiro'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1">Aceita: Exact (;) ou Apollo (,)</p>
+                </div>
               </div>
             </div>
           ) : (
