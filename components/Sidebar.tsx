@@ -93,6 +93,7 @@ const COMERCIAL_ITEMS = [
   { href: '/contacts', label: 'Contatos' },
   { href: '/extrair', label: 'Extrair' },
   { href: '/resultados', label: 'Resultados' },
+  { href: '/clientes', label: 'Base de Clientes' },
 ];
 
 const SETTINGS_ITEMS = [

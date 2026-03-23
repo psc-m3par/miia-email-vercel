@@ -393,8 +393,7 @@ export default function SettingsPage() {
         })}
       </div>
 
-      {/* Base de Clientes */}
-      <ClienteBaseSection />
+      {/* Base de Clientes movida para /clientes */}
     </div>
   );
 }
