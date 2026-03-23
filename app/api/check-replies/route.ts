@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readContatos, writeSheet, writePipeline, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
-import { checkReplies, sendEmail } from '@/lib/gmail';
+import { readPainel, readContatos, writeSheet, writePipeline, getAllSpreadsheetIds, appendLog, readTeses, updateTese, appendSheet } from '@/lib/sheets';
+import { checkReplies, sendEmail, getReplyText } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -125,6 +125,75 @@ async function runCheckReplies(category?: string) {
         spreadsheetId);
     }
   }
+
+  // ── Check Teses approval replies ──
+  try {
+    const teses = await readTeses(allIds[0]);
+    const pendingTeses = teses.filter(t => t.status === 'APROVACAO' && t.threadId && t.aprovador);
+
+    for (const tese of pendingTeses) {
+      if (Date.now() > deadline) break;
+
+      try {
+        const replyResult = await checkReplies(tese.aprovador, tese.threadId, allIds[0]);
+        if (!replyResult.hasReply) continue;
+
+        // Get the actual reply text
+        const replyText = await getReplyText(tese.aprovador, tese.threadId, allIds[0]);
+        const replyLower = replyText.toLowerCase().trim();
+
+        // Check if it's an approval
+        const approvalWords = ['ok', 'aprovado', 'aprovada', 'sim', 'pode seguir', 'autorizado', 'autorizada', 'go ahead', 'approved'];
+        const isApproval = approvalWords.some(w => {
+          // Match if reply starts with the word or is just the word (with punctuation)
+          const cleaned = replyLower.replace(/[!.,;:\s]+/g, ' ').trim();
+          return cleaned === w || cleaned.startsWith(w + ' ') || cleaned.startsWith(w + '\n');
+        });
+
+        if (isApproval && tese.categoria) {
+          // Auto-approve: create category + template
+          await appendSheet('Painel!A:K', [[
+            tese.categoria, tese.criadoPor || '', tese.nomeRemetente || '',
+            20, 3, 7, 'FALSE', '', '', 8, 21,
+          ]], allIds[0]);
+
+          await appendSheet('Templates!A:G', [[
+            tese.categoria,
+            `Proposta para {{firstName}}`,
+            tese.template || tese.tese,
+            `Re: Proposta para {{firstName}}`,
+            `Olá {{firstName}}, gostaria de retomar nosso contato.`,
+            `Re: Proposta para {{firstName}}`,
+            `{{firstName}}, esta é nossa última tentativa de contato.`,
+          ]], allIds[0]);
+
+          await updateTese(tese.rowIndex, {
+            status: 'APROVADA',
+            comentarios: [...tese.comentarios, {
+              autor: tese.aprovador,
+              texto: `Aprovado automaticamente. Resposta: "${replyText.slice(0, 100)}"`,
+              timestamp: new Date().toISOString(),
+            }],
+          }, allIds[0]);
+
+          await appendLog('Check Replies', 'Teses', 1, 'ok',
+            `Tese "${tese.categoria}" aprovada automaticamente por ${tese.aprovador}`, allIds[0]);
+        } else {
+          // It's an adjustment comment
+          await updateTese(tese.rowIndex, {
+            comentarios: [...tese.comentarios, {
+              autor: tese.aprovador,
+              texto: replyText.slice(0, 500) || '(resposta sem texto)',
+              timestamp: new Date().toISOString(),
+            }],
+          }, allIds[0]);
+
+          await appendLog('Check Replies', 'Teses', 0, 'ok',
+            `Comentário do aprovador em "${tese.categoria}": ${replyText.slice(0, 80)}`, allIds[0]);
+        }
+      } catch { /* skip individual tese errors */ }
+    }
+  } catch { /* skip teses check errors */ }
 
   return { ok: true, respondidos: totalRespondidos };
 }
