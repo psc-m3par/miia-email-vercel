@@ -229,10 +229,8 @@ export default function TesesPage() {
   const deleteTese = async (t: Tese) => {
     if (!confirm(`Deletar tese "${t.tese.slice(0, 50)}..."?`)) return;
     try {
-      await fetch('/api/teses', {
+      await fetch(`/api/teses?rowIndex=${t.rowIndex}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rowIndex: t.rowIndex }),
       });
       setSelectedTese(null);
       await loadData();

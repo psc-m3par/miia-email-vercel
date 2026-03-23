@@ -223,10 +223,10 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { rowIndex } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const rowIndex = parseInt(searchParams.get('rowIndex') || '');
     if (!rowIndex) return NextResponse.json({ error: 'rowIndex é obrigatório' }, { status: 400 });
     const sid = getAllSpreadsheetIds()[0];
-    // Clear the row (set all columns to empty)
     await writeSheet(`Teses!A${rowIndex}:L${rowIndex}`, [['', '', '', '', '', '', '', '', '', '', '', '']], sid);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
