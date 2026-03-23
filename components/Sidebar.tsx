@@ -94,7 +94,6 @@ const INTELIGENCIA_ITEMS = [
 const COMERCIAL_ITEMS = [
   { href: '/templates', label: 'Templates' },
   { href: '/teses', label: 'Novas Teses' },
-  { href: '/pipeline', label: 'Pipeline' },
 ];
 
 const BASES_ITEMS = [
@@ -262,6 +261,12 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             </div>
           )}
         </div>
+
+        {/* Pipeline (standalone) */}
+        <Link href="/pipeline" className={navItemClass(pathname === '/pipeline')}>
+          <IconComercial className="w-4 h-4 flex-shrink-0" />
+          Pipeline
+        </Link>
 
         {/* Bases */}
         <div>
