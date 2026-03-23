@@ -93,6 +93,7 @@ const INTELIGENCIA_ITEMS = [
 
 const COMERCIAL_ITEMS = [
   { href: '/templates', label: 'Templates' },
+  { href: '/teses', label: 'Novas Teses' },
   { href: '/pipeline', label: 'Pipeline' },
 ];
 

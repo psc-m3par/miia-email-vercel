@@ -486,3 +486,123 @@ export async function markChatRead(userEmail: string, fromEmail: string): Promis
     }
   } catch { /* best-effort */ }
 }
+
+// ── Teses ──────────────────────────────────────────────────────────────────────
+
+export interface Tese {
+  id: string;
+  rowIndex: number;
+  tese: string;
+  template: string;
+  potenciaisClientes: string;
+  status: 'NOVA' | 'APROVACAO' | 'APROVADA';
+  criadoPor: string;
+  nomeRemetente: string;
+  aprovador: string;
+  threadId: string;
+  comentarios: { autor: string; texto: string; timestamp: string }[];
+  dataCriacao: string;
+  categoria: string;
+}
+
+export async function readTeses(spreadsheetId?: string): Promise<Tese[]> {
+  try {
+    const rows = await readSheet('Teses!A:L', spreadsheetId);
+    if (rows.length < 2) return [];
+    return rows.slice(1).filter(r => r[0]).map((r, i) => {
+      let comentarios: { autor: string; texto: string; timestamp: string }[] = [];
+      try { comentarios = JSON.parse(r[9] || '[]'); } catch { comentarios = []; }
+      return {
+        id: r[0] || '',
+        rowIndex: i + 2,
+        tese: r[1] || '',
+        template: r[2] || '',
+        potenciaisClientes: r[3] || '',
+        status: (r[4] || 'NOVA') as Tese['status'],
+        criadoPor: r[5] || '',
+        nomeRemetente: r[6] || '',
+        aprovador: r[7] || '',
+        threadId: r[8] || '',
+        comentarios,
+        dataCriacao: r[10] || '',
+        categoria: r[11] || '',
+      };
+    });
+  } catch { return []; }
+}
+
+export async function appendTese(
+  tese: Omit<Tese, 'id' | 'rowIndex'>,
+  spreadsheetId?: string
+): Promise<string> {
+  const sid = spreadsheetId || SPREADSHEET_ID;
+  const id = Date.now().toString();
+  const row = [
+    id,
+    tese.tese,
+    tese.template,
+    tese.potenciaisClientes,
+    tese.status || 'NOVA',
+    tese.criadoPor,
+    tese.nomeRemetente,
+    tese.aprovador,
+    tese.threadId,
+    JSON.stringify(tese.comentarios || []),
+    tese.dataCriacao || new Date().toISOString(),
+    tese.categoria || '',
+  ];
+  try {
+    await appendSheet('Teses!A:L', [row], sid);
+  } catch {
+    const sheets = getSheets();
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sid,
+      requestBody: { requests: [{ addSheet: { properties: { title: 'Teses' } } }] },
+    });
+    await writeSheet('Teses!A1:L1', [['ID', 'Tese', 'Template', 'PotenciaisClientes', 'Status', 'CriadoPor', 'NomeRemetente', 'Aprovador', 'ThreadId', 'Comentarios', 'DataCriacao', 'Categoria']], sid);
+    await appendSheet('Teses!A:L', [row], sid);
+  }
+  return id;
+}
+
+export async function updateTese(
+  rowIndex: number,
+  fields: Partial<{
+    tese: string;
+    template: string;
+    potenciaisClientes: string;
+    status: string;
+    criadoPor: string;
+    nomeRemetente: string;
+    aprovador: string;
+    threadId: string;
+    comentarios: { autor: string; texto: string; timestamp: string }[];
+    dataCriacao: string;
+    categoria: string;
+  }>,
+  spreadsheetId?: string
+): Promise<void> {
+  const sid = spreadsheetId || SPREADSHEET_ID;
+  const sheets = getSheets();
+  const updates: { range: string; values: any[][] }[] = [];
+
+  const colMap: Record<string, string> = {
+    tese: 'B', template: 'C', potenciaisClientes: 'D', status: 'E',
+    criadoPor: 'F', nomeRemetente: 'G', aprovador: 'H', threadId: 'I',
+    comentarios: 'J', dataCriacao: 'K', categoria: 'L',
+  };
+
+  for (const [key, val] of Object.entries(fields)) {
+    const col = colMap[key];
+    if (!col) continue;
+    const value = key === 'comentarios' ? JSON.stringify(val) : val;
+    updates.push({ range: `Teses!${col}${rowIndex}`, values: [[value]] });
+  }
+
+  if (updates.length > 0) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: sid,
+      requestBody: { valueInputOption: 'USER_ENTERED', data: updates },
+    });
+  }
+}
