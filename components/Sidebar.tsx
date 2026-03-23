@@ -86,17 +86,24 @@ function IconLogout({ className }: { className?: string }) {
   );
 }
 
-const COMERCIAL_ITEMS = [
-  { href: '/upload', label: 'Upload de base' },
-  { href: '/templates', label: 'Templates' },
-  { href: '/pipeline', label: 'Pipeline' },
-  { href: '/contacts', label: 'Contatos' },
-  { href: '/extrair', label: 'Extrair' },
+const INTELIGENCIA_ITEMS = [
+  { href: '/', label: 'Dashboard' },
   { href: '/resultados', label: 'Resultados' },
-  { href: '/clientes', label: 'Base de Clientes' },
 ];
 
-const SETTINGS_ITEMS = [
+const COMERCIAL_ITEMS = [
+  { href: '/templates', label: 'Templates' },
+  { href: '/pipeline', label: 'Pipeline' },
+];
+
+const BASES_ITEMS = [
+  { href: '/upload', label: 'Upload de base' },
+  { href: '/clientes', label: 'Clientes' },
+  { href: '/contacts', label: 'Contatos' },
+  { href: '/extrair', label: 'Extrair' },
+];
+
+const ADMIN_ITEMS = [
   { href: '/connect', label: 'Conectar Gmail' },
   { href: '/monitor', label: 'Monitor' },
 ];
@@ -109,21 +116,26 @@ interface SidebarProps {
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [inteligenciaOpen, setInteligenciaOpen] = useState(false);
   const [comercialOpen, setComercialOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [basesOpen, setBasesOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
+  const isInteligenciaActive = INTELIGENCIA_ITEMS.some(i => pathname === i.href);
   const isComercialActive = COMERCIAL_ITEMS.some(i => pathname === i.href);
-  const isSettingsActive = SETTINGS_ITEMS.some(i => pathname === i.href);
+  const isBasesActive = BASES_ITEMS.some(i => pathname === i.href);
+  const isAdminActive = ADMIN_ITEMS.some(i => pathname === i.href);
 
   useEffect(() => {
     fetch('/api/session').then(r => r.json()).then(d => setCurrentUser(d.user)).catch(() => {});
   }, []);
 
-  // Auto-open group if a child is active
   useEffect(() => {
+    if (isInteligenciaActive) setInteligenciaOpen(true);
     if (isComercialActive) setComercialOpen(true);
-    if (isSettingsActive) setSettingsOpen(true);
-  }, [isComercialActive, isSettingsActive]);
+    if (isBasesActive) setBasesOpen(true);
+    if (isAdminActive) setAdminOpen(true);
+  }, [isInteligenciaActive, isComercialActive, isBasesActive, isAdminActive]);
 
   const navItemClass = (active: boolean) =>
     `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -149,14 +161,15 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         </div>
         <nav className="flex-1 py-4 px-2 space-y-1">
           {[
-            { href: '/', Icon: IconDashboard, label: 'Dashboard' },
             { href: '/settings', Icon: IconPainel, label: 'Painel' },
-            { href: '/upload', Icon: IconComercial, label: 'Comercial' },
+            { href: '/', Icon: IconDashboard, label: 'Inteligência' },
+            { href: '/templates', Icon: IconComercial, label: 'Comercial' },
+            { href: '/upload', Icon: IconPainel, label: 'Bases' },
             { href: '/chats', Icon: IconChats, label: 'Chats' },
             { href: '/copilot', Icon: IconCopilot, label: 'Copiloto' },
-            { href: '/connect', Icon: IconSettings, label: 'Settings' },
+            { href: '/connect', Icon: IconSettings, label: 'Admin' },
           ].map(({ href, Icon, label }) => {
-            const active = pathname === href || (href === '/upload' && isComercialActive) || (href === '/connect' && isSettingsActive);
+            const active = pathname === href || (href === '/' && isInteligenciaActive) || (href === '/templates' && isComercialActive) || (href === '/upload' && isBasesActive) || (href === '/connect' && isAdminActive);
             return (
               <Link key={href} href={href} title={label}
                 className={`flex justify-center py-3 rounded-xl transition-all ${active ? 'bg-miia-500' : 'hover:bg-slate-50'}`}>
@@ -201,26 +214,38 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {/* Dashboard */}
-        <Link href="/" className={navItemClass(pathname === '/')}>
-          <IconDashboard className="w-4 h-4 flex-shrink-0" />
-          Dashboard
-        </Link>
-
-        {/* Painel */}
+        {/* Painel (standalone - first) */}
         <Link href="/settings" className={navItemClass(pathname === '/settings')}>
           <IconPainel className="w-4 h-4 flex-shrink-0" />
           Painel
         </Link>
 
-        {/* Comercial (expandable) */}
+        {/* Inteligência de Mercado */}
         <div>
-          <button
-            onClick={() => setComercialOpen(o => !o)}
+          <button onClick={() => setInteligenciaOpen(o => !o)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              isComercialActive && !comercialOpen
-                ? 'bg-miia-50 text-miia-600'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
+              isInteligenciaActive && !inteligenciaOpen ? 'bg-miia-50 text-miia-600' : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
+            }`}>
+            <IconDashboard className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left">Inteligência</span>
+            <IconChevronDown className="w-3.5 h-3.5" open={inteligenciaOpen} />
+          </button>
+          {inteligenciaOpen && (
+            <div className="mt-1 space-y-0.5">
+              {INTELIGENCIA_ITEMS.map(item => (
+                <Link key={item.href} href={item.href} className={subItemClass(pathname === item.href)}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Comercial */}
+        <div>
+          <button onClick={() => setComercialOpen(o => !o)}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              isComercialActive && !comercialOpen ? 'bg-miia-50 text-miia-600' : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
             }`}>
             <IconComercial className="w-4 h-4 flex-shrink-0" />
             <span className="flex-1 text-left">Comercial</span>
@@ -229,6 +254,27 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           {comercialOpen && (
             <div className="mt-1 space-y-0.5">
               {COMERCIAL_ITEMS.map(item => (
+                <Link key={item.href} href={item.href} className={subItemClass(pathname === item.href)}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bases */}
+        <div>
+          <button onClick={() => setBasesOpen(o => !o)}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              isBasesActive && !basesOpen ? 'bg-miia-50 text-miia-600' : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
+            }`}>
+            <IconPainel className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left">Bases</span>
+            <IconChevronDown className="w-3.5 h-3.5" open={basesOpen} />
+          </button>
+          {basesOpen && (
+            <div className="mt-1 space-y-0.5">
+              {BASES_ITEMS.map(item => (
                 <Link key={item.href} href={item.href} className={subItemClass(pathname === item.href)}>
                   {item.label}
                 </Link>
@@ -249,22 +295,19 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           Copiloto
         </Link>
 
-        {/* Settings (expandable) */}
+        {/* Admin */}
         <div>
-          <button
-            onClick={() => setSettingsOpen(o => !o)}
+          <button onClick={() => setAdminOpen(o => !o)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              isSettingsActive && !settingsOpen
-                ? 'bg-miia-50 text-miia-600'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
+              isAdminActive && !adminOpen ? 'bg-miia-50 text-miia-600' : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
             }`}>
             <IconSettings className="w-4 h-4 flex-shrink-0" />
-            <span className="flex-1 text-left">Settings</span>
-            <IconChevronDown className="w-3.5 h-3.5" open={settingsOpen} />
+            <span className="flex-1 text-left">Admin</span>
+            <IconChevronDown className="w-3.5 h-3.5" open={adminOpen} />
           </button>
-          {settingsOpen && (
+          {adminOpen && (
             <div className="mt-1 space-y-0.5">
-              {SETTINGS_ITEMS.map(item => (
+              {ADMIN_ITEMS.map(item => (
                 <Link key={item.href} href={item.href} className={subItemClass(pathname === item.href)}>
                   {item.label}
                 </Link>
