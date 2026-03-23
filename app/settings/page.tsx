@@ -404,6 +404,8 @@ function ClienteBaseSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [newEmpresa, setNewEmpresa] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -417,45 +419,61 @@ function ClienteBaseSection() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
-      const lines = clean.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) { setMsg('CSV vazio'); return; }
+      const lines = clean.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) { setMsg('Arquivo vazio'); return; }
 
-      // Auto-detect separator
-      const sep = lines[0].includes(';') ? ';' : ',';
+      // Check if it has known CSV headers
+      const knownHeaders = ['empresa', 'company', 'email', 'razao'];
+      const hasHeader = knownHeaders.some(h => lines[0].toLowerCase().includes(h));
 
-      // Find header
-      const knownHeaders = ['empresa', 'company', 'email', 'nome', 'razao'];
-      let headerIdx = 0;
-      for (let i = 0; i < Math.min(lines.length, 10); i++) {
-        if (knownHeaders.some(h => lines[i].toLowerCase().includes(h))) { headerIdx = i; break; }
-      }
+      if (hasHeader) {
+        // CSV with headers
+        const sep = lines[0].includes(';') ? ';' : ',';
+        const header = lines[0].split(sep).map(h => h.trim().toLowerCase());
+        const findCol = (...names: string[]) => {
+          for (const n of names) {
+            const idx = header.findIndex(h => h.includes(n.toLowerCase()));
+            if (idx >= 0) return idx;
+          }
+          return -1;
+        };
+        const iCompany = findCol('empresa', 'company', 'razao social', 'nome');
+        const iEmail = findCol('email', 'e-mail');
 
-      const header = lines[headerIdx].split(sep).map(h => h.trim().toLowerCase());
-      const findCol = (...names: string[]) => {
-        for (const n of names) {
-          const idx = header.findIndex(h => h.includes(n.toLowerCase()));
-          if (idx >= 0) return idx;
+        const parsed: { empresa: string; email: string }[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
+          const empresa = iCompany >= 0 ? (cols[iCompany] || '') : '';
+          const email = iEmail >= 0 ? (cols[iEmail] || '') : '';
+          if (empresa || email) parsed.push({ empresa, email });
         }
-        return -1;
-      };
-
-      const iCompany = findCol('empresa', 'company', 'razao social', 'nome');
-      const iEmail = findCol('email', 'e-mail');
-
-      if (iCompany === -1 && iEmail === -1) { setMsg('CSV sem colunas de empresa ou email'); return; }
-
-      const parsed: { empresa: string; email: string }[] = [];
-      for (let i = headerIdx + 1; i < lines.length; i++) {
-        const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
-        const empresa = iCompany >= 0 ? (cols[iCompany] || '') : '';
-        const email = iEmail >= 0 ? (cols[iEmail] || '') : '';
-        if (empresa || email) parsed.push({ empresa, email });
+        setClients(prev => [...prev, ...parsed]);
+        setMsg(`${parsed.length} clientes adicionados. Clique "Salvar" para confirmar.`);
+      } else {
+        // Simple list: one company name per line
+        const parsed: { empresa: string; email: string }[] = [];
+        for (const line of lines) {
+          const name = line.replace(/^["';,]+|["';,]+$/g, '').trim();
+          if (name) parsed.push({ empresa: name, email: '' });
+        }
+        setClients(prev => [...prev, ...parsed]);
+        setMsg(`${parsed.length} clientes adicionados. Clique "Salvar" para confirmar.`);
       }
-
-      setClients(parsed);
-      setMsg(`${parsed.length} clientes carregados. Clique "Salvar" para confirmar.`);
     };
     reader.readAsText(file);
+  };
+
+  const addManual = () => {
+    if (!newEmpresa && !newEmail) return;
+    setClients(prev => [...prev, { empresa: newEmpresa, email: newEmail }]);
+    setNewEmpresa('');
+    setNewEmail('');
+    setMsg('Cliente adicionado. Clique "Salvar" para confirmar.');
+  };
+
+  const removeClient = (idx: number) => {
+    setClients(prev => prev.filter((_, i) => i !== idx));
+    setMsg('Cliente removido. Clique "Salvar" para confirmar.');
   };
 
   const save = async () => {
@@ -481,7 +499,7 @@ function ClienteBaseSection() {
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
         <div>
           <h2 className="font-display text-lg font-bold text-slate-800">Base de Clientes Atuais</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Contatos de clientes atuais são flaggados no upload para evitar prospecção duplicada</p>
+          <p className="text-xs text-slate-400 mt-0.5">Clientes atuais são flaggados no upload para evitar prospecção duplicada</p>
         </div>
         <div className="flex gap-2">
           <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg">{clients.length} clientes</span>
@@ -489,14 +507,16 @@ function ClienteBaseSection() {
       </div>
       <div className="px-6 py-4 space-y-3">
         {msg && <p className="text-sm text-miia-600 bg-miia-50 rounded-lg px-3 py-2">{msg}</p>}
-        <div className="flex gap-3">
-          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => {
+
+        {/* Upload + Manual add */}
+        <div className="flex gap-3 flex-wrap">
+          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => {
             const f = e.target.files?.[0];
             if (f) handleUpload(f);
           }} />
           <button onClick={() => fileRef.current?.click()}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
-            Upload CSV de Clientes
+            Upload CSV/Lista
           </button>
           {clients.length > 0 && (
             <button onClick={save} disabled={saving}
@@ -505,6 +525,30 @@ function ClienteBaseSection() {
             </button>
           )}
         </div>
+
+        {/* Manual add form */}
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="text-[10px] text-slate-400">Empresa</label>
+            <input value={newEmpresa} onChange={e => setNewEmpresa(e.target.value)}
+              placeholder="Nome da empresa"
+              onKeyDown={e => e.key === 'Enter' && addManual()}
+              className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+          </div>
+          <div className="flex-1">
+            <label className="text-[10px] text-slate-400">Email (opcional)</label>
+            <input value={newEmail} onChange={e => setNewEmail(e.target.value)}
+              placeholder="email@empresa.com"
+              onKeyDown={e => e.key === 'Enter' && addManual()}
+              className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+          </div>
+          <button onClick={addManual}
+            className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 whitespace-nowrap">
+            + Adicionar
+          </button>
+        </div>
+
+        {/* Client list */}
         {clients.length > 0 && (
           <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-lg">
             <table className="w-full text-xs">
@@ -512,18 +556,22 @@ function ClienteBaseSection() {
                 <tr>
                   <th className="text-left px-3 py-2 text-slate-500">Empresa</th>
                   <th className="text-left px-3 py-2 text-slate-500">Email</th>
+                  <th className="text-center px-2 py-2 text-slate-400 w-8"></th>
                 </tr>
               </thead>
               <tbody>
-                {clients.slice(0, 50).map((c, i) => (
-                  <tr key={i} className="border-t border-slate-50">
+                {clients.map((c, i) => (
+                  <tr key={i} className="border-t border-slate-50 group">
                     <td className="px-3 py-1.5 text-slate-700">{c.empresa}</td>
-                    <td className="px-3 py-1.5 text-slate-500">{c.email}</td>
+                    <td className="px-3 py-1.5 text-slate-500">{c.email || '—'}</td>
+                    <td className="px-2 py-1.5 text-center">
+                      <button onClick={() => removeClient(i)}
+                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs">
+                        ✕
+                      </button>
+                    </td>
                   </tr>
                 ))}
-                {clients.length > 50 && (
-                  <tr><td colSpan={2} className="px-3 py-2 text-slate-400 text-center">...e mais {clients.length - 50}</td></tr>
-                )}
               </tbody>
             </table>
           </div>
