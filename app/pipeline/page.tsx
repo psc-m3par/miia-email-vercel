@@ -55,12 +55,23 @@ export default function PipelinePage() {
     const k = cardKey(d);
     setMoving(k + stage);
     try {
-      await fetch('/api/respondidos', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rowIndex: d.rowIndex, pipeline: stage, spreadsheetId: d.spreadsheetId }),
-      });
-      setDeals(prev => prev.map(x => cardKey(x) === k ? { ...x, pipeline: stage } : x));
+      // Find all deals from the same company
+      const sameCompany = d.companyName
+        ? deals.filter(x => x.companyName === d.companyName && x.spreadsheetId === d.spreadsheetId && x.pipeline !== stage)
+        : [d];
+      const toMove = sameCompany.length > 0 ? sameCompany : [d];
+
+      // Move all in parallel
+      await Promise.all(toMove.map(x =>
+        fetch('/api/respondidos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rowIndex: x.rowIndex, pipeline: stage, spreadsheetId: x.spreadsheetId }),
+        })
+      ));
+
+      const movedKeys = new Set(toMove.map(x => cardKey(x)));
+      setDeals(prev => prev.map(x => movedKeys.has(cardKey(x)) ? { ...x, pipeline: stage } : x));
     } finally {
       setMoving(null);
     }
