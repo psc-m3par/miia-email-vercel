@@ -78,7 +78,7 @@ export default function PipelinePage() {
   };
 
   const addContact = async () => {
-    if (!addForm.firstName || !addForm.email) { alert('Nome e email são obrigatórios'); return; }
+    if (!addForm.firstName) { alert('Nome é obrigatório'); return; }
     setAddSaving(true);
     try {
       const res = await fetch('/api/respondidos', {

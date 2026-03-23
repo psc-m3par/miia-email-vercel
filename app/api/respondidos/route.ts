@@ -60,8 +60,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { firstName, lastName, companyName, email, mobilePhone, category, pipeline, nota } = await req.json();
-    if (!firstName || !email) {
-      return NextResponse.json({ error: 'Nome e email são obrigatórios' }, { status: 400 });
+    if (!firstName) {
+      return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 });
     }
     const allIds = getAllSpreadsheetIds();
     const spreadsheetId = allIds[0];
