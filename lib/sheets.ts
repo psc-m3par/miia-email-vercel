@@ -509,12 +509,12 @@ export async function readTeses(spreadsheetId?: string): Promise<Tese[]> {
   try {
     const rows = await readSheet('Teses!A:L', spreadsheetId);
     if (rows.length < 2) return [];
-    return rows.slice(1).filter(r => r[0]).map((r, i) => {
+    return rows.slice(1).map((r, i) => ({ r, actualRow: i + 2 })).filter(({ r }) => r[0]).map(({ r, actualRow }) => {
       let comentarios: { autor: string; texto: string; timestamp: string }[] = [];
       try { comentarios = JSON.parse(r[9] || '[]'); } catch { comentarios = []; }
       return {
         id: r[0] || '',
-        rowIndex: i + 2,
+        rowIndex: actualRow,
         tese: r[1] || '',
         template: r[2] || '',
         potenciaisClientes: r[3] || '',
