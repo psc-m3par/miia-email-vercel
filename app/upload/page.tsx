@@ -12,13 +12,29 @@ interface ParsedContact {
 }
 
 function parseCSV(text: string): ParsedContact[] {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  // Strip BOM
+  const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+  const allLines = clean.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (allLines.length < 2) return [];
+
+  // Find actual header row (skip title/empty rows)
+  const knownHeaders = ['first name', 'email', 'company', 'nome contato', 'nome lead'];
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(allLines.length, 10); i++) {
+    const lower = allLines[i].toLowerCase();
+    if (knownHeaders.some(h => lower.includes(h))) {
+      headerIdx = i;
+      break;
+    }
+  }
+
+  const lines = allLines.slice(headerIdx);
   if (lines.length < 2) return [];
 
   const headerLine = lines[0];
   const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
 
-  const isApolloFormat = lines[1].startsWith('"') && lines[1].endsWith('"');
+  const isApolloFormat = lines.length > 1 && lines[1].startsWith('"') && lines[1].endsWith('"');
 
   if (isApolloFormat) {
     return parseApolloFormat(lines);
@@ -59,29 +75,45 @@ function parseApolloFormat(lines: string[]): ParsedContact[] {
 }
 
 function parseNormalFormat(lines: string[], headers: string[]): ParsedContact[] {
-  const col = (name: string) => {
-    const variations = [name, name.replace(/ /g, '')];
-    for (const v of variations) {
-      const idx = headers.indexOf(v);
+  const col = (...names: string[]) => {
+    // Exact match first
+    for (const name of names) {
+      const idx = headers.indexOf(name.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    // Partial match
+    for (const name of names) {
+      const idx = headers.findIndex(h => h.includes(name.toLowerCase()));
       if (idx !== -1) return idx;
     }
     return -1;
   };
 
-  const iFirst = col('first name');
-  const iLast = col('last name');
-  const iCompany = col('company name');
-  const iEmail = col('email');
-  const iPhone = col('mobile phone');
-  const iLinkedin = col('person linkedin url');
+  const iFirst = col('first name', 'nome contato', 'nome');
+  const iLast = col('last name', 'sobrenome');
+  const iCompany = col('company name', 'company', 'nome lead', 'empresa');
+  const iEmail = col('email', 'e-mail');
+  const iPhone = col('mobile phone', 'telefone', 'phone', 'whatsapp');
+  const iLinkedin = col('person linkedin url', 'linkedin');
 
-  if (iEmail === -1) return [];
+  if (iFirst === -1 && iEmail === -1) return [];
 
   const contacts: ParsedContact[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(',').map(p => p.trim());
-    const email = parts[iEmail] || '';
+    // Parse CSV line respecting quoted fields
+    const parts: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let j = 0; j < lines[i].length; j++) {
+      const ch = lines[i][j];
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === ',' && !inQuotes) { parts.push(current.trim()); current = ''; continue; }
+      current += ch;
+    }
+    parts.push(current.trim());
+
+    const email = iEmail >= 0 ? (parts[iEmail] || '') : '';
     if (!email || !email.includes('@')) continue;
 
     contacts.push({
