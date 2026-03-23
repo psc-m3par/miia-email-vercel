@@ -5,8 +5,16 @@ import { sendReply, checkReplies } from '@/lib/gmail';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+// Previne execuções concorrentes
+let lastRunTime = 0;
+const MIN_INTERVAL = 55_000; // 55 segundos entre execuções
 
 async function runSendFups(category?: string, force = false) {
+  const now = Date.now();
+  if (!force && now - lastRunTime < MIN_INTERVAL) {
+    return { fups: 0, pulados: ['Aguardando intervalo mínimo entre execuções'] };
+  }
+  lastRunTime = now;
   const allIds = getAllSpreadsheetIds();
   let totalFups = 0;
   const pulados: string[] = [];
@@ -199,11 +207,16 @@ async function runSendFups(category?: string, force = false) {
         );
 
         const hojeStr = hojeSpDate;
-        await writeSheet(
-          'Contatos!J' + contato.rowIndex,
-          [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
-          spreadsheetId
-        );
+        try {
+          await writeSheet(
+            'Contatos!J' + contato.rowIndex,
+            [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
+            spreadsheetId
+          );
+        } catch (writeErr: any) {
+          await appendLog('FUP2', cat.category, 0, 'erro',
+            `WRITE FALHOU row ${contato.rowIndex} ${contato.email}: ${writeErr.message}`, spreadsheetId);
+        }
         if (result.success) { totalFups++; enviadosCat++; }
         await new Promise(r => setTimeout(r, 500));
       }
