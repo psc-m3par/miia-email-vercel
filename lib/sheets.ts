@@ -389,6 +389,34 @@ export async function writeAtendido(rowIndex: number, value: string, spreadsheet
   await writeSheet('Contatos!L' + rowIndex, [[value]], spreadsheetId);
 }
 
+// ── Clientes (base de clientes atuais) ───────────────────────────────────────
+
+export async function readClientes(spreadsheetId?: string): Promise<{ empresa: string; email: string }[]> {
+  try {
+    const rows = await readSheet('Clientes!A:B', spreadsheetId);
+    if (rows.length < 2) return [];
+    return rows.slice(1).filter(r => r[0] || r[1]).map(r => ({
+      empresa: (r[0] || '').trim(),
+      email: (r[1] || '').trim(),
+    }));
+  } catch { return []; }
+}
+
+export async function writeClientes(clients: string[][], spreadsheetId?: string): Promise<void> {
+  const sid = spreadsheetId || SPREADSHEET_ID;
+  const data = [['Empresa', 'Email'], ...clients];
+  try {
+    await writeSheet('Clientes!A1', data, sid);
+  } catch {
+    const sheets = getSheets();
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sid,
+      requestBody: { requests: [{ addSheet: { properties: { title: 'Clientes' } } }] },
+    });
+    await writeSheet('Clientes!A1', data, sid);
+  }
+}
+
 // ── Internal Chat ─────────────────────────────────────────────────────────────
 
 export interface InternalMessage {

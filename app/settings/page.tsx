@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface PainelRow {
   category: string; responsavel: string; nomeRemetente: string;
@@ -391,6 +391,143 @@ export default function SettingsPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Base de Clientes */}
+      <ClienteBaseSection />
+    </div>
+  );
+}
+
+function ClienteBaseSection() {
+  const [clients, setClients] = useState<{ empresa: string; email: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch('/api/clients').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setClients(data);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const handleUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+      const lines = clean.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { setMsg('CSV vazio'); return; }
+
+      // Auto-detect separator
+      const sep = lines[0].includes(';') ? ';' : ',';
+
+      // Find header
+      const knownHeaders = ['empresa', 'company', 'email', 'nome', 'razao'];
+      let headerIdx = 0;
+      for (let i = 0; i < Math.min(lines.length, 10); i++) {
+        if (knownHeaders.some(h => lines[i].toLowerCase().includes(h))) { headerIdx = i; break; }
+      }
+
+      const header = lines[headerIdx].split(sep).map(h => h.trim().toLowerCase());
+      const findCol = (...names: string[]) => {
+        for (const n of names) {
+          const idx = header.findIndex(h => h.includes(n.toLowerCase()));
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      };
+
+      const iCompany = findCol('empresa', 'company', 'razao social', 'nome');
+      const iEmail = findCol('email', 'e-mail');
+
+      if (iCompany === -1 && iEmail === -1) { setMsg('CSV sem colunas de empresa ou email'); return; }
+
+      const parsed: { empresa: string; email: string }[] = [];
+      for (let i = headerIdx + 1; i < lines.length; i++) {
+        const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
+        const empresa = iCompany >= 0 ? (cols[iCompany] || '') : '';
+        const email = iEmail >= 0 ? (cols[iEmail] || '') : '';
+        if (empresa || email) parsed.push({ empresa, email });
+      }
+
+      setClients(parsed);
+      setMsg(`${parsed.length} clientes carregados. Clique "Salvar" para confirmar.`);
+    };
+    reader.readAsText(file);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clients }),
+      });
+      const data = await res.json();
+      if (data.ok) setMsg(`${data.count} clientes salvos na planilha.`);
+      else setMsg('Erro: ' + (data.error || 'desconhecido'));
+    } catch (err: any) {
+      setMsg('Erro: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-8 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <div>
+          <h2 className="font-display text-lg font-bold text-slate-800">Base de Clientes Atuais</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Contatos de clientes atuais são flaggados no upload para evitar prospecção duplicada</p>
+        </div>
+        <div className="flex gap-2">
+          <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg">{clients.length} clientes</span>
+        </div>
+      </div>
+      <div className="px-6 py-4 space-y-3">
+        {msg && <p className="text-sm text-miia-600 bg-miia-50 rounded-lg px-3 py-2">{msg}</p>}
+        <div className="flex gap-3">
+          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+          }} />
+          <button onClick={() => fileRef.current?.click()}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+            Upload CSV de Clientes
+          </button>
+          {clients.length > 0 && (
+            <button onClick={save} disabled={saving}
+              className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600 disabled:opacity-50">
+              {saving ? 'Salvando...' : 'Salvar'}
+            </button>
+          )}
+        </div>
+        {clients.length > 0 && (
+          <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-lg">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="text-left px-3 py-2 text-slate-500">Empresa</th>
+                  <th className="text-left px-3 py-2 text-slate-500">Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.slice(0, 50).map((c, i) => (
+                  <tr key={i} className="border-t border-slate-50">
+                    <td className="px-3 py-1.5 text-slate-700">{c.empresa}</td>
+                    <td className="px-3 py-1.5 text-slate-500">{c.email}</td>
+                  </tr>
+                ))}
+                {clients.length > 50 && (
+                  <tr><td colSpan={2} className="px-3 py-2 text-slate-400 text-center">...e mais {clients.length - 50}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

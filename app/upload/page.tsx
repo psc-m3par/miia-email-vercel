@@ -129,9 +129,23 @@ function parseNormalFormat(lines: string[], headers: string[]): ParsedContact[] 
   return contacts;
 }
 
+interface ContactFlags {
+  duplicata: boolean;
+  duplicataInfo: string | null;
+  clienteAtual: boolean;
+  clienteMatchType: 'email' | 'empresa' | null;
+}
+
+interface AnnotatedContact extends ParsedContact {
+  flags?: ContactFlags;
+}
+
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [contacts, setContacts] = useState<ParsedContact[]>([]);
+  const [contacts, setContacts] = useState<AnnotatedContact[]>([]);
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
+  const [crossCheckStats, setCrossCheckStats] = useState<{ total: number; duplicatas: number; clientesAtuais: number; limpos: number } | null>(null);
+  const [crossChecking, setCrossChecking] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newCategory, setNewCategory] = useState('');
@@ -159,19 +173,17 @@ export default function UploadPage() {
     try {
       const text = await f.text();
 
+      let parsed: ParsedContact[] = [];
+
       if (f.name.endsWith('.csv')) {
-        const parsed = parseCSV(text);
-        setContacts(parsed);
-        if (parsed.length === 0) {
-          setError('Nenhum contato com email valido encontrado.');
-        }
+        parsed = parseCSV(text);
       } else if (f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) {
         const XLSX = await import('xlsx');
         const arrayBuffer = await f.arrayBuffer();
         const wb = XLSX.read(arrayBuffer, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws) as any[];
-        const parsed = data.filter(r => r.Email || r.email).map(r => ({
+        parsed = data.filter(r => r.Email || r.email).map(r => ({
           firstName: r['First Name'] || '',
           lastName: r['Last Name'] || '',
           companyName: r['Company Name'] || '',
@@ -179,9 +191,43 @@ export default function UploadPage() {
           mobilePhone: r['Mobile Phone'] || '',
           linkedinUrl: r['Person Linkedin Url'] || '',
         }));
-        setContacts(parsed);
       } else {
         setError('Formato nao suportado. Use .csv ou .xlsx');
+        return;
+      }
+
+      if (parsed.length === 0) {
+        setError('Nenhum contato encontrado no CSV.');
+        return;
+      }
+
+      setContacts(parsed);
+
+      // Run cross-check
+      setCrossChecking(true);
+      try {
+        const res = await fetch('/api/upload/crosscheck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: parsed }),
+        });
+        const data = await res.json();
+        if (data.contacts) {
+          setContacts(data.contacts);
+          setCrossCheckStats(data.stats);
+          const checks: Record<number, boolean> = {};
+          data.contacts.forEach((c: AnnotatedContact, i: number) => {
+            checks[i] = !c.flags?.duplicata && !c.flags?.clienteAtual;
+          });
+          setChecked(checks);
+        }
+      } catch {
+        // Cross-check failed, continue without flags
+        const checks: Record<number, boolean> = {};
+        parsed.forEach((_: any, i: number) => { checks[i] = true; });
+        setChecked(checks);
+      } finally {
+        setCrossChecking(false);
       }
     } catch (e: any) {
       setError('Erro ao processar arquivo: ' + e.message);
@@ -201,10 +247,13 @@ export default function UploadPage() {
     if (e.dataTransfer.files?.[0]) parseFile(e.dataTransfer.files[0]);
   };
 
+  const selectedContacts = contacts.filter((_, i) => checked[i]);
+  const selectedCount = selectedContacts.length;
+
   const handleUpload = async () => {
     const cat = selectedCategory || newCategory;
     if (!cat) { setError('Selecione ou crie uma category'); return; }
-    if (contacts.length === 0) { setError('Nenhum contato para enviar'); return; }
+    if (selectedCount === 0) { setError('Nenhum contato selecionado'); return; }
 
     setUploading(true);
     setError('');
@@ -213,7 +262,7 @@ export default function UploadPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts, category: cat }),
+        body: JSON.stringify({ contacts: selectedContacts, category: cat }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -287,28 +336,73 @@ export default function UploadPage() {
 
           {contacts.length > 0 && (
             <div className="animate-slide-up">
+              {/* Cross-check stats */}
+              {crossChecking && (
+                <div className="bg-miia-50 rounded-2xl p-4 mb-4 text-center text-sm text-miia-600 animate-pulse">
+                  Verificando duplicatas e clientes atuais...
+                </div>
+              )}
+              {crossCheckStats && (
+                <div className="flex gap-3 mb-4 flex-wrap">
+                  <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-100 text-green-700">{crossCheckStats.limpos} limpos</span>
+                  <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-700">{crossCheckStats.duplicatas} duplicatas</span>
+                  <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-100 text-red-700">{crossCheckStats.clientesAtuais} clientes atuais</span>
+                  <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-miia-100 text-miia-700">{selectedCount} selecionados</span>
+                  <button onClick={() => { const c: Record<number, boolean> = {}; contacts.forEach((_, i) => { c[i] = true; }); setChecked(c); }}
+                    className="text-xs text-miia-500 hover:underline">Selecionar todos</button>
+                  <button onClick={() => { const c: Record<number, boolean> = {}; contacts.forEach((ct: AnnotatedContact, i) => { c[i] = !ct.flags?.duplicata && !ct.flags?.clienteAtual; }); setChecked(c); }}
+                    className="text-xs text-miia-500 hover:underline">Só limpos</button>
+                  <button onClick={() => { const c: Record<number, boolean> = {}; contacts.forEach((_, i) => { c[i] = false; }); setChecked(c); }}
+                    className="text-xs text-red-400 hover:underline">Deselecionar todos</button>
+                </div>
+              )}
+
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-6">
                 <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center">
                   <h3 className="font-semibold text-slate-700">Preview ({contacts.length} contatos)</h3>
-                  <span className="text-xs text-slate-400">Mostrando primeiros 5</span>
+                  <span className="text-xs text-slate-400">Mostrando primeiros 20</span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-50">
+                    <thead className="sticky top-0 bg-slate-50 z-10">
+                      <tr>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500 w-8">
+                          <input type="checkbox" checked={selectedCount === contacts.length}
+                            onChange={e => { const c: Record<number, boolean> = {}; contacts.forEach((_, i) => { c[i] = e.target.checked; }); setChecked(c); }}
+                            className="rounded" />
+                        </th>
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Nome</th>
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Empresa</th>
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Email</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Telefone</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {contacts.slice(0, 5).map((c, i) => (
-                        <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/50">
-                          <td className="px-4 py-2.5 text-slate-700">{c.firstName} {c.lastName}</td>
-                          <td className="px-4 py-2.5 text-slate-500">{c.companyName}</td>
-                          <td className="px-4 py-2.5 text-slate-500 font-mono text-xs">{c.email}</td>
-                          <td className="px-4 py-2.5 text-slate-400 text-xs">{c.mobilePhone || '-'}</td>
+                      {contacts.slice(0, 20).map((c: AnnotatedContact, i) => (
+                        <tr key={i} className={`border-t border-slate-50 hover:bg-slate-50/50 ${!checked[i] ? 'opacity-40' : ''}`}>
+                          <td className="px-3 py-2 text-center">
+                            <input type="checkbox" checked={!!checked[i]}
+                              onChange={e => setChecked(prev => ({ ...prev, [i]: e.target.checked }))}
+                              className="rounded" />
+                          </td>
+                          <td className="px-4 py-2 text-slate-700 text-xs">{c.firstName} {c.lastName}</td>
+                          <td className="px-4 py-2 text-slate-500 text-xs">{c.companyName}</td>
+                          <td className="px-4 py-2 text-slate-500 font-mono text-[10px]">{c.email}</td>
+                          <td className="px-4 py-2">
+                            {c.flags?.duplicata && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700" title={c.flags.duplicataInfo || ''}>
+                                Duplicata {c.flags.duplicataInfo ? `(${c.flags.duplicataInfo})` : ''}
+                              </span>
+                            )}
+                            {c.flags?.clienteAtual && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 ml-1">
+                                Cliente atual ({c.flags.clienteMatchType})
+                              </span>
+                            )}
+                            {!c.flags?.duplicata && !c.flags?.clienteAtual && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">Limpo</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -352,7 +446,7 @@ export default function UploadPage() {
                 disabled={uploading || (!selectedCategory && !newCategory)}
                 className="w-full py-4 bg-miia-500 text-white rounded-2xl font-semibold text-lg hover:bg-miia-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-miia-500/25"
               >
-                {uploading ? 'Enviando para planilha...' : 'Enviar ' + contacts.length + ' contatos para Planilha'}
+                {uploading ? 'Enviando para planilha...' : `Enviar ${selectedCount} contato${selectedCount !== 1 ? 's' : ''} para Planilha`}
               </button>
             </div>
           )}
