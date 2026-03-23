@@ -75,38 +75,52 @@ function parseCsvLine(line: string, sep: string): string[] {
 function parseExactCsv(text: string): ExactContact[] {
   // Strip UTF-8 BOM if present
   const clean = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
-  const lines = clean.split(/\r?\n/).filter(l => l.trim() !== '');
-  if (lines.length < 2) return [];
+  const allLines = clean.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (allLines.length < 2) return [];
 
-  // Auto-detect format: semicolon (Exact) or comma (Apollo)
-  const firstLine = lines[0];
-  const isApollo = firstLine.includes('First Name') && firstLine.includes(',');
-  const sep = isApollo ? ',' : ';';
+  // Auto-detect separator
+  const hasSemicolon = allLines[0].includes(';');
+  const sep = hasSemicolon ? ';' : ',';
 
-  const header = parseCsvLine(firstLine, sep).map(h => h.trim());
-  const colIdx = (name: string) => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
-
-  // Map columns based on format
-  let iFirstName: number, iLastName: number, iCompany: number, iPhone: number, iEmail: number, iCargo: number;
-
-  if (isApollo) {
-    iFirstName = colIdx('First Name');
-    iLastName = colIdx('Last Name');
-    iCompany = colIdx('Company Name');
-    iPhone = colIdx('Mobile Phone');
-    iEmail = colIdx('Email');
-    iCargo = colIdx('Title');
-  } else {
-    iFirstName = colIdx('NOME CONTATO');
-    iLastName = -1; // Exact doesn't have separate last name
-    iCompany = colIdx('NOME LEAD');
-    iPhone = colIdx('TELEFONE');
-    iEmail = colIdx('EMAIL');
-    iCargo = colIdx('CARGO');
+  // Find the actual header row (search for known column names)
+  const knownHeaders = ['first name', 'nome contato', 'email', 'nome lead', 'company name', 'company'];
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(allLines.length, 10); i++) {
+    const lower = allLines[i].toLowerCase();
+    if (knownHeaders.some(h => lower.includes(h))) {
+      headerIdx = i;
+      break;
+    }
   }
 
-  if (iFirstName === -1 || iCompany === -1) {
-    throw new Error('CSV inválido: colunas de nome e empresa não encontradas. Formatos aceitos: Exact (;) ou Apollo (,)');
+  const lines = allLines.slice(headerIdx);
+  if (lines.length < 2) return [];
+
+  const header = parseCsvLine(lines[0], sep).map(h => h.trim().toLowerCase());
+
+  // Flexible column finder: match partial names
+  const findCol = (...names: string[]) => {
+    for (const name of names) {
+      const idx = header.findIndex(h => h === name.toLowerCase());
+      if (idx >= 0) return idx;
+    }
+    // Try partial match
+    for (const name of names) {
+      const idx = header.findIndex(h => h.includes(name.toLowerCase()));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  const iFirstName = findCol('First Name', 'NOME CONTATO', 'Nome');
+  const iLastName = findCol('Last Name', 'Sobrenome');
+  const iCompany = findCol('Company Name', 'Company', 'NOME LEAD', 'Empresa');
+  const iPhone = findCol('Mobile Phone', 'TELEFONE', 'Phone', 'WhatsApp', 'Tel');
+  const iEmail = findCol('Email', 'EMAIL', 'E-mail');
+  const iCargo = findCol('Title', 'CARGO', 'Cargo');
+
+  if (iFirstName === -1) {
+    throw new Error('CSV inválido: coluna de nome não encontrada. Verifique se o CSV tem header "First Name", "NOME CONTATO" ou similar.');
   }
 
   const seenEmails = new Set<string>();
