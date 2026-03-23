@@ -91,6 +91,7 @@ export default function TesesPage() {
     potenciaisClientes: '',
     nomeRemetente: '',
     aprovador: '',
+    categoria: '',
   });
   const [creating, setCreating] = useState(false);
 
@@ -141,6 +142,7 @@ export default function TesesPage() {
 
   const createTese = async () => {
     if (!createForm.tese.trim()) { alert('Tese é obrigatória'); return; }
+    if (!createForm.categoria.trim()) { alert('Categoria é obrigatória'); return; }
     setCreating(true);
     try {
       const res = await fetch('/api/teses', {
@@ -151,7 +153,7 @@ export default function TesesPage() {
       const data = await res.json();
       if (data.ok) {
         setShowCreateModal(false);
-        setCreateForm({ tese: '', template: '', potenciaisClientes: '', nomeRemetente: '', aprovador: '' });
+        setCreateForm({ tese: '', template: '', potenciaisClientes: '', nomeRemetente: '', aprovador: '', categoria: '' });
         await loadData();
       } else {
         alert('Erro: ' + (data.error || 'desconhecido'));
@@ -221,6 +223,21 @@ export default function TesesPage() {
       setActionError(e.message);
     } finally {
       setApproving(false);
+    }
+  };
+
+  const deleteTese = async (t: Tese) => {
+    if (!confirm(`Deletar tese "${t.tese.slice(0, 50)}..."?`)) return;
+    try {
+      await fetch('/api/teses', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIndex: t.rowIndex }),
+      });
+      setSelectedTese(null);
+      await loadData();
+    } catch (e: any) {
+      alert('Erro: ' + e.message);
     }
   };
 
@@ -469,6 +486,16 @@ export default function TesesPage() {
                 </div>
 
                 <div>
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Categoria *</label>
+                  <input
+                    value={createForm.categoria}
+                    onChange={e => setCreateForm(f => ({ ...f, categoria: e.target.value }))}
+                    placeholder="Nome da categoria que será criada ao aprovar"
+                    className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                  />
+                </div>
+
+                <div>
                   <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Nome remetente</label>
                   <input
                     value={createForm.nomeRemetente}
@@ -546,15 +573,26 @@ export default function TesesPage() {
                   </span>
                   <span className="text-xs text-slate-400">{formatDateTime(selectedTese.dataCriacao)}</span>
                 </div>
-                <button
-                  onClick={() => { setSelectedTese(null); setActionError(''); }}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => deleteTese(selectedTese)}
+                    className="text-slate-300 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Deletar tese"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedTese(null); setActionError(''); }}
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Tese */}

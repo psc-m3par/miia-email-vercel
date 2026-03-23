@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readTeses, appendTese, updateTese, getAllSpreadsheetIds, appendSheet } from '@/lib/sheets';
+import { readTeses, appendTese, updateTese, getAllSpreadsheetIds, appendSheet, writeSheet } from '@/lib/sheets';
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -19,8 +19,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const sid = getAllSpreadsheetIds()[0];
 
-    const { tese, template, potenciaisClientes, nomeRemetente, aprovador, criadoPor } = body;
+    const { tese, template, potenciaisClientes, nomeRemetente, aprovador, criadoPor, categoria } = body;
     if (!tese) return NextResponse.json({ error: 'Tese é obrigatória' }, { status: 400 });
+    if (!categoria) return NextResponse.json({ error: 'Categoria é obrigatória' }, { status: 400 });
 
     const id = await appendTese(
       {
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
         threadId: '',
         comentarios: [],
         dataCriacao: new Date().toISOString(),
-        categoria: '',
+        categoria,
       },
       sid
     );
@@ -107,7 +108,7 @@ export async function PUT(req: NextRequest) {
 
     if (action === 'aprovar') {
       // Move to APROVADA and create category + template in sheets
-      const { categoria } = rest;
+      const categoria = rest.categoria || tese.categoria;
       if (!categoria) return NextResponse.json({ error: 'Categoria é obrigatória' }, { status: 400 });
 
       // Create category in Painel sheet
@@ -214,6 +215,19 @@ export async function PUT(req: NextRequest) {
       await updateTese(rowIndex, fieldsToUpdate, sid);
     }
 
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { rowIndex } = await req.json();
+    if (!rowIndex) return NextResponse.json({ error: 'rowIndex é obrigatório' }, { status: 400 });
+    const sid = getAllSpreadsheetIds()[0];
+    // Clear the row (set all columns to empty)
+    await writeSheet(`Teses!A${rowIndex}:L${rowIndex}`, [['', '', '', '', '', '', '', '', '', '', '', '']], sid);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
