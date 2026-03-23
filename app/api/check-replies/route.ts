@@ -135,11 +135,13 @@ async function runCheckReplies(category?: string) {
       if (Date.now() > deadline) break;
 
       try {
-        const replyResult = await checkReplies(tese.aprovador, tese.threadId, allIds[0]);
+        // Use criadoPor (sender) to read the thread, fallback to aprovador
+        const readerEmail = tese.criadoPor || tese.aprovador;
+        const replyResult = await checkReplies(readerEmail, tese.threadId, allIds[0]);
         if (!replyResult.hasReply) continue;
 
         // Get the actual reply text
-        const replyText = await getReplyText(tese.aprovador, tese.threadId, allIds[0]);
+        const replyText = await getReplyText(readerEmail, tese.threadId, allIds[0]);
         const replyLower = replyText.toLowerCase().trim();
 
         // Check if it's an approval
