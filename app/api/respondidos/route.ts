@@ -57,6 +57,26 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ respondidos });
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const { firstName, lastName, companyName, email, mobilePhone, category, pipeline, nota } = await req.json();
+    if (!firstName || !email) {
+      return NextResponse.json({ error: 'Nome e email são obrigatórios' }, { status: 400 });
+    }
+    const allIds = getAllSpreadsheetIds();
+    const spreadsheetId = allIds[0];
+    const { appendSheet } = await import('@/lib/sheets');
+    // Append to Contatos sheet: A=firstName, B=lastName, C=company, D=email, E=phone, F=linkedin, G=category, H=email1, I=fup1(RESPONDIDO), J=fup2, K=threadId, L=atendido, M=pipeline, N=nota
+    await appendSheet('Contatos!A:N', [[
+      firstName, lastName || '', companyName || '', email, mobilePhone || '', '', category || '',
+      '', 'RESPONDIDO', '', '', '', pipeline || 'NOVO', nota || ''
+    ]], spreadsheetId);
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
 export async function PUT(req: NextRequest) {
   try {
     const { rowIndex, atendido, pipeline, nota, spreadsheetId } = await req.json();

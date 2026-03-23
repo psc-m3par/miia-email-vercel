@@ -31,6 +31,9 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [moving, setMoving] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', companyName: '', email: '', mobilePhone: '', category: '', pipeline: 'NOVO', nota: '' });
+  const [addSaving, setAddSaving] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -74,6 +77,30 @@ export default function PipelinePage() {
     } catch {}
   };
 
+  const addContact = async () => {
+    if (!addForm.firstName || !addForm.email) { alert('Nome e email são obrigatórios'); return; }
+    setAddSaving(true);
+    try {
+      const res = await fetch('/api/respondidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addForm),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setShowAddModal(false);
+        setAddForm({ firstName: '', lastName: '', companyName: '', email: '', mobilePhone: '', category: '', pipeline: 'NOVO', nota: '' });
+        loadData();
+      } else {
+        alert('Erro: ' + (data.error || 'desconhecido'));
+      }
+    } catch (e: any) {
+      alert('Erro: ' + e.message);
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   const categorias = Array.from(new Set(deals.map(d => d.category))).filter(Boolean).sort();
   const filtered = filterCat ? deals.filter(d => d.category === filterCat) : deals;
   const stageDeals = (key: string) => filtered.filter(d => (d.pipeline || 'NOVO') === key);
@@ -101,6 +128,9 @@ export default function PipelinePage() {
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600">
+            + Adicionar
+          </button>
           <Link href="/respondidos" className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
             Ver conversas
           </Link>
@@ -184,6 +214,75 @@ export default function PipelinePage() {
           );
         })}
       </div>
+
+      {/* Modal Adicionar Contato */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-lg font-bold text-slate-800 mb-4">Adicionar contato ao Pipeline</h2>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500">Nome *</label>
+                  <input value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50" placeholder="Nome" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500">Sobrenome</label>
+                  <input value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50" placeholder="Sobrenome" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-slate-500">Empresa</label>
+                <input value={addForm.companyName} onChange={e => setAddForm(f => ({ ...f, companyName: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50" placeholder="Empresa" />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-slate-500">Email *</label>
+                <input value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50" placeholder="email@empresa.com" type="email" />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-slate-500">WhatsApp</label>
+                <input value={addForm.mobilePhone} onChange={e => setAddForm(f => ({ ...f, mobilePhone: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50" placeholder="5511999999999" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500">Categoria</label>
+                  <select value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50">
+                    <option value="">Selecione...</option>
+                    {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500">Estágio</label>
+                  <select value={addForm.pipeline} onChange={e => setAddForm(f => ({ ...f, pipeline: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50">
+                    {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-slate-500">Nota</label>
+                <textarea value={addForm.nota} onChange={e => setAddForm(f => ({ ...f, nota: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 h-20 resize-none" placeholder="Observações..." />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200">
+                Cancelar
+              </button>
+              <button onClick={addContact} disabled={addSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-miia-500 rounded-xl hover:bg-miia-600 disabled:opacity-50">
+                {addSaving ? 'Salvando...' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
