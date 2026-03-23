@@ -22,6 +22,7 @@ const STAGES = [
   { key: 'NEGOCIACAO', label: 'Conversando',      color: 'border-t-blue-400',    badge: 'bg-blue-100 text-blue-700',     count: 'text-blue-600' },
   { key: 'AGUARDANDO_MATERIAIS', label: 'Aguardando materiais', color: 'border-t-orange-400', badge: 'bg-orange-100 text-orange-700', count: 'text-orange-600' },
   { key: 'REUNIAO',    label: 'Reunião marcada', color: 'border-t-purple-400',  badge: 'bg-purple-100 text-purple-700', count: 'text-purple-600' },
+  { key: 'EM_NEGOCIACAO', label: 'Em negociação', color: 'border-t-indigo-400', badge: 'bg-indigo-100 text-indigo-700', count: 'text-indigo-600' },
   { key: 'GANHO',      label: 'Ganho',           color: 'border-t-green-400',   badge: 'bg-green-100 text-green-700',   count: 'text-green-600' },
   { key: 'PERDIDO',    label: 'Perdido',         color: 'border-t-slate-300',   badge: 'bg-slate-100 text-slate-500',   count: 'text-slate-400' },
 ];
