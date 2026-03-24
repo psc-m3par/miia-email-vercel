@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         comentarios: [],
         dataCriacao: new Date().toISOString(),
         categoria,
+        senderEmail: '',
       },
       sid
     );
