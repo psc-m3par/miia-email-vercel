@@ -6,9 +6,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 export async function GET() {
-  const horaAtual = parseInt(
-    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false })
-  );
+  const spNow = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(new Date()).replace('T', ' ');
+  const horaAtual = parseInt(spNow.split(' ')[1].split(':')[0]);
   const hojeStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
   const spreadsheetId = getAllSpreadsheetIds()[0];

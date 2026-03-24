@@ -163,12 +163,15 @@ export async function PUT(req: NextRequest) {
     }
 
     if (action === 'reenviar') {
-      // Go back to APROVACAO from APROVADA (re-send for adjustments)
-      const { senderEmail, aprovador } = rest;
+      // Go back to APROVACAO from AJUSTE/APROVADA (re-send for approval with updated template)
+      const { senderEmail, aprovador, template: newTemplate } = rest;
       const targetAprovador = aprovador || tese.aprovador;
       if (!senderEmail || !targetAprovador) {
         return NextResponse.json({ error: 'senderEmail e aprovador são obrigatórios' }, { status: 400 });
       }
+
+      // Update template if provided
+      const updatedTemplate = newTemplate !== undefined ? newTemplate : tese.template;
 
       const subject = `[MIIA] Tese Atualizada para Revisão: ${tese.tese.slice(0, 50)}${tese.tese.length > 50 ? '...' : ''}`;
       const ultimosComentarios = (tese.comentarios || []).slice(-3).map(c =>
@@ -183,6 +186,12 @@ export async function PUT(req: NextRequest) {
             <h3 style="margin: 0 0 8px; color: #1e293b;">Tese</h3>
             <p style="margin: 0; color: #475569; white-space: pre-wrap;">${tese.tese}</p>
           </div>
+          ${updatedTemplate ? `
+          <div style="background: #f8fafc; border-left: 4px solid #7c3aed; padding: 16px; margin: 16px 0; border-radius: 4px;">
+            <h3 style="margin: 0 0 8px; color: #1e293b;">Template atualizado</h3>
+            <p style="margin: 0; color: #475569; white-space: pre-wrap;">${updatedTemplate}</p>
+          </div>
+          ` : ''}
           ${ultimosComentarios ? `<div style="margin: 16px 0;"><h3>Últimos comentários:</h3><ul>${ultimosComentarios}</ul></div>` : ''}
           <p style="color: #94a3b8; font-size: 12px;">Acesse o painel MIIA para aprovar ou comentar.</p>
         </div>
@@ -190,11 +199,16 @@ export async function PUT(req: NextRequest) {
 
       const emailResult = await sendEmail(senderEmail, targetAprovador, subject, htmlBody, undefined, sid, tese.nomeRemetente || 'MIIA');
 
-      await updateTese(rowIndex, {
+      const updateFields: Record<string, any> = {
         status: 'APROVACAO',
         aprovador: targetAprovador,
         threadId: emailResult.threadId || tese.threadId,
-      }, sid);
+      };
+      if (newTemplate !== undefined) {
+        updateFields.template = newTemplate;
+      }
+
+      await updateTese(rowIndex, updateFields, sid);
 
       return NextResponse.json({ ok: true, emailSent: emailResult.success });
     }

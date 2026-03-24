@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ threads: [] });
 
   const domain = user.split('@')[1];
-  const query = encodeURIComponent(`from:@${domain} to:@${domain}`);
+  const query = encodeURIComponent(`(from:@${domain} to:@${domain}) OR subject:"Consulta:" OR subject:"Mensagem MIIA"`);
 
   const listRes = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${query}&maxResults=30`,
@@ -52,9 +52,11 @@ export async function GET(req: NextRequest) {
       const isMine = fromEmail.toLowerCase() === user.toLowerCase();
       const colleague = isMine ? toEmail : fromEmail;
       if (!colleague || colleague.toLowerCase() === user.toLowerCase()) return null;
-      // Only show threads where the other party is from the same domain (internal)
+      // Mostrar: mesmo domínio (interno) OU consultas enviadas pelo MIIA
       const collegeDomain = colleague.split('@')[1] || '';
-      if (collegeDomain !== domain) return null;
+      const isConsulta = (subject || '').toLowerCase().startsWith('consulta:') ||
+        (subject || '').toLowerCase().includes('mensagem miia');
+      if (collegeDomain !== domain && !isConsulta) return null;
       return { id: t.id, colleague, snippet: t.snippet || '', date, subject };
     })
   )).filter(Boolean) as { id: string; colleague: string; snippet: string; date: string; subject: string }[];

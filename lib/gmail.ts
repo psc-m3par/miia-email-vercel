@@ -118,10 +118,19 @@ export async function checkReplies(
     return { hasReply: false, error: 'Token nao encontrado para ' + senderEmail };
   }
 
-  const res = await fetch(
-    'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject',
-    { headers: { Authorization: 'Bearer ' + accessToken } }
-  );
+  const abort1 = new AbortController();
+  const t1 = setTimeout(() => abort1.abort(), 5000);
+  let res: Response;
+  try {
+    res = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject',
+      { headers: { Authorization: 'Bearer ' + accessToken }, signal: abort1.signal }
+    );
+  } catch {
+    return { hasReply: false, error: 'Gmail API timeout' };
+  } finally {
+    clearTimeout(t1);
+  }
 
   if (!res.ok) {
     return { hasReply: false, error: 'Gmail API error ' + res.status };
@@ -141,7 +150,7 @@ export async function checkReplies(
     const subjectHeader = headers.find((h: any) => h.name.toLowerCase() === 'subject');
     if (!fromHeader) continue;
     const fromVal = fromHeader.value.toLowerCase();
-    if (fromVal.includes(senderEmail.toLowerCase())) continue;
+    if (senderEmail && fromVal.includes(senderEmail.toLowerCase())) continue;
     const subjectVal = (subjectHeader?.value || '').toLowerCase();
     const isBounce =
       BOUNCE_FROM_PATTERNS.some(p => fromVal.includes(p)) ||
@@ -151,10 +160,13 @@ export async function checkReplies(
     // Fetch message body to check for unsubscribe keywords
     let isUnsubscribe = false;
     try {
+      const abort2 = new AbortController();
+      const t2 = setTimeout(() => abort2.abort(), 5000);
       const msgRes = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-        { headers: { Authorization: 'Bearer ' + accessToken } }
+        { headers: { Authorization: 'Bearer ' + accessToken }, signal: abort2.signal }
       );
+      clearTimeout(t2);
       if (msgRes.ok) {
         const msgData = await msgRes.json();
         const body = extractTextBody(msgData.payload).toLowerCase().slice(0, 1000);

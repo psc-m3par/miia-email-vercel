@@ -14,7 +14,7 @@ interface Tese {
   tese: string;
   template: string;
   potenciaisClientes: string;
-  status: 'NOVA' | 'APROVACAO' | 'APROVADA';
+  status: 'NOVA' | 'APROVACAO' | 'APROVADA' | 'AJUSTE';
   criadoPor: string;
   nomeRemetente: string;
   aprovador: string;
@@ -49,6 +49,14 @@ const COLUMNS = [
     badgeBg: 'bg-blue-100 text-blue-700',
     countColor: 'text-blue-600',
     emptyText: 'Nenhuma aguardando',
+  },
+  {
+    key: 'AJUSTE' as const,
+    label: 'Ajuste',
+    color: 'border-t-orange-400',
+    badgeBg: 'bg-orange-100 text-orange-700',
+    countColor: 'text-orange-600',
+    emptyText: 'Nenhuma em ajuste',
   },
   {
     key: 'APROVADA' as const,
@@ -106,6 +114,7 @@ export default function TesesPage() {
   const [reenviando, setReenviando] = useState(false);
   const [reenvioSender, setReenvioSender] = useState('');
   const [actionError, setActionError] = useState('');
+  const [editableTemplate, setEditableTemplate] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -287,12 +296,13 @@ export default function TesesPage() {
           action: 'reenviar',
           senderEmail: reenvioSender,
           aprovador: selectedTese.aprovador,
+          template: editableTemplate,
         }),
       });
       const data = await res.json();
       if (data.ok) {
         await loadData();
-        setSelectedTese(prev => prev ? { ...prev, status: 'APROVACAO' } : null);
+        setSelectedTese(prev => prev ? { ...prev, status: 'APROVACAO', template: editableTemplate } : null);
       } else {
         setActionError(data.error || 'Erro desconhecido');
       }
@@ -309,6 +319,7 @@ export default function TesesPage() {
     setComentarioText('');
     setCategoriaInput(t.categoria || '');
     setAprovacaoAprovador(t.aprovador || (tokens[0]?.email || ''));
+    setEditableTemplate(t.template || '');
     if (!aprovacaoSender && tokens.length > 0) setAprovacaoSender(tokens[0].email);
     if (!reenvioSender && tokens.length > 0) setReenvioSender(tokens[0].email);
   };
@@ -565,9 +576,10 @@ export default function TesesPage() {
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                     selectedTese.status === 'NOVA' ? 'bg-amber-100 text-amber-700' :
                     selectedTese.status === 'APROVACAO' ? 'bg-blue-100 text-blue-700' :
+                    selectedTese.status === 'AJUSTE' ? 'bg-orange-100 text-orange-700' :
                     'bg-green-100 text-green-700'
                   }`}>
-                    {selectedTese.status === 'NOVA' ? 'Nova Tese' : selectedTese.status === 'APROVACAO' ? 'Em Aprovação' : 'Aprovada'}
+                    {selectedTese.status === 'NOVA' ? 'Nova Tese' : selectedTese.status === 'APROVACAO' ? 'Em Aprovação' : selectedTese.status === 'AJUSTE' ? 'Ajuste Necessário' : 'Aprovada'}
                   </span>
                   <span className="text-xs text-slate-400">{formatDateTime(selectedTese.dataCriacao)}</span>
                 </div>
@@ -602,12 +614,26 @@ export default function TesesPage() {
               </div>
 
               {/* Template */}
-              {selectedTese.template && (
+              {(selectedTese.template || selectedTese.status === 'AJUSTE') && (
                 <div className="mb-5">
-                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Template sugerido</h3>
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-violet-50 rounded-xl p-3 border border-violet-100">
-                    {selectedTese.template}
-                  </p>
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                    Template sugerido
+                    {(selectedTese.status === 'AJUSTE' || (selectedTese.status === 'APROVACAO' && (selectedTese.comentarios || []).length > 0)) && (
+                      <span className="ml-2 text-orange-500 font-normal normal-case">(editável)</span>
+                    )}
+                  </h3>
+                  {(selectedTese.status === 'AJUSTE' || (selectedTese.status === 'APROVACAO' && (selectedTese.comentarios || []).length > 0)) ? (
+                    <textarea
+                      value={editableTemplate}
+                      onChange={e => setEditableTemplate(e.target.value)}
+                      rows={8}
+                      className="w-full text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-violet-50 rounded-xl p-3 border border-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400/50 resize-y"
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-violet-50 rounded-xl p-3 border border-violet-100">
+                      {selectedTese.template}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -804,10 +830,23 @@ export default function TesesPage() {
                 </div>
               </div>
 
-              {/* Reenviar button (if has comments and is APROVACAO or APROVADA) */}
-              {(selectedTese.status === 'APROVACAO' || (selectedTese.status === 'APROVADA' && (selectedTese.comentarios || []).length > 0)) && (
+              {/* AJUSTE: show info panel */}
+              {selectedTese.status === 'AJUSTE' && (
+                <div className="mb-5 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                  <h4 className="text-xs font-semibold text-orange-800 mb-1">Ajuste Necessário</h4>
+                  <p className="text-xs text-orange-700">
+                    O aprovador <strong>{selectedTese.aprovador || 'aprovador'}</strong> enviou comentários.
+                    Edite o template acima e reenvie para aprovação.
+                  </p>
+                </div>
+              )}
+
+              {/* Reenviar button (if AJUSTE, APROVACAO with comments, or APROVADA with comments) */}
+              {(selectedTese.status === 'AJUSTE' || selectedTese.status === 'APROVACAO' || (selectedTese.status === 'APROVADA' && (selectedTese.comentarios || []).length > 0)) && (
                 <div className="mt-4 border-t border-slate-100 pt-4">
-                  <h4 className="text-xs font-semibold text-slate-500 mb-2">Reenviar para revisão com comentários</h4>
+                  <h4 className="text-xs font-semibold text-slate-500 mb-2">
+                    {selectedTese.status === 'AJUSTE' ? 'Reenviar para aprovação' : 'Reenviar para revisão com comentários'}
+                  </h4>
                   <div className="flex gap-2">
                     {tokens.length > 0 ? (
                       <select

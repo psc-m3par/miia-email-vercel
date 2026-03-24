@@ -495,7 +495,7 @@ export interface Tese {
   tese: string;
   template: string;
   potenciaisClientes: string;
-  status: 'NOVA' | 'APROVACAO' | 'APROVADA';
+  status: 'NOVA' | 'APROVACAO' | 'APROVADA' | 'AJUSTE';
   criadoPor: string;
   nomeRemetente: string;
   aprovador: string;

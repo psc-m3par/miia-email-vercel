@@ -38,12 +38,6 @@ async function runRetryErrors(category?: string) {
       const errosCat: string[] = [];
 
       for (const contato of lote) {
-        await writeSheet(
-          'Contatos!H' + contato.rowIndex + ':K' + contato.rowIndex,
-          [['', '', '', '']],
-          spreadsheetId
-        );
-
         const assunto = template.assunto
           .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
           .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
@@ -75,9 +69,23 @@ async function runRetryErrors(category?: string) {
           totalCorrigidos++;
           corrigidosCat++;
         } else {
+          const errLower = (result.error || '').toLowerCase();
+          const isPermanent = errLower.includes('invalid to') ||
+            errLower.includes('invalid email') ||
+            errLower.includes('does not exist') ||
+            errLower.includes('not found') ||
+            errLower.includes('address rejected') ||
+            errLower.includes('mailbox unavailable') ||
+            errLower.includes('no such user') ||
+            errLower.includes('user unknown') ||
+            errLower.includes('recipient rejected');
+          // Se já estava em ERRO e falhou de novo, marca como BOUNCE (evita loop infinito)
           await writeSheet(
-            'Contatos!H' + contato.rowIndex,
-            [['ERRO ' + hoje + ': ' + result.error]],
+            'Contatos!H' + contato.rowIndex + ':K' + contato.rowIndex,
+            [[isPermanent
+              ? 'BOUNCE ' + hoje + ': ' + result.error
+              : 'BOUNCE ' + hoje + ': falha persistente - ' + result.error,
+              '', '', '']],
             spreadsheetId
           );
           errosCat.push(contato.email + ': ' + result.error);

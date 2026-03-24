@@ -181,8 +181,9 @@ async function runCheckReplies(category?: string) {
           await appendLog('Check Replies', 'Teses', 1, 'ok',
             `Tese "${tese.categoria}" aprovada automaticamente por ${tese.aprovador}`, allIds[0]);
         } else {
-          // It's an adjustment comment
+          // It's an adjustment comment — mark as AJUSTE so it's not re-processed
           await updateTese(tese.rowIndex, {
+            status: 'AJUSTE',
             comentarios: [...tese.comentarios, {
               autor: tese.aprovador,
               texto: replyText.slice(0, 500) || '(resposta sem texto)',
