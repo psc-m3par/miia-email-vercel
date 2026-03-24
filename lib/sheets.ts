@@ -559,15 +559,25 @@ export async function appendTese(
     tese.categoria || '',
     tese.senderEmail || '',
   ];
+  const header = ['ID', 'Tese', 'Template', 'PotenciaisClientes', 'Status', 'CriadoPor', 'NomeRemetente', 'Aprovador', 'ThreadId', 'Comentarios', 'DataCriacao', 'Categoria', 'SenderEmail'];
   try {
+    // Check if header exists
+    const existing = await readSheet('Teses!A1:A2', sid);
+    if (!existing || existing.length === 0 || !existing[0] || !existing[0][0]) {
+      // No header - write it first
+      await writeSheet('Teses!A1:M1', [header], sid);
+    }
     await appendSheet('Teses!A:M', [row], sid);
   } catch {
+    // Sheet doesn't exist - create it
     const sheets = getSheets();
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: sid,
-      requestBody: { requests: [{ addSheet: { properties: { title: 'Teses' } } }] },
-    });
-    await writeSheet('Teses!A1:M1', [['ID', 'Tese', 'Template', 'PotenciaisClientes', 'Status', 'CriadoPor', 'NomeRemetente', 'Aprovador', 'ThreadId', 'Comentarios', 'DataCriacao', 'Categoria', 'SenderEmail']], sid);
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sid,
+        requestBody: { requests: [{ addSheet: { properties: { title: 'Teses' } } }] },
+      });
+    } catch { /* sheet might already exist */ }
+    await writeSheet('Teses!A1:M1', [header], sid);
     await appendSheet('Teses!A:M', [row], sid);
   }
   return id;
