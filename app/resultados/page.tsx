@@ -17,6 +17,7 @@ interface CategoryResult {
   fup2Enviados: number;
   respondidos: Respondido[];
   bounced: number;
+  taxaRespostas: number;
   taxaConversao: number;
   isComplete: boolean;
 }
@@ -137,9 +138,11 @@ export default function ResultadosPage() {
       ) : (
         <div className="space-y-4">
           {displayResults.map(r => {
-            const taxa = getTaxaColor(r.taxaConversao);
+            const taxaResp = getTaxaColor(r.taxaRespostas || 0);
+            const taxaConv = getTaxaColor(r.taxaConversao);
             const isExpanded = expandedCats[r.category] || false;
-            const pctStr = (r.taxaConversao * 100).toFixed(1) + '%';
+            const respPctStr = ((r.taxaRespostas || 0) * 100).toFixed(1) + '%';
+            const convPctStr = (r.taxaConversao * 100).toFixed(1) + '%';
 
             return (
               <div
@@ -157,10 +160,12 @@ export default function ResultadosPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxa.bg} ${taxa.text}`}>
-                      {pctStr} conversao
+                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaResp.bg} ${taxaResp.text}`}>
+                      {respPctStr} respostas
                     </div>
-                    <span className="text-[10px] text-slate-300">{taxa.label}</span>
+                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaConv.bg} ${taxaConv.text}`}>
+                      {convPctStr} conversao
+                    </div>
                   </div>
                 </div>
 

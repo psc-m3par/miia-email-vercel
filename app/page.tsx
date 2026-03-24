@@ -9,6 +9,7 @@ interface Stats {
   e1Respondidos: number; e1Bounced: number;
   fup1Respondidos: number; fup1Bounced: number;
   fup2Respondidos: number; fup2Bounced: number;
+  conversoes: number;
 }
 
 interface FupForecast {
@@ -297,8 +298,7 @@ export default function DashboardPage() {
               const painelCat = painel.find((p: any) => p.category === cat);
               const progresso = s.total > 0 ? Math.round((s.email1 / s.total) * 100) : 0;
               const taxaRespEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
-              const taxaRespFup1 = s.fup1 > 0 ? Math.round((s.respondidos / s.fup1) * 100) : 0;
-              const taxaRespFup2 = s.fup2 > 0 ? Math.round((s.respondidos / s.fup2) * 100) : 0;
+              const taxaConversao = s.email1 > 0 ? Math.round(((s.conversoes || 0) / s.email1) * 100) : 0;
               const emailsPerResp = s.respondidos > 0 ? Math.round(s.email1 / s.respondidos) : 0;
               const estado = getEstado(s, painelCat?.ativo ?? false);
               const { ultimoLabel, proximoLabel, recente } = getTimingInfo(painelCat?.ultimoEnvio || '', s.pendentes);
@@ -456,9 +456,8 @@ export default function DashboardPage() {
 
                   <div className="border-t border-slate-100 pt-2 mt-1">
                     <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>Taxa resp. Email1: <strong className="text-slate-700">{taxaRespEmail1}%</strong></span>
-                      <span>FUP1: <strong className="text-slate-700">{taxaRespFup1}%</strong></span>
-                      <span>FUP2: <strong className="text-slate-700">{taxaRespFup2}%</strong></span>
+                      <span>Taxa de Respostas: <strong className="text-slate-700">{taxaRespEmail1}%</strong></span>
+                      <span>Taxa de Conversao: <strong className="text-green-600">{taxaConversao}%</strong></span>
                       {emailsPerResp > 0 && (
                         <span>Emails/resp: <strong className="text-miia-500">{emailsPerResp}</strong></span>
                       )}
@@ -475,17 +474,21 @@ export default function DashboardPage() {
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <h2 className="font-display text-base font-bold text-slate-800">Eficiência de Conversão</h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Taxa de resposta por etapa</p>
+                  <h2 className="font-display text-base font-bold text-slate-800">Eficiencia de Conversao</h2>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Taxa de respostas e conversao por categoria</p>
                 </div>
-                {totalGeral.respondidos > 0 && (
-                  <div className="flex gap-3">
+                {totalGeral.email1 > 0 && (
+                  <div className="flex gap-4">
                     <div className="text-center">
                       <div className="text-xl font-bold font-display text-miia-500">{Math.round((totalGeral.respondidos / totalGeral.email1) * 100)}%</div>
-                      <div className="text-[10px] text-slate-400">Taxa geral</div>
+                      <div className="text-[10px] text-slate-400">Taxa de Respostas</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xl font-bold font-display text-green-500">{totalGeral.respondidos}</div>
+                      <div className="text-xl font-bold font-display text-green-500">{Math.round(((totalGeral.conversoes || 0) / totalGeral.email1) * 100)}%</div>
+                      <div className="text-[10px] text-slate-400">Taxa de Conversao</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold font-display text-slate-600">{totalGeral.respondidos}</div>
                       <div className="text-[10px] text-slate-400">Respondidos</div>
                     </div>
                   </div>
@@ -498,29 +501,24 @@ export default function DashboardPage() {
                       <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Categoria</th>
                       <th className="text-center px-3 py-2.5 text-slate-500 font-medium">Env.</th>
                       <th className="text-center px-3 py-2.5 text-slate-500 font-medium">Resp.</th>
-                      <th className="text-center px-3 py-2.5 text-blue-600 font-medium">E1%</th>
-                      <th className="text-center px-3 py-2.5 text-indigo-600 font-medium">F1%</th>
-                      <th className="text-center px-3 py-2.5 text-purple-600 font-medium">F2%</th>
+                      <th className="text-center px-3 py-2.5 text-blue-600 font-medium">Taxa Resp.</th>
+                      <th className="text-center px-3 py-2.5 text-green-600 font-medium">Taxa Conv.</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(stats).map(([cat, s]) => {
-                      const taxaEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
-                      const taxaFup1   = s.fup1 > 0   ? Math.round((s.respondidos / s.fup1) * 100)   : 0;
-                      const taxaFup2   = s.fup2 > 0   ? Math.round((s.respondidos / s.fup2) * 100)   : 0;
+                      const taxaResp = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
+                      const taxaConv = s.email1 > 0 ? Math.round(((s.conversoes || 0) / s.email1) * 100) : 0;
                       return (
                         <tr key={cat} className="border-b border-slate-50 hover:bg-slate-50/50">
                           <td className="px-3 py-2.5 font-medium text-slate-700 max-w-[110px] truncate">{cat}</td>
                           <td className="px-3 py-2.5 text-center text-slate-600">{s.email1}</td>
                           <td className="px-3 py-2.5 text-center font-bold text-green-600">{s.respondidos}</td>
                           <td className="px-3 py-2.5 text-center">
-                            <span className={`font-bold ${taxaEmail1 > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{taxaEmail1 > 0 ? taxaEmail1 + '%' : '—'}</span>
+                            <span className={`font-bold ${taxaResp > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{taxaResp > 0 ? taxaResp + '%' : '—'}</span>
                           </td>
                           <td className="px-3 py-2.5 text-center">
-                            <span className={`font-bold ${taxaFup1 > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>{taxaFup1 > 0 ? taxaFup1 + '%' : '—'}</span>
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            <span className={`font-bold ${taxaFup2 > 0 ? 'text-purple-600' : 'text-slate-300'}`}>{taxaFup2 > 0 ? taxaFup2 + '%' : '—'}</span>
+                            <span className={`font-bold ${taxaConv > 0 ? 'text-green-600' : 'text-slate-300'}`}>{taxaConv > 0 ? taxaConv + '%' : '—'}</span>
                           </td>
                         </tr>
                       );

@@ -19,6 +19,7 @@ interface CategoryResult {
   fup2Enviados: number;
   respondidos: Respondido[];
   bounced: number;
+  taxaRespostas: number;
   taxaConversao: number;
   isComplete: boolean;
 }
@@ -60,7 +61,9 @@ export async function GET() {
           c.fup2Enviado === 'BOUNCE'
       ).length;
 
-      const taxaConversao = email1Enviados > 0 ? respondidosList.length / email1Enviados : 0;
+      const taxaRespostas = email1Enviados > 0 ? respondidosList.length / email1Enviados : 0;
+      const conversoes = respondidosList.filter(r => r.pipeline === 'REUNIAO' || r.pipeline === 'GANHO').length;
+      const taxaConversao = email1Enviados > 0 ? conversoes / email1Enviados : 0;
 
       // isComplete: no pending email1, no pending fup1, no pending fup2
       const email1Pendentes = catContacts.filter(
@@ -96,6 +99,7 @@ export async function GET() {
         fup2Enviados,
         respondidos: respondidosList,
         bounced,
+        taxaRespostas,
         taxaConversao,
         isComplete,
       });

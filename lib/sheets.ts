@@ -143,6 +143,8 @@ export async function getDashboardStats() {
     e1Respondidos: 0, e1Bounced: 0,
     fup1Respondidos: 0, fup1Bounced: 0,
     fup2Respondidos: 0, fup2Bounced: 0,
+    // Conversion: contacts with pipeline REUNIAO or GANHO
+    conversoes: 0,
   };
   let totalGeral = { ...emptyStats };
 
@@ -176,6 +178,9 @@ export async function getDashboardStats() {
     // Totals (backward compat)
     if (f1 === 'RESPONDIDO' || f2 === 'RESPONDIDO') { stats[cat].respondidos++; totalGeral.respondidos++; }
     if (f1 === 'BOUNCE' || f2 === 'BOUNCE') { stats[cat].bounced++; totalGeral.bounced++; }
+    // Conversion: pipeline is REUNIAO or GANHO
+    const pipe = (c.pipeline || '').toUpperCase();
+    if (pipe === 'REUNIAO' || pipe === 'GANHO') { stats[cat].conversoes++; totalGeral.conversoes++; }
     if (e1.startsWith('OK') && !c.threadId) { stats[cat].semThread++; totalGeral.semThread++; }
     if (e1.includes(hoje)) { stats[cat].hojeEmail1++; totalGeral.hojeEmail1++; }
     if (f1.includes(hoje)) { stats[cat].hojeFup1++; totalGeral.hojeFup1++; }
