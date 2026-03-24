@@ -129,7 +129,7 @@ async function runCheckReplies(category?: string) {
   // ── Check Teses approval replies ──
   try {
     const teses = await readTeses(allIds[0]);
-    const pendingTeses = teses.filter(t => t.status === 'APROVACAO' && t.threadId && t.aprovador);
+    const pendingTeses = teses.filter(t => (t.status === 'APROVACAO' || t.status === 'AJUSTE') && t.threadId && t.aprovador);
 
     for (const tese of pendingTeses) {
       if (Date.now() > deadline) break;

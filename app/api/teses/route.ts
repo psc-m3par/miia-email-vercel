@@ -202,7 +202,7 @@ export async function PUT(req: NextRequest) {
       const emailResult = await sendEmail(senderEmail, targetAprovador, subject, htmlBody, undefined, sid, tese.nomeRemetente || 'MIIA');
 
       const updateFields: Record<string, any> = {
-        status: 'APROVACAO',
+        status: 'AJUSTE',
         aprovador: targetAprovador,
         threadId: emailResult.threadId || tese.threadId,
         senderEmail: senderEmail,
