@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const allIds = getAllSpreadsheetIds();
     const seen = new Set<string>();
-    const accounts: { email: string; status: 'ativo' | 'expirado'; expiry: string }[] = [];
+    const accounts: { email: string; name: string; status: 'ativo' | 'expirado'; expiry: string }[] = [];
 
     for (const id of allIds) {
       try {
