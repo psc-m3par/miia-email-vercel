@@ -101,6 +101,7 @@ export async function PUT(req: NextRequest) {
         status: 'APROVACAO',
         aprovador,
         threadId: emailResult.threadId || '',
+        senderEmail: senderEmail,
       }, sid);
 
       return NextResponse.json({ ok: true, threadId: emailResult.threadId, emailSent: emailResult.success });
@@ -203,6 +204,7 @@ export async function PUT(req: NextRequest) {
         status: 'APROVACAO',
         aprovador: targetAprovador,
         threadId: emailResult.threadId || tese.threadId,
+        senderEmail: senderEmail,
       };
       if (newTemplate !== undefined) {
         updateFields.template = newTemplate;

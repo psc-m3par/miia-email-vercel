@@ -508,11 +508,12 @@ export interface Tese {
   comentarios: { autor: string; texto: string; timestamp: string }[];
   dataCriacao: string;
   categoria: string;
+  senderEmail: string;
 }
 
 export async function readTeses(spreadsheetId?: string): Promise<Tese[]> {
   try {
-    const rows = await readSheet('Teses!A:L', spreadsheetId);
+    const rows = await readSheet('Teses!A:M', spreadsheetId);
     if (rows.length < 2) return [];
     return rows.slice(1).map((r, i) => ({ r, actualRow: i + 2 })).filter(({ r }) => r[0]).map(({ r, actualRow }) => {
       let comentarios: { autor: string; texto: string; timestamp: string }[] = [];
@@ -531,6 +532,7 @@ export async function readTeses(spreadsheetId?: string): Promise<Tese[]> {
         comentarios,
         dataCriacao: r[10] || '',
         categoria: r[11] || '',
+        senderEmail: r[12] || '',
       };
     });
   } catch { return []; }
@@ -584,6 +586,7 @@ export async function updateTese(
     comentarios: { autor: string; texto: string; timestamp: string }[];
     dataCriacao: string;
     categoria: string;
+    senderEmail: string;
   }>,
   spreadsheetId?: string
 ): Promise<void> {
@@ -594,7 +597,7 @@ export async function updateTese(
   const colMap: Record<string, string> = {
     tese: 'B', template: 'C', potenciaisClientes: 'D', status: 'E',
     criadoPor: 'F', nomeRemetente: 'G', aprovador: 'H', threadId: 'I',
-    comentarios: 'J', dataCriacao: 'K', categoria: 'L',
+    comentarios: 'J', dataCriacao: 'K', categoria: 'L', senderEmail: 'M',
   };
 
   for (const [key, val] of Object.entries(fields)) {

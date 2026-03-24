@@ -135,8 +135,8 @@ async function runCheckReplies(category?: string) {
       if (Date.now() > deadline) break;
 
       try {
-        // Use criadoPor (sender) to read the thread, fallback to aprovador
-        const readerEmail = tese.criadoPor || tese.aprovador;
+        // Use senderEmail (who actually sent), fallback to criadoPor, then aprovador
+        const readerEmail = tese.senderEmail || tese.criadoPor || tese.aprovador;
         const replyResult = await checkReplies(readerEmail, tese.threadId, allIds[0]);
         if (!replyResult.hasReply) continue;
 
