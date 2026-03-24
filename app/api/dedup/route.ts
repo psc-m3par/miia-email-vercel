@@ -63,7 +63,9 @@ export async function POST(req: NextRequest) {
       // For each duplicate group, decide which rows to delete
       const rowsToDelete: number[] = [];
 
-      for (const [, group] of emailGroups) {
+      const emailKeys = Array.from(emailGroups.keys());
+      for (const key of emailKeys) {
+        const group = emailGroups.get(key)!;
         if (group.length <= 1) continue; // no duplicates
 
         // Keep the one that has email1Enviado with a status (non-empty).
