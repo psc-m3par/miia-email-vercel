@@ -217,7 +217,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Generic field update
-    const { tese: teseText, template, potenciaisClientes, status, nomeRemetente, aprovador, threadId, categoria } = rest;
+    const { tese: teseText, template, potenciaisClientes, status, nomeRemetente, aprovador, threadId, categoria, senderEmail } = rest;
     const fieldsToUpdate: Record<string, any> = {};
     if (teseText !== undefined) fieldsToUpdate.tese = teseText;
     if (template !== undefined) fieldsToUpdate.template = template;
@@ -227,6 +227,7 @@ export async function PUT(req: NextRequest) {
     if (aprovador !== undefined) fieldsToUpdate.aprovador = aprovador;
     if (threadId !== undefined) fieldsToUpdate.threadId = threadId;
     if (categoria !== undefined) fieldsToUpdate.categoria = categoria;
+    if (senderEmail !== undefined) fieldsToUpdate.senderEmail = senderEmail;
 
     if (Object.keys(fieldsToUpdate).length > 0) {
       await updateTese(rowIndex, fieldsToUpdate, sid);
