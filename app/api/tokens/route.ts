@@ -21,7 +21,9 @@ export async function GET() {
           seen.add(email.toLowerCase());
           // Has refresh token = always ativo (can renew). No refresh = check expiry.
           const ativo = !!refreshToken || (!!expiry && new Date(expiry) > new Date());
-          accounts.push({ email, status: ativo ? 'ativo' : 'expirado', expiry });
+          // Derive display name from email (e.g. "psc@miia.tech" -> "psc")
+          const name = email.split('@')[0] || email;
+          accounts.push({ email, name, status: ativo ? 'ativo' : 'expirado', expiry });
         }
       } catch {}
     }

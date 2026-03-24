@@ -557,17 +557,18 @@ export async function appendTese(
     JSON.stringify(tese.comentarios || []),
     tese.dataCriacao || new Date().toISOString(),
     tese.categoria || '',
+    tese.senderEmail || '',
   ];
   try {
-    await appendSheet('Teses!A:L', [row], sid);
+    await appendSheet('Teses!A:M', [row], sid);
   } catch {
     const sheets = getSheets();
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: sid,
       requestBody: { requests: [{ addSheet: { properties: { title: 'Teses' } } }] },
     });
-    await writeSheet('Teses!A1:L1', [['ID', 'Tese', 'Template', 'PotenciaisClientes', 'Status', 'CriadoPor', 'NomeRemetente', 'Aprovador', 'ThreadId', 'Comentarios', 'DataCriacao', 'Categoria']], sid);
-    await appendSheet('Teses!A:L', [row], sid);
+    await writeSheet('Teses!A1:M1', [['ID', 'Tese', 'Template', 'PotenciaisClientes', 'Status', 'CriadoPor', 'NomeRemetente', 'Aprovador', 'ThreadId', 'Comentarios', 'DataCriacao', 'Categoria', 'SenderEmail']], sid);
+    await appendSheet('Teses!A:M', [row], sid);
   }
   return id;
 }

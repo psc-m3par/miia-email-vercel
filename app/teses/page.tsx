@@ -22,10 +22,12 @@ interface Tese {
   comentarios: Comentario[];
   dataCriacao: string;
   categoria: string;
+  senderEmail: string;
 }
 
 interface TokenAccount {
   email: string;
+  name: string;
   status: 'ativo' | 'expirado';
 }
 
@@ -97,7 +99,7 @@ export default function TesesPage() {
     tese: '',
     template: '',
     potenciaisClientes: '',
-    nomeRemetente: '',
+    senderEmail: '',
     aprovador: '',
     categoria: '',
   });
@@ -152,6 +154,9 @@ export default function TesesPage() {
   const createTese = async () => {
     if (!createForm.tese.trim()) { alert('Tese é obrigatória'); return; }
     if (!createForm.categoria.trim()) { alert('Categoria é obrigatória'); return; }
+    if (createForm.senderEmail && createForm.aprovador && createForm.senderEmail === createForm.aprovador) {
+      alert('Remetente e aprovador não podem ser a mesma conta'); return;
+    }
     setCreating(true);
     try {
       const res = await fetch('/api/teses', {
@@ -162,7 +167,7 @@ export default function TesesPage() {
       const data = await res.json();
       if (data.ok) {
         setShowCreateModal(false);
-        setCreateForm({ tese: '', template: '', potenciaisClientes: '', nomeRemetente: '', aprovador: '', categoria: '' });
+        setCreateForm({ tese: '', template: '', potenciaisClientes: '', senderEmail: '', aprovador: '', categoria: '' });
         await loadData();
       } else {
         alert('Erro: ' + (data.error || 'desconhecido'));
@@ -178,6 +183,7 @@ export default function TesesPage() {
     if (!selectedTese) return;
     if (!aprovacaoAprovador) { setActionError('Selecione um aprovador'); return; }
     if (!aprovacaoSender) { setActionError('Selecione uma conta de envio'); return; }
+    if (aprovacaoSender === aprovacaoAprovador) { setActionError('Remetente e aprovador não podem ser a mesma conta'); return; }
     setSendingAprovacao(true);
     setActionError('');
     try {
@@ -320,8 +326,9 @@ export default function TesesPage() {
     setCategoriaInput(t.categoria || '');
     setAprovacaoAprovador(t.aprovador || (tokens[0]?.email || ''));
     setEditableTemplate(t.template || '');
-    if (!aprovacaoSender && tokens.length > 0) setAprovacaoSender(tokens[0].email);
-    if (!reenvioSender && tokens.length > 0) setReenvioSender(tokens[0].email);
+    // Pre-select senderEmail from the tese (the account that sent the approval email)
+    setAprovacaoSender(t.senderEmail || (tokens[0]?.email || ''));
+    setReenvioSender(t.senderEmail || (tokens[0]?.email || ''));
   };
 
   const byStatus = (status: Tese['status']) => teses.filter(t => t.status === status);
@@ -505,17 +512,32 @@ export default function TesesPage() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Nome remetente</label>
-                  <input
-                    value={createForm.nomeRemetente}
-                    onChange={e => setCreateForm(f => ({ ...f, nomeRemetente: e.target.value }))}
-                    placeholder="Ex: João Silva – Empresa XYZ"
-                    className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
-                  />
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Remetente (quem envia)</label>
+                  {tokens.length > 0 ? (
+                    <select
+                      value={createForm.senderEmail}
+                      onChange={e => setCreateForm(f => ({ ...f, senderEmail: e.target.value }))}
+                      className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white"
+                    >
+                      <option value="">Selecionar depois</option>
+                      {tokens.map(t => (
+                        <option key={t.email} value={t.email}>{t.email} ({t.name})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={createForm.senderEmail}
+                      onChange={e => setCreateForm(f => ({ ...f, senderEmail: e.target.value }))}
+                      placeholder="remetente@empresa.com"
+                      type="email"
+                      className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                    />
+                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Conta Gmail que enviará o email de aprovação</p>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Aprovador sugerido</label>
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Aprovador (quem aprova)</label>
                   {tokens.length > 0 ? (
                     <select
                       value={createForm.aprovador}
@@ -523,19 +545,20 @@ export default function TesesPage() {
                       className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white"
                     >
                       <option value="">Selecionar depois</option>
-                      {tokens.map(t => (
-                        <option key={t.email} value={t.email}>{t.email}</option>
+                      {tokens.filter(t => t.email !== createForm.senderEmail).map(t => (
+                        <option key={t.email} value={t.email}>{t.email} ({t.name})</option>
                       ))}
                     </select>
                   ) : (
                     <input
                       value={createForm.aprovador}
                       onChange={e => setCreateForm(f => ({ ...f, aprovador: e.target.value }))}
-                      placeholder="email@empresa.com"
+                      placeholder="aprovador@empresa.com"
                       type="email"
                       className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
                     />
                   )}
+                  <p className="text-[10px] text-slate-400 mt-1">Conta que receberá e aprovará a tese</p>
                 </div>
               </div>
 
@@ -655,16 +678,18 @@ export default function TesesPage() {
                     <span className="text-[10px] font-medium text-slate-600">{selectedTese.criadoPor}</span>
                   </div>
                 )}
-                {selectedTese.nomeRemetente && (
+                {selectedTese.senderEmail && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-slate-400">Remetente:</span>
-                    <span className="text-[10px] font-medium text-slate-600">{selectedTese.nomeRemetente}</span>
+                    <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      {selectedTese.senderEmail}{selectedTese.nomeRemetente ? ` (${selectedTese.nomeRemetente})` : ''}
+                    </span>
                   </div>
                 )}
                 {selectedTese.aprovador && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-slate-400">Aprovador:</span>
-                    <span className="text-[10px] font-medium text-slate-600">{selectedTese.aprovador}</span>
+                    <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{selectedTese.aprovador}</span>
                   </div>
                 )}
                 {selectedTese.categoria && (
@@ -688,7 +713,31 @@ export default function TesesPage() {
                   <h4 className="text-xs font-semibold text-amber-800 mb-3">Enviar para Aprovação</h4>
                   <div className="space-y-3">
                     <div>
-                      <label className="text-[11px] font-medium text-slate-500">Aprovador *</label>
+                      <label className="text-[11px] font-medium text-slate-500">Remetente (quem envia) *</label>
+                      {tokens.length > 0 ? (
+                        <select
+                          value={aprovacaoSender}
+                          onChange={e => {
+                            setAprovacaoSender(e.target.value);
+                            // Clear aprovador if it's the same as the new sender
+                            if (aprovacaoAprovador === e.target.value) setAprovacaoAprovador('');
+                          }}
+                          className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50 bg-white"
+                        >
+                          {tokens.map(t => <option key={t.email} value={t.email}>{t.email} ({t.name})</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          value={aprovacaoSender}
+                          onChange={e => setAprovacaoSender(e.target.value)}
+                          placeholder="remetente@conta.com"
+                          type="email"
+                          className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-500">Aprovador (quem aprova) *</label>
                       {tokens.length > 0 ? (
                         <select
                           value={aprovacaoAprovador}
@@ -696,33 +745,13 @@ export default function TesesPage() {
                           className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50 bg-white"
                         >
                           <option value="">Selecione...</option>
-                          {tokens.map(t => <option key={t.email} value={t.email}>{t.email}</option>)}
+                          {tokens.filter(t => t.email !== aprovacaoSender).map(t => <option key={t.email} value={t.email}>{t.email} ({t.name})</option>)}
                         </select>
                       ) : (
                         <input
                           value={aprovacaoAprovador}
                           onChange={e => setAprovacaoAprovador(e.target.value)}
                           placeholder="aprovador@empresa.com"
-                          type="email"
-                          className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-500">Enviar de *</label>
-                      {tokens.length > 0 ? (
-                        <select
-                          value={aprovacaoSender}
-                          onChange={e => setAprovacaoSender(e.target.value)}
-                          className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50 bg-white"
-                        >
-                          {tokens.map(t => <option key={t.email} value={t.email}>{t.email}</option>)}
-                        </select>
-                      ) : (
-                        <input
-                          value={aprovacaoSender}
-                          onChange={e => setAprovacaoSender(e.target.value)}
-                          placeholder="sua@conta.com"
                           type="email"
                           className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
                         />
@@ -847,6 +876,9 @@ export default function TesesPage() {
                   <h4 className="text-xs font-semibold text-slate-500 mb-2">
                     {selectedTese.status === 'AJUSTE' ? 'Reenviar para aprovação' : 'Reenviar para revisão com comentários'}
                   </h4>
+                  <p className="text-[10px] text-slate-400 mb-2">
+                    De: <strong>{reenvioSender || selectedTese.senderEmail || '(selecione)'}</strong> &rarr; Para: <strong>{selectedTese.aprovador || '(aprovador)'}</strong>
+                  </p>
                   <div className="flex gap-2">
                     {tokens.length > 0 ? (
                       <select
@@ -854,7 +886,7 @@ export default function TesesPage() {
                         onChange={e => setReenvioSender(e.target.value)}
                         className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white"
                       >
-                        {tokens.map(t => <option key={t.email} value={t.email}>{t.email}</option>)}
+                        {tokens.map(t => <option key={t.email} value={t.email}>{t.email} ({t.name})</option>)}
                       </select>
                     ) : (
                       <input

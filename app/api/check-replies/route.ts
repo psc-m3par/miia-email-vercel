@@ -135,8 +135,9 @@ async function runCheckReplies(category?: string) {
       if (Date.now() > deadline) break;
 
       try {
-        // Use senderEmail (who actually sent), fallback to criadoPor, then aprovador
-        const readerEmail = tese.senderEmail || tese.criadoPor || tese.aprovador;
+        // Always use senderEmail — the inbox where the approval thread lives
+        const readerEmail = tese.senderEmail;
+        if (!readerEmail) continue;
         const replyResult = await checkReplies(readerEmail, tese.threadId, allIds[0]);
         if (!replyResult.hasReply) continue;
 
@@ -155,7 +156,7 @@ async function runCheckReplies(category?: string) {
         if (isApproval && tese.categoria) {
           // Auto-approve: create category + template
           await appendSheet('Painel!A:K', [[
-            tese.categoria, tese.criadoPor || '', tese.nomeRemetente || '',
+            tese.categoria, tese.senderEmail || tese.criadoPor || '', tese.nomeRemetente || tese.senderEmail.split('@')[0] || '',
             20, 3, 7, 'FALSE', '', '', 8, 21,
           ]], allIds[0]);
 

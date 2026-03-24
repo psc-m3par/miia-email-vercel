@@ -19,9 +19,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const sid = getAllSpreadsheetIds()[0];
 
-    const { tese, template, potenciaisClientes, nomeRemetente, aprovador, criadoPor, categoria } = body;
+    const { tese, template, potenciaisClientes, senderEmail, nomeRemetente, aprovador, criadoPor, categoria } = body;
     if (!tese) return NextResponse.json({ error: 'Tese é obrigatória' }, { status: 400 });
     if (!categoria) return NextResponse.json({ error: 'Categoria é obrigatória' }, { status: 400 });
+    if (senderEmail && aprovador && senderEmail === aprovador) {
+      return NextResponse.json({ error: 'Remetente e aprovador não podem ser a mesma conta' }, { status: 400 });
+    }
+
+    // Derive nomeRemetente from senderEmail if not explicitly provided
+    const derivedNomeRemetente = nomeRemetente || (senderEmail ? senderEmail.split('@')[0] : '');
 
     const id = await appendTese(
       {
@@ -30,13 +36,13 @@ export async function POST(req: NextRequest) {
         potenciaisClientes: potenciaisClientes || '',
         status: 'NOVA',
         criadoPor: criadoPor || '',
-        nomeRemetente: nomeRemetente || '',
+        nomeRemetente: derivedNomeRemetente,
         aprovador: aprovador || '',
         threadId: '',
         comentarios: [],
         dataCriacao: new Date().toISOString(),
         categoria,
-        senderEmail: '',
+        senderEmail: senderEmail || '',
       },
       sid
     );
@@ -65,6 +71,7 @@ export async function PUT(req: NextRequest) {
       const { aprovador, senderEmail } = rest;
       if (!aprovador) return NextResponse.json({ error: 'Aprovador é obrigatório' }, { status: 400 });
       if (!senderEmail) return NextResponse.json({ error: 'senderEmail é obrigatório' }, { status: 400 });
+      if (senderEmail === aprovador) return NextResponse.json({ error: 'Remetente e aprovador não podem ser a mesma conta' }, { status: 400 });
 
       const subject = `[MIIA] Nova Tese para Aprovação: ${tese.tese.slice(0, 60)}${tese.tese.length > 60 ? '...' : ''}`;
       const htmlBody = `
@@ -96,13 +103,16 @@ export async function PUT(req: NextRequest) {
         </div>
       `;
 
-      const emailResult = await sendEmail(senderEmail, aprovador, subject, htmlBody, undefined, sid, tese.nomeRemetente || 'MIIA');
+      // Derive sender display name from senderEmail
+      const senderDisplayName = tese.nomeRemetente || senderEmail.split('@')[0] || 'MIIA';
+      const emailResult = await sendEmail(senderEmail, aprovador, subject, htmlBody, undefined, sid, senderDisplayName);
 
       await updateTese(rowIndex, {
         status: 'APROVACAO',
         aprovador,
         threadId: emailResult.threadId || '',
         senderEmail: senderEmail,
+        nomeRemetente: senderDisplayName,
       }, sid);
 
       return NextResponse.json({ ok: true, threadId: emailResult.threadId, emailSent: emailResult.success });
@@ -117,8 +127,8 @@ export async function PUT(req: NextRequest) {
       // Columns: category, responsavel, nomeRemetente, emailsHora, diasFup1, diasFup2, ativo, cc, ultimoEnvio, horaInicio, horaFim
       await appendSheet('Painel!A:K', [[
         categoria,
-        tese.criadoPor || '',
-        tese.nomeRemetente || '',
+        tese.senderEmail || tese.criadoPor || '',
+        tese.nomeRemetente || (tese.senderEmail ? tese.senderEmail.split('@')[0] : ''),
         20,
         3,
         7,
@@ -168,8 +178,12 @@ export async function PUT(req: NextRequest) {
       // Go back to APROVACAO from AJUSTE/APROVADA (re-send for approval with updated template)
       const { senderEmail, aprovador, template: newTemplate } = rest;
       const targetAprovador = aprovador || tese.aprovador;
-      if (!senderEmail || !targetAprovador) {
+      const targetSender = senderEmail || tese.senderEmail;
+      if (!targetSender || !targetAprovador) {
         return NextResponse.json({ error: 'senderEmail e aprovador são obrigatórios' }, { status: 400 });
+      }
+      if (targetSender === targetAprovador) {
+        return NextResponse.json({ error: 'Remetente e aprovador não podem ser a mesma conta' }, { status: 400 });
       }
 
       // Update template if provided
@@ -199,13 +213,14 @@ export async function PUT(req: NextRequest) {
         </div>
       `;
 
-      const emailResult = await sendEmail(senderEmail, targetAprovador, subject, htmlBody, undefined, sid, tese.nomeRemetente || 'MIIA');
+      const reenvioDisplayName = tese.nomeRemetente || targetSender.split('@')[0] || 'MIIA';
+      const emailResult = await sendEmail(targetSender, targetAprovador, subject, htmlBody, undefined, sid, reenvioDisplayName);
 
       const updateFields: Record<string, any> = {
         status: 'AJUSTE',
         aprovador: targetAprovador,
         threadId: emailResult.threadId || tese.threadId,
-        senderEmail: senderEmail,
+        senderEmail: targetSender,
       };
       if (newTemplate !== undefined) {
         updateFields.template = newTemplate;
@@ -245,7 +260,7 @@ export async function DELETE(req: NextRequest) {
     const rowIndex = parseInt(searchParams.get('rowIndex') || '');
     if (!rowIndex) return NextResponse.json({ error: 'rowIndex é obrigatório' }, { status: 400 });
     const sid = getAllSpreadsheetIds()[0];
-    await writeSheet(`Teses!A${rowIndex}:L${rowIndex}`, [['', '', '', '', '', '', '', '', '', '', '', '']], sid);
+    await writeSheet(`Teses!A${rowIndex}:M${rowIndex}`, [['', '', '', '', '', '', '', '', '', '', '', '', '']], sid);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
