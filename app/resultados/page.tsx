@@ -145,9 +145,13 @@ export default function ResultadosPage() {
   const completedResults = results.filter(r => r.isComplete);
   const categories = Array.from(new Set(completedResults.map(r => r.category)));
 
+  // Hide categories that are part of a strategy
+  const catsInStrategies = new Set(strategies.flatMap(s => s.categories));
+  const unstrategizedResults = completedResults.filter(r => !catsInStrategies.has(r.category));
+
   const displayResults = filterCat
-    ? completedResults.filter(r => r.category === filterCat)
-    : completedResults;
+    ? unstrategizedResults.filter(r => r.category === filterCat)
+    : unstrategizedResults;
 
   if (loading) return <LoadingSkeleton />;
   if (error) return <ErrorState error={error} onRetry={loadData} />;
@@ -168,7 +172,7 @@ export default function ResultadosPage() {
             className="text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white"
           >
             <option value="">Todas as categorias</option>
-            {categories.map(c => (
+            {categories.filter(c => !catsInStrategies.has(c)).map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
