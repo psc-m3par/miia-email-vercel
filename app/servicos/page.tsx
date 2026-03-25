@@ -21,6 +21,9 @@ export default function ServicosPage() {
   const [detalhes, setDetalhes] = useState('');
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -72,6 +75,37 @@ export default function ServicosPage() {
     setShowForm(true);
   };
 
+  const handleBulkImport = async () => {
+    if (!bulkText.trim()) return;
+    setBulkSaving(true);
+    try {
+      // Parse: each block separated by double newline = one service
+      // First line of block = name, optional ":" splits name:description
+      // Rest = details
+      const blocks = bulkText.split(/\n{2,}/).filter(b => b.trim());
+      for (const block of blocks) {
+        const lines = block.trim().split('\n');
+        const firstLine = lines[0];
+        let sNome = firstLine;
+        let sDescricao = '';
+        if (firstLine.includes(':')) {
+          const [n, ...d] = firstLine.split(':');
+          sNome = n.trim();
+          sDescricao = d.join(':').trim();
+        }
+        const sDetalhes = lines.slice(1).join('\n').trim();
+        await fetch('/api/servicos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: sNome, descricao: sDescricao, detalhes: sDetalhes }),
+        });
+      }
+      setBulkText('');
+      setShowBulk(false);
+      loadData();
+    } finally { setBulkSaving(false); }
+  };
+
   const resetForm = () => {
     setShowForm(false);
     setEditing(null);
@@ -96,12 +130,20 @@ export default function ServicosPage() {
           <h1 className="font-display text-3xl font-bold text-slate-800">Serviços MIIA</h1>
           <p className="text-slate-400 text-xs mt-1">Catálogo de serviços e soluções para referência</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowForm(true); }}
-          className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 transition-colors"
-        >
-          + Novo Serviço
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowBulk(true); setBulkText(''); }}
+            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors"
+          >
+            Importar Lista
+          </button>
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 transition-colors"
+          >
+            + Novo Serviço
+          </button>
+        </div>
       </div>
 
       {/* Form modal */}
@@ -153,6 +195,50 @@ export default function ServicosPage() {
               >
                 {saving ? 'Salvando...' : editing ? 'Salvar' : 'Criar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk import modal */}
+      {showBulk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="font-display font-bold text-lg text-slate-800">Importar Lista de Serviços</h2>
+              <button onClick={() => setShowBulk(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-slate-500">Cole a lista completa. Cada serviço separado por uma <strong>linha em branco</strong>. A primeira linha de cada bloco é o nome (use ":" pra separar nome e descrição). As linhas seguintes são os detalhes.</p>
+              <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-3 font-mono">
+                Correção de Redação: Correção automática com IA<br/>
+                Funcionalidade X, público Y, diferencial Z<br/>
+                <br/>
+                Banco de Questões: Prática adaptativa<br/>
+                Detalhes do serviço aqui...
+              </div>
+              <textarea
+                value={bulkText}
+                onChange={e => setBulkText(e.target.value)}
+                rows={15}
+                placeholder="Cole a lista de serviços aqui..."
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-y font-mono"
+              />
+            </div>
+            <div className="p-5 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-xs text-slate-400">
+                {bulkText.trim() ? `${bulkText.split(/\n{2,}/).filter(b => b.trim()).length} serviço(s) detectados` : ''}
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setShowBulk(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
+                <button
+                  disabled={bulkSaving || !bulkText.trim()}
+                  onClick={handleBulkImport}
+                  className="px-6 py-2 bg-miia-500 text-white text-sm font-semibold rounded-xl hover:bg-miia-600 disabled:opacity-50 transition-colors"
+                >
+                  {bulkSaving ? 'Importando...' : 'Importar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
