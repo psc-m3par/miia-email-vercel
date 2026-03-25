@@ -72,6 +72,12 @@ export default function DashboardPage() {
   const [connectedEmails, setConnectedEmails] = useState<string[]>([]);
   const [pipeline, setPipeline] = useState<PipelineCount | null>(null);
   const [fupForecast, setFupForecast] = useState<Record<string, FupForecast>>({});
+  const [commReportOpen, setCommReportOpen] = useState(false);
+  const [commReportText, setCommReportText] = useState('');
+  const [commReportLoading, setCommReportLoading] = useState(false);
+  const [commRecipients, setCommRecipients] = useState<string[]>([]);
+  const [commSending, setCommSending] = useState(false);
+  const [commMsg, setCommMsg] = useState('');
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -576,8 +582,131 @@ export default function DashboardPage() {
             reportMsg={reportMsg}
             onSave={saveReportConfig}
           />
+
+          {/* Relatório Comercial */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="p-5">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="font-display font-bold text-slate-800">Relatório Comercial</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Gere um resumo comercial completo com dados do pipeline e bases</p>
+                </div>
+              </div>
+              <button
+                disabled={commReportLoading}
+                onClick={async () => {
+                  setCommReportLoading(true);
+                  setCommMsg('');
+                  try {
+                    const res = await fetch('/api/commercial-report');
+                    const d = await res.json();
+                    if (d.error) { setCommMsg('Erro: ' + d.error); return; }
+                    setCommReportText(d.text);
+                    setCommRecipients([]);
+                    setCommReportOpen(true);
+                  } catch (e: any) { setCommMsg('Erro: ' + e.message); }
+                  finally { setCommReportLoading(false); }
+                }}
+                className="w-full mt-2 px-4 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 disabled:opacity-50 transition-colors"
+              >
+                {commReportLoading ? 'Gerando...' : 'Gerar Relatório Comercial'}
+              </button>
+              {commMsg && <p className={`text-xs mt-2 ${commMsg.startsWith('Erro') ? 'text-red-500' : 'text-green-600'}`}>{commMsg}</p>}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Modal Relatório Comercial */}
+      {commReportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="font-display font-bold text-lg text-slate-800">Relatório Comercial — Preview</h2>
+              <button onClick={() => setCommReportOpen(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <div className="p-5 flex-1 overflow-y-auto space-y-4">
+              <textarea
+                value={commReportText}
+                onChange={e => setCommReportText(e.target.value)}
+                rows={20}
+                className="w-full text-sm text-slate-700 border border-slate-200 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-y leading-relaxed"
+              />
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-2 block">Destinatários</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {commRecipients.map(email => (
+                    <span key={email} className="text-xs bg-miia-100 text-miia-700 px-2 py-1 rounded-full flex items-center gap-1">
+                      {email}
+                      <button onClick={() => setCommRecipients(commRecipients.filter(e => e !== email))} className="text-miia-400 hover:text-miia-600">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                    onChange={e => {
+                      if (e.target.value && !commRecipients.includes(e.target.value)) {
+                        setCommRecipients([...commRecipients, e.target.value]);
+                      }
+                      e.target.value = '';
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="">+ Conta conectada</option>
+                    {connectedEmails.filter(e => !commRecipients.includes(e)).map(e => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="email"
+                    placeholder="+ Outro email"
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 flex-1 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if (val && val.includes('@') && !commRecipients.includes(val)) {
+                          setCommRecipients([...commRecipients, val]);
+                          (e.target as HTMLInputElement).value = '';
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-100 flex justify-between items-center">
+              {commMsg && <p className={`text-xs ${commMsg.startsWith('Erro') ? 'text-red-500' : 'text-green-600'}`}>{commMsg}</p>}
+              <div className="flex gap-2 ml-auto">
+                <button onClick={() => setCommReportOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
+                <button
+                  disabled={commSending || commRecipients.length === 0}
+                  onClick={async () => {
+                    setCommSending(true);
+                    setCommMsg('');
+                    try {
+                      const sender = connectedEmails[0] || 'psc@miia.tech';
+                      const res = await fetch('/api/commercial-report', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: commReportText, recipients: commRecipients, senderEmail: sender }),
+                      });
+                      const d = await res.json();
+                      if (d.error) { setCommMsg('Erro: ' + d.error); }
+                      else { setCommMsg('Enviado com sucesso!'); setTimeout(() => setCommReportOpen(false), 2000); }
+                    } catch (e: any) { setCommMsg('Erro: ' + e.message); }
+                    finally { setCommSending(false); }
+                  }}
+                  className="px-6 py-2 bg-miia-500 text-white text-sm font-semibold rounded-xl hover:bg-miia-600 disabled:opacity-50 transition-colors"
+                >
+                  {commSending ? 'Enviando...' : `Enviar (${commRecipients.length})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
