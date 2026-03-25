@@ -294,7 +294,12 @@ export default function DashboardPage() {
         <div>
           <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Rotinas por Categoria</h2>
           <div className="space-y-3">
-            {Object.entries(stats).map(([cat, s]) => {
+            {Object.entries(stats).filter(([cat, s]) => {
+              // Hide completed categories (Ciclo completo) from dashboard - they show in Resultados
+              const pc = painel.find((p: any) => p.category === cat);
+              const est = getEstado(s, pc?.ativo ?? false);
+              return est.label !== 'Ciclo completo';
+            }).map(([cat, s]) => {
               const painelCat = painel.find((p: any) => p.category === cat);
               const progresso = s.total > 0 ? Math.round((s.email1 / s.total) * 100) : 0;
               const taxaRespEmail1 = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
