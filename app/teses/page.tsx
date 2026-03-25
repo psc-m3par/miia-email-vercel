@@ -630,25 +630,40 @@ export default function TesesPage() {
 
               {/* Tese */}
               <div className="mb-5">
-                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Tese</h3>
-                <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100">
-                  {selectedTese.tese}
-                </p>
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                  Tese
+                  {selectedTese.status === 'NOVA' && <span className="ml-2 text-amber-500 font-normal normal-case">(editável)</span>}
+                </h3>
+                {selectedTese.status === 'NOVA' ? (
+                  <textarea
+                    value={selectedTese.tese}
+                    onChange={e => setSelectedTese({ ...selectedTese, tese: e.target.value })}
+                    rows={5}
+                    className="w-full text-sm text-slate-800 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400/50 resize-y"
+                  />
+                ) : (
+                  <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    {selectedTese.tese}
+                  </p>
+                )}
               </div>
 
               {/* Template */}
-              {(selectedTese.template || selectedTese.status === 'AJUSTE') && (
+              {(selectedTese.template || selectedTese.status === 'AJUSTE' || selectedTese.status === 'NOVA') && (
                 <div className="mb-5">
                   <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
                     Template sugerido
-                    {(selectedTese.status === 'AJUSTE' || (selectedTese.status === 'APROVACAO' && (selectedTese.comentarios || []).length > 0)) && (
+                    {(selectedTese.status === 'NOVA' || selectedTese.status === 'AJUSTE' || (selectedTese.status === 'APROVACAO' && (selectedTese.comentarios || []).length > 0)) && (
                       <span className="ml-2 text-orange-500 font-normal normal-case">(editável)</span>
                     )}
                   </h3>
-                  {(selectedTese.status === 'AJUSTE' || (selectedTese.status === 'APROVACAO' && (selectedTese.comentarios || []).length > 0)) ? (
+                  {(selectedTese.status === 'NOVA' || selectedTese.status === 'AJUSTE' || (selectedTese.status === 'APROVACAO' && (selectedTese.comentarios || []).length > 0)) ? (
                     <textarea
-                      value={editableTemplate}
-                      onChange={e => setEditableTemplate(e.target.value)}
+                      value={selectedTese.status === 'NOVA' ? (selectedTese.template || '') : editableTemplate}
+                      onChange={e => {
+                        if (selectedTese.status === 'NOVA') setSelectedTese({ ...selectedTese, template: e.target.value });
+                        else setEditableTemplate(e.target.value);
+                      }}
                       rows={8}
                       className="w-full text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-violet-50 rounded-xl p-3 border border-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400/50 resize-y"
                     />
@@ -661,12 +676,25 @@ export default function TesesPage() {
               )}
 
               {/* Potenciais clientes */}
-              {selectedTese.potenciaisClientes && (
+              {(selectedTese.potenciaisClientes || selectedTese.status === 'NOVA') && (
                 <div className="mb-5">
-                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Potenciais clientes</h3>
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                    {selectedTese.potenciaisClientes}
-                  </p>
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                    Potenciais clientes
+                    {selectedTese.status === 'NOVA' && <span className="ml-2 text-emerald-500 font-normal normal-case">(editável)</span>}
+                  </h3>
+                  {selectedTese.status === 'NOVA' ? (
+                    <textarea
+                      value={selectedTese.potenciaisClientes || ''}
+                      onChange={e => setSelectedTese({ ...selectedTese, potenciaisClientes: e.target.value })}
+                      rows={3}
+                      className="w-full text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-emerald-50 rounded-xl p-3 border border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 resize-y"
+                      placeholder="Descreva os potenciais clientes..."
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                      {selectedTese.potenciaisClientes}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -705,6 +733,34 @@ export default function TesesPage() {
                 <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
                   {actionError}
                 </div>
+              )}
+
+              {/* NOVA: Save edits */}
+              {selectedTese.status === 'NOVA' && (
+                <button
+                  onClick={async () => {
+                    setActionError('');
+                    try {
+                      await fetch('/api/teses', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          rowIndex: selectedTese.rowIndex,
+                          tese: selectedTese.tese,
+                          template: selectedTese.template,
+                          potenciaisClientes: selectedTese.potenciaisClientes,
+                          categoria: selectedTese.categoria,
+                        }),
+                      });
+                      loadTeses();
+                      setActionError('');
+                      alert('Alterações salvas!');
+                    } catch (e: any) { setActionError(e.message); }
+                  }}
+                  className="w-full mb-4 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors"
+                >
+                  Salvar alterações
+                </button>
               )}
 
               {/* NOVA: Send to approval */}
