@@ -58,6 +58,7 @@ function getTaxaColor(taxa: number): { bg: string; text: string; label: string }
 interface Strategy {
   id: string;
   name: string;
+  comment: string;
   categories: string[];
   createdAt: string;
 }
@@ -81,6 +82,7 @@ export default function ResultadosPage() {
   const [expandedStrategies, setExpandedStrategies] = useState<Record<string, boolean>>({});
   const [showCreateStrategy, setShowCreateStrategy] = useState(false);
   const [newStratName, setNewStratName] = useState('');
+  const [newStratComment, setNewStratComment] = useState('');
   const [newStratCats, setNewStratCats] = useState<string[]>([]);
 
   const loadData = useCallback(() => {
@@ -113,11 +115,12 @@ export default function ResultadosPage() {
 
   const createStrategy = () => {
     if (!newStratName.trim() || newStratCats.length === 0) return;
-    const strat: Strategy = { id: Date.now().toString(), name: newStratName.trim(), categories: newStratCats, createdAt: new Date().toISOString() };
+    const strat: Strategy = { id: Date.now().toString(), name: newStratName.trim(), comment: newStratComment.trim(), categories: newStratCats, createdAt: new Date().toISOString() };
     const updated = [...strategies, strat];
     setStrategies(updated);
     saveStrategies(updated);
     setNewStratName('');
+    setNewStratComment('');
     setNewStratCats([]);
     setShowCreateStrategy(false);
   };
@@ -204,6 +207,7 @@ export default function ResultadosPage() {
                       <h3 className="font-display text-base font-bold text-slate-800">{strat.name}</h3>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">{strat.categories.length} bases · {st.total} contatos</p>
+                    {strat.comment && <p className="text-[11px] text-slate-500 mt-1 italic">{strat.comment}</p>}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaResp.bg} ${taxaResp.text}`}>{respPct} respostas</div>
@@ -262,7 +266,7 @@ export default function ResultadosPage() {
       {/* Criar estratégia + Modal */}
       <div className="mb-6 flex justify-end">
         <button
-          onClick={() => { setShowCreateStrategy(true); setNewStratCats([]); setNewStratName(''); }}
+          onClick={() => { setShowCreateStrategy(true); setNewStratCats([]); setNewStratName(''); setNewStratComment(''); }}
           className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 transition-colors"
         >
           + Criar Estratégia
@@ -284,6 +288,16 @@ export default function ResultadosPage() {
                   onChange={e => setNewStratName(e.target.value)}
                   placeholder="Ex: Envio em massa Q1"
                   className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Comentário (opcional)</label>
+                <textarea
+                  value={newStratComment}
+                  onChange={e => setNewStratComment(e.target.value)}
+                  placeholder="Ex: Primeira rodada de prospecção focada em EdTechs"
+                  rows={2}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-none"
                 />
               </div>
               <div>
@@ -324,7 +338,7 @@ export default function ResultadosPage() {
       )}
 
       {/* Bases individuais */}
-      {displayResults.length === 0 ? (
+      {displayResults.length === 0 && strategies.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <div className="text-4xl mb-4 text-slate-300">--</div>
           <h2 className="font-display text-lg font-bold text-slate-600 mb-2">
@@ -335,7 +349,7 @@ export default function ResultadosPage() {
             (Email 1, FUP1 e FUP2 sem pendencias).
           </p>
         </div>
-      ) : (
+      ) : displayResults.length === 0 ? null : (
         <div className="space-y-4">
           {displayResults.map(r => {
             const taxaResp = getTaxaColor(r.taxaRespostas || 0);
