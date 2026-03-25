@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readSheet, writeSheet, getAllSpreadsheetIds } from '@/lib/sheets';
+import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +14,19 @@ interface Servico {
 }
 
 async function ensureHeader(sid: string) {
-  const rows = await readSheet('Servicos!A1:E1', sid).catch(() => null);
-  if (!rows || rows.length === 0 || rows[0][0] !== 'ID') {
+  try {
+    const rows = await readSheet('Servicos!A1:E1', sid);
+    if (!rows || rows.length === 0 || rows[0][0] !== 'ID') {
+      await writeSheet('Servicos!A1:E1', [['ID', 'Nome', 'Descricao', 'Detalhes', 'DataCriacao']], sid);
+    }
+  } catch {
+    // Sheet doesn't exist, create it
+    const auth = new google.auth.GoogleAuth({ credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'), scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+    const sheets = google.sheets({ version: 'v4', auth });
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sid,
+      requestBody: { requests: [{ addSheet: { properties: { title: 'Servicos' } } }] },
+    });
     await writeSheet('Servicos!A1:E1', [['ID', 'Nome', 'Descricao', 'Detalhes', 'DataCriacao']], sid);
   }
 }
