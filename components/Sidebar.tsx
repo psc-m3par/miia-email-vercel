@@ -98,9 +98,13 @@ const COMERCIAL_ITEMS = [
 
 const BASES_ITEMS = [
   { href: '/upload', label: 'Upload de base' },
-  { href: '/clientes', label: 'Clientes' },
   { href: '/contacts', label: 'Contatos' },
   { href: '/extrair', label: 'Extrair' },
+];
+
+const MIIA_ITEMS = [
+  { href: '/clientes', label: 'Clientes' },
+  { href: '/servicos', label: 'Serviços' },
 ];
 
 const ADMIN_ITEMS = [
@@ -119,8 +123,10 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const [inteligenciaOpen, setInteligenciaOpen] = useState(false);
   const [comercialOpen, setComercialOpen] = useState(false);
   const [basesOpen, setBasesOpen] = useState(false);
+  const [miiaOpen, setMiiaOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
+  const isMiiaActive = MIIA_ITEMS.some(i => pathname === i.href);
   const isInteligenciaActive = INTELIGENCIA_ITEMS.some(i => pathname === i.href);
   const isComercialActive = COMERCIAL_ITEMS.some(i => pathname === i.href);
   const isBasesActive = BASES_ITEMS.some(i => pathname === i.href);
@@ -134,8 +140,9 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     if (isInteligenciaActive) setInteligenciaOpen(true);
     if (isComercialActive) setComercialOpen(true);
     if (isBasesActive) setBasesOpen(true);
+    if (isMiiaActive) setMiiaOpen(true);
     if (isAdminActive) setAdminOpen(true);
-  }, [isInteligenciaActive, isComercialActive, isBasesActive, isAdminActive]);
+  }, [isInteligenciaActive, isComercialActive, isBasesActive, isMiiaActive, isAdminActive]);
 
   const navItemClass = (active: boolean) =>
     `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -300,6 +307,27 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           <IconCopilot className="w-4 h-4 flex-shrink-0" />
           Copiloto
         </Link>
+
+        {/* MIIA */}
+        <div>
+          <button onClick={() => setMiiaOpen(o => !o)}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              isMiiaActive && !miiaOpen ? 'bg-miia-50 text-miia-600' : 'text-slate-600 hover:bg-slate-50 hover:text-miia-500'
+            }`}>
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>
+            <span className="flex-1 text-left">MIIA</span>
+            <IconChevronDown className="w-3.5 h-3.5" open={miiaOpen} />
+          </button>
+          {miiaOpen && (
+            <div className="mt-1 space-y-0.5">
+              {MIIA_ITEMS.map(item => (
+                <Link key={item.href} href={item.href} className={subItemClass(pathname === item.href)}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Admin */}
         <div>

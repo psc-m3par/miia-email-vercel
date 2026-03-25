@@ -752,7 +752,7 @@ export default function TesesPage() {
                           categoria: selectedTese.categoria,
                         }),
                       });
-                      loadTeses();
+                      loadData();
                       setActionError('');
                       alert('Alterações salvas!');
                     } catch (e: any) { setActionError(e.message); }
