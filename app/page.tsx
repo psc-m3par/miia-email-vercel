@@ -78,6 +78,7 @@ export default function DashboardPage() {
   const [commRecipients, setCommRecipients] = useState<string[]>([]);
   const [commSending, setCommSending] = useState(false);
   const [commMsg, setCommMsg] = useState('');
+  const [commSender, setCommSender] = useState('');
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -634,6 +635,20 @@ export default function DashboardPage() {
               />
 
               <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Enviar de</label>
+                <select
+                  value={commSender}
+                  onChange={e => setCommSender(e.target.value)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-2 focus:ring-miia-400/50 mb-3"
+                >
+                  <option value="">Selecione a conta remetente...</option>
+                  {connectedEmails.map(e => (
+                    <option key={e} value={e}>{e}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="text-xs font-bold text-slate-700 mb-2 block">Destinatários</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {commRecipients.map(email => (
@@ -681,12 +696,12 @@ export default function DashboardPage() {
               <div className="flex gap-2 ml-auto">
                 <button onClick={() => setCommReportOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
                 <button
-                  disabled={commSending || commRecipients.length === 0}
+                  disabled={commSending || commRecipients.length === 0 || !commSender}
                   onClick={async () => {
                     setCommSending(true);
                     setCommMsg('');
                     try {
-                      const sender = connectedEmails[0] || 'psc@miia.tech';
+                      const sender = commSender;
                       const res = await fetch('/api/commercial-report', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
