@@ -37,9 +37,10 @@ function getEstado(s: Stats, ativo: boolean): { label: string; color: string } {
   if (!ativo) return { label: 'Pausado', color: 'bg-slate-100 text-slate-500' };
   if (s.total === 0) return { label: 'Sem base', color: 'bg-slate-100 text-slate-400' };
   if (s.pendentes > 0) return { label: 'Enviando Email 1', color: 'bg-blue-100 text-blue-700' };
-  const semFup1 = s.email1 - s.respondidos - s.fup1;
+  const semFup1 = s.email1 - s.respondidos - s.bounced - s.fup1;
   if (semFup1 > 0) return { label: 'Aguardando FUP1', color: 'bg-indigo-100 text-indigo-700' };
-  if (s.fup1 > 0 && s.fup2 < s.fup1) return { label: 'Aguardando FUP2', color: 'bg-purple-100 text-purple-700' };
+  const semFup2 = s.fup1 - (s.fup1Respondidos || 0) - (s.fup1Bounced || 0) - s.fup2;
+  if (semFup2 > 0) return { label: 'Aguardando FUP2', color: 'bg-purple-100 text-purple-700' };
   if (s.email1 > 0) return { label: 'Ciclo completo', color: 'bg-green-100 text-green-700' };
   return { label: 'Pronto', color: 'bg-slate-100 text-slate-500' };
 }
