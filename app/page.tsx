@@ -250,7 +250,23 @@ export default function DashboardPage() {
 
       {alerts.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
-          <h3 className="text-sm font-semibold text-amber-800 mb-2">Alertas</h3>
+          <div className="flex justify-between items-start">
+            <h3 className="text-sm font-semibold text-amber-800 mb-2">Alertas</h3>
+            {alerts.some(a => a.includes('erros em')) && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Remover todos os contatos com erro de todas as bases?')) return;
+                  const res = await fetch('/api/clear-errors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                  const d = await res.json();
+                  alert(d.removed > 0 ? `${d.removed} contatos com erro removidos` : 'Nenhum erro encontrado');
+                  loadData();
+                }}
+                className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200 transition-colors"
+              >
+                Limpar erros
+              </button>
+            )}
+          </div>
           {alerts.map((a, i) => (
             <p key={i} className="text-xs text-amber-700 mb-1">⚠ {a}</p>
           ))}
