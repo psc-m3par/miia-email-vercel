@@ -919,10 +919,29 @@ export default function TesesPage() {
               {selectedTese.status === 'AJUSTE' && (
                 <div className="mb-5 p-4 bg-orange-50 border border-orange-200 rounded-xl">
                   <h4 className="text-xs font-semibold text-orange-800 mb-1">Ajuste Necessário</h4>
-                  <p className="text-xs text-orange-700">
+                  <p className="text-xs text-orange-700 mb-3">
                     O aprovador <strong>{selectedTese.aprovador || 'aprovador'}</strong> enviou comentários.
-                    Edite o template acima e reenvie para aprovação.
+                    Edite o template acima e reenvie para aprovação, ou aprove manualmente.
                   </p>
+                  <div>
+                    <h4 className="text-xs font-semibold text-green-800 mb-2">Aprovar manualmente</h4>
+                    <div className="flex gap-2">
+                      <input
+                        value={categoriaInput}
+                        onChange={e => setCategoriaInput(e.target.value)}
+                        placeholder="Nome da categoria (ex: Tech-PME-2026)"
+                        className="flex-1 text-sm border border-green-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400/50"
+                      />
+                      <button
+                        onClick={aprovarTese}
+                        disabled={approving}
+                        className="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-xl hover:bg-green-600 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {approving ? 'Aprovando...' : 'Aprovar'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Cria a categoria e template automaticamente (ativo=FALSE)</p>
+                  </div>
                 </div>
               )}
 
