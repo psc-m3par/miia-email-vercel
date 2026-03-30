@@ -199,6 +199,71 @@ async function runCheckReplies(category?: string) {
     }
   } catch { /* skip teses check errors */ }
 
+  // ── Daily recheck: fix RESPONDIDO that are actually bounces ──
+  // Runs once per day at 8:00 São Paulo time (first cron hit of that hour)
+  try {
+    const spHour = parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false,
+    }).format(new Date()));
+    const spMinute = parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', minute: 'numeric',
+    }).format(new Date()));
+
+    if (spHour === 8 && spMinute === 0 && Date.now() < deadline) {
+      let recheckCorrigidos = 0;
+      let recheckVerificados = 0;
+
+      for (const spreadsheetId of allIds) {
+        const [painelR, { contacts: contactsR }] = await Promise.all([
+          readPainel(spreadsheetId),
+          readContatos(spreadsheetId),
+        ]);
+
+        const catMapR = new Map<string, string>();
+        for (const cat of painelR) {
+          catMapR.set(cat.category.normalize('NFC'), cat.responsavel);
+        }
+
+        const respondidosR = contactsR.filter(c =>
+          c.threadId &&
+          (c.fup1Enviado.includes('RESPONDIDO') || c.fup2Enviado.includes('RESPONDIDO'))
+        );
+
+        for (const contato of respondidosR) {
+          if (Date.now() > deadline) break;
+          const responsavel = catMapR.get(contato.category.normalize('NFC'));
+          if (!responsavel) continue;
+
+          let result;
+          try {
+            result = await checkReplies(responsavel, contato.threadId, spreadsheetId);
+          } catch { continue; }
+
+          recheckVerificados++;
+
+          if (result.hasReply && result.isBounce) {
+            if (contato.fup1Enviado.includes('RESPONDIDO') && contato.fup2Enviado.includes('RESPONDIDO')) {
+              await writeSheet('Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex, [['BOUNCE', 'BOUNCE']], spreadsheetId);
+            } else if (contato.fup1Enviado.includes('RESPONDIDO')) {
+              await writeSheet('Contatos!I' + contato.rowIndex, [['BOUNCE']], spreadsheetId);
+            } else if (contato.fup2Enviado.includes('RESPONDIDO')) {
+              await writeSheet('Contatos!J' + contato.rowIndex, [['BOUNCE']], spreadsheetId);
+            }
+            recheckCorrigidos++;
+            await new Promise(r => setTimeout(r, 1500));
+          } else {
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+
+        if (recheckVerificados > 0) {
+          await appendLog('Recheck Respondidos', 'AUTO', recheckCorrigidos, 'ok',
+            `${recheckCorrigidos} corrigidos de ${recheckVerificados} verificados`, spreadsheetId);
+        }
+      }
+    }
+  } catch { /* skip recheck errors */ }
+
   return { ok: true, respondidos: totalRespondidos };
 }
 
