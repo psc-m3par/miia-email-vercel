@@ -141,8 +141,35 @@ export async function checkReplies(
 
   if (messages.length <= 1) return { hasReply: false };
 
-  const BOUNCE_FROM_PATTERNS = ['mailer-daemon', 'postmaster', 'mail delivery subsystem', 'delivery status notification', 'microsoftexchange', 'noreply', 'no-reply'];
-  const BOUNCE_SUBJECT_PATTERNS = ['undeliverable', 'delivery failed', 'delivery failure', 'mail delivery failed', 'failure notice', 'não entregue', 'nao entregue', 'returned mail', 'address not found', 'user unknown'];
+  const BOUNCE_FROM_PATTERNS = ['mailer-daemon', 'postmaster', 'mail delivery subsystem', 'delivery status notification', 'microsoftexchange', 'noreply', 'no-reply', 'auto-reply', 'autoreply', 'automated'];
+  const BOUNCE_SUBJECT_PATTERNS = [
+    'undeliverable', 'undelivered', 'delivery failed', 'delivery failure', 'mail delivery failed',
+    'failure notice', 'returned mail', 'address not found', 'user unknown',
+    'mailbox unavailable', 'mailbox not found', 'recipient rejected', 'does not exist',
+    'no such user', 'account not found', 'recipient not found', 'invalid recipient',
+    'não entregue', 'nao entregue',
+    'endereço não encontrado', 'endereco nao encontrado',
+    'destinatário não encontrado', 'destinatario nao encontrado',
+    'caixa de correio não encontrada', 'caixa de correio nao encontrada',
+    'conta não encontrada', 'conta nao encontrada',
+    'não foi possível entregar', 'nao foi possivel entregar',
+    'mensagem não entregue', 'mensagem nao entregue',
+    'falha na entrega', 'erro de entrega',
+  ];
+  const BOUNCE_BODY_PATTERNS = [
+    'address not found', 'user unknown', 'mailbox not found', 'does not exist',
+    'no such user', 'recipient rejected', 'mailbox unavailable', 'account not found',
+    'endereço não encontrado', 'endereco nao encontrado',
+    'destinatário não encontrado', 'destinatario nao encontrado',
+    'caixa de correio não encontrada', 'caixa de correio nao encontrada',
+    'não foi possível entregar', 'nao foi possivel entregar',
+    'mensagem não entregue', 'mensagem nao entregue',
+    'falha na entrega', 'erro de entrega',
+    'this message was created automatically', 'delivery has failed',
+    'delivery status notification', 'undeliverable',
+    'the email account that you tried to reach does not exist',
+    'conta não encontrada', 'conta nao encontrada',
+  ];
 
   for (const msg of messages) {
     const headers = msg.payload?.headers || [];
@@ -152,13 +179,14 @@ export async function checkReplies(
     const fromVal = fromHeader.value.toLowerCase();
     if (senderEmail && fromVal.includes(senderEmail.toLowerCase())) continue;
     const subjectVal = (subjectHeader?.value || '').toLowerCase();
-    const isBounce =
+    const isBounceHeader =
       BOUNCE_FROM_PATTERNS.some(p => fromVal.includes(p)) ||
       BOUNCE_SUBJECT_PATTERNS.some(p => subjectVal.includes(p));
-    if (isBounce) return { hasReply: true, isBounce: true };
+    if (isBounceHeader) return { hasReply: true, isBounce: true };
 
-    // Fetch message body to check for unsubscribe keywords
+    // Fetch message body to check for bounce and unsubscribe keywords
     let isUnsubscribe = false;
+    let isBounceBody = false;
     try {
       const abort2 = new AbortController();
       const t2 = setTimeout(() => abort2.abort(), 5000);
@@ -169,11 +197,15 @@ export async function checkReplies(
       clearTimeout(t2);
       if (msgRes.ok) {
         const msgData = await msgRes.json();
-        const body = extractTextBody(msgData.payload).toLowerCase().slice(0, 1000);
-        isUnsubscribe = UNSUBSCRIBE_KEYWORDS.some(k => body.includes(k));
+        const body = extractTextBody(msgData.payload).toLowerCase().slice(0, 2000);
+        isBounceBody = BOUNCE_BODY_PATTERNS.some(p => body.includes(p));
+        if (!isBounceBody) {
+          isUnsubscribe = UNSUBSCRIBE_KEYWORDS.some(k => body.includes(k));
+        }
       }
     } catch { /* ignore body fetch errors */ }
 
+    if (isBounceBody) return { hasReply: true, isBounce: true };
     return { hasReply: true, isBounce: false, isUnsubscribe };
   }
 
