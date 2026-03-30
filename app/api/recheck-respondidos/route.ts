@@ -47,14 +47,20 @@ export async function POST() {
 
         // If re-check detects it's actually a bounce, fix it
         if (result.hasReply && result.isBounce) {
-          if (contato.fup1Enviado.includes('RESPONDIDO')) {
+          // Combine both columns into a single write when possible
+          if (contato.fup1Enviado.includes('RESPONDIDO') && contato.fup2Enviado.includes('RESPONDIDO')) {
+            await writeSheet(
+              'Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex,
+              [['BOUNCE', 'BOUNCE']],
+              spreadsheetId
+            );
+          } else if (contato.fup1Enviado.includes('RESPONDIDO')) {
             await writeSheet(
               'Contatos!I' + contato.rowIndex,
               [['BOUNCE']],
               spreadsheetId
             );
-          }
-          if (contato.fup2Enviado.includes('RESPONDIDO')) {
+          } else if (contato.fup2Enviado.includes('RESPONDIDO')) {
             await writeSheet(
               'Contatos!J' + contato.rowIndex,
               [['BOUNCE']],
@@ -62,9 +68,11 @@ export async function POST() {
             );
           }
           totalCorrigidos++;
+          // Longer pause after writes to avoid Sheets quota
+          await new Promise(r => setTimeout(r, 1500));
+        } else {
+          await new Promise(r => setTimeout(r, 200));
         }
-
-        await new Promise(r => setTimeout(r, 100));
       }
 
       await appendLog('Recheck Respondidos', 'TODOS', totalCorrigidos, 'ok',
