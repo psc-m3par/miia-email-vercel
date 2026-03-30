@@ -45,7 +45,6 @@ export default function RespondidosPage() {
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState('');
   const [showClosed, setShowClosed] = useState(false);
-  const [recheckingBounces, setRecheckingBounces] = useState(false);
   const [threads, setThreads] = useState<Record<string, ThreadMessage[]>>({});
   const [loadingThread, setLoadingThread] = useState<Record<string, boolean>>({});
   const [openThread, setOpenThread] = useState<Record<string, boolean>>({});
@@ -254,31 +253,9 @@ export default function RespondidosPage() {
             {fechados.length > 0 && <span className="text-slate-400 ml-2">· {fechados.length} fechado(s)</span>}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={async () => {
-            if (!confirm('Re-verificar todos os respondidos para corrigir falsos positivos (bounces marcados como resposta)?')) return;
-            setRecheckingBounces(true);
-            try {
-              const res = await fetch('/api/recheck-respondidos', { method: 'POST' });
-              const d = await res.json();
-              if (d.ok) {
-                alert(d.corrigidos > 0
-                  ? `${d.corrigidos} contato(s) corrigido(s) de RESPONDIDO para BOUNCE (${d.verificados} verificados)`
-                  : `Nenhuma correção necessária (${d.verificados} verificados)`);
-                loadData();
-              } else {
-                alert('Erro: ' + (d.error || 'desconhecido'));
-              }
-            } catch { alert('Erro de conexão'); }
-            finally { setRecheckingBounces(false); }
-          }} disabled={recheckingBounces}
-            className="px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-100 disabled:opacity-50">
-            {recheckingBounces ? 'Verificando...' : 'Re-verificar Bounces'}
-          </button>
-          <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
-            Atualizar
-          </button>
-        </div>
+        <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50">
+          Atualizar
+        </button>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-5">

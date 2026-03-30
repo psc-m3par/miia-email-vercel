@@ -35,6 +35,7 @@ export default function PipelinePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ firstName: '', lastName: '', companyName: '', email: '', mobilePhone: '', category: '', pipeline: 'NOVO', nota: '' });
   const [addSaving, setAddSaving] = useState(false);
+  const [recheckingBounces, setRecheckingBounces] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -140,6 +141,26 @@ export default function PipelinePage() {
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <button onClick={async () => {
+            if (!confirm('Re-verificar todos os respondidos para corrigir falsos positivos (bounces marcados como resposta)?')) return;
+            setRecheckingBounces(true);
+            try {
+              const res = await fetch('/api/recheck-respondidos', { method: 'POST' });
+              const d = await res.json();
+              if (d.ok) {
+                alert(d.corrigidos > 0
+                  ? `${d.corrigidos} contato(s) corrigido(s) de RESPONDIDO para BOUNCE (${d.verificados} verificados)`
+                  : `Nenhuma correção necessária (${d.verificados} verificados)`);
+                loadData();
+              } else {
+                alert('Erro: ' + (d.error || 'desconhecido'));
+              }
+            } catch { alert('Erro de conexão'); }
+            finally { setRecheckingBounces(false); }
+          }} disabled={recheckingBounces}
+            className="px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-100 disabled:opacity-50">
+            {recheckingBounces ? 'Verificando...' : 'Re-verificar Bounces'}
+          </button>
           <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-medium hover:bg-miia-600">
             + Adicionar
           </button>
