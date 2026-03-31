@@ -346,7 +346,17 @@ export default function SettingsPage() {
 
               <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-6 flex-wrap">
                 <StatPill label="Total" value={catStats.total} color="text-slate-700 bg-slate-200" />
-                <StatPill label="Pendentes" value={catStats.pendentes} color="text-amber-700 bg-amber-100" />
+                {(() => {
+                  const e1Pend = catStats.pendentes;
+                  const fup1Pend = Math.max(0, catStats.email1 - catStats.fup1 - (catStats.e1Respondidos || 0) - (catStats.e1Bounced || 0) - (catStats.semThread || 0));
+                  const fup2Pend = Math.max(0, catStats.fup1 - catStats.fup2 - (catStats.fup1Respondidos || 0) - (catStats.fup1Bounced || 0));
+                  let pendLabel = 'Pend. E1';
+                  let pendValue = e1Pend;
+                  if (e1Pend === 0 && fup1Pend > 0) { pendLabel = 'Pend. FUP1'; pendValue = fup1Pend; }
+                  else if (e1Pend === 0 && fup1Pend === 0 && fup2Pend > 0) { pendLabel = 'Pend. FUP2'; pendValue = fup2Pend; }
+                  else if (e1Pend === 0) { pendLabel = 'Pendentes'; pendValue = 0; }
+                  return <StatPill label={pendLabel} value={pendValue} color="text-amber-700 bg-amber-100" />;
+                })()}
                 <StatPill label="Enviados" value={catStats.email1} color="text-blue-700 bg-blue-100" />
                 <StatPill label="FUP1" value={catStats.fup1} color="text-indigo-700 bg-indigo-100" />
                 <StatPill label="FUP2" value={catStats.fup2} color="text-purple-700 bg-purple-100" />
