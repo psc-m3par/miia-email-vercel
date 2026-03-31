@@ -76,15 +76,13 @@ export async function GET() {
       const fup1Aguardando = catContacts.filter(
         c =>
           c.email1Enviado.startsWith('OK') &&
-          !c.fup1Enviado &&
-          c.threadId
+          !c.fup1Enviado
       ).length;
 
       const fup2Aguardando = catContacts.filter(
         c =>
           c.fup1Enviado.startsWith('OK') &&
           !c.fup2Enviado &&
-          c.threadId &&
           c.fup1Enviado !== 'RESPONDIDO'
       ).length;
 
