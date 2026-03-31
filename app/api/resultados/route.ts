@@ -86,11 +86,27 @@ export async function GET() {
           c.fup1Enviado !== 'RESPONDIDO'
       ).length;
 
+      // Count contacts that had their fup1 resolved (OK, RESPONDIDO, or BOUNCE)
+      const fup1Resolvidos = catContacts.filter(c =>
+        c.fup1Enviado.startsWith('OK') || c.fup1Enviado === 'RESPONDIDO' || c.fup1Enviado === 'BOUNCE'
+      ).length;
+      const fup2Resolvidos = catContacts.filter(c =>
+        c.fup2Enviado.startsWith('OK') || c.fup2Enviado === 'RESPONDIDO' || c.fup2Enviado === 'BOUNCE'
+      ).length;
+
+      // Contacts that need fup1: had E1 OK but no bounce on E1
+      const needFup1 = catContacts.filter(c =>
+        c.email1Enviado.startsWith('OK') && !c.email1Enviado.startsWith('BOUNCE')
+      ).length;
+      // Contacts that need fup2: had FUP1 OK (not RESPONDIDO/BOUNCE at fup1 stage)
+      const needFup2 = fup1Enviados;
+
       const isComplete =
         totalContatos > 0 &&
         email1Pendentes === 0 &&
-        fup1Aguardando === 0 &&
-        fup2Aguardando === 0;
+        email1Enviados > 0 &&
+        fup1Resolvidos >= needFup1 &&
+        fup2Resolvidos >= needFup2;
 
       results.push({
         category: cat.category,
