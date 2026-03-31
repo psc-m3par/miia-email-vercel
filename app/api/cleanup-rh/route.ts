@@ -16,7 +16,7 @@ export async function GET() {
   );
 
   // Find the FUP category by partial match
-  const allCats = [...new Set(contacts.map(c => c.category))];
+  const allCats = Array.from(new Set(contacts.map(c => c.category)));
   const fupCatName = allCats.find(cat =>
     cat.toLowerCase().includes('fup') && cat.toLowerCase().includes('respondido')
   ) || allCats.find(cat =>
@@ -60,7 +60,7 @@ export async function POST() {
       .filter(Boolean)
   );
 
-  const allCats = [...new Set(contacts.map(c => c.category))];
+  const allCats = Array.from(new Set(contacts.map(c => c.category)));
   const fupCatName = allCats.find(cat =>
     cat.toLowerCase().includes('fup') && cat.toLowerCase().includes('respondido')
   ) || allCats.find(cat =>
