@@ -29,6 +29,8 @@ export default function SettingsPage() {
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20 });
   const [creatingCat, setCreatingCat] = useState(false);
+  const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadData = () => {
     setLoading(true);
@@ -36,11 +38,15 @@ export default function SettingsPage() {
       fetch('/api/sheets?type=painel').then(r => r.json()),
       fetch('/api/dashboard', { cache: 'no-store' }).then(r => r.json()),
       fetch('/api/tokens').then(r => r.json()),
-    ]).then(([painelData, dashData, tokensData]) => {
+      fetch('/api/resultados', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([painelData, dashData, tokensData, resultData]) => {
       if (Array.isArray(painelData)) setPainel(painelData);
       if (dashData.stats) setStats(dashData.stats);
       if (dashData.totalGeral) setTotalGeral(dashData.totalGeral);
       if (Array.isArray(tokensData)) setConnectedAccounts(tokensData.filter((t: any) => t.status === 'ativo').map((t: any) => t.email));
+      if (resultData?.results) {
+        setCompletedCats(new Set(resultData.results.filter((r: any) => r.isComplete).map((r: any) => r.category)));
+      }
     }).finally(() => setLoading(false));
   };
 
@@ -293,7 +299,8 @@ export default function SettingsPage() {
       )}
 
       <div className="space-y-4">
-        {painel.map((row, idx) => {
+        {painel.filter((row) => !completedCats.has(row.category)).map((row) => {
+          const idx = painel.indexOf(row);
           const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
           return (
             <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md">
@@ -393,7 +400,62 @@ export default function SettingsPage() {
         })}
       </div>
 
-      {/* Base de Clientes movida para /clientes */}
+      {/* Bases Finalizadas - colapsavel */}
+      {painel.some(row => completedCats.has(row.category)) && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="w-full flex items-center justify-between px-5 py-3 bg-green-50 border border-green-200 rounded-xl text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
+          >
+            <span>Bases Finalizadas ({painel.filter(row => completedCats.has(row.category)).length})</span>
+            <svg className={`w-4 h-4 transition-transform duration-200 ${showCompleted ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          {showCompleted && (
+            <div className="mt-3 space-y-4">
+              {painel.filter(row => completedCats.has(row.category)).map((row) => {
+                const idx = painel.indexOf(row);
+                const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
+                return (
+                  <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                      <div className="flex items-center gap-4">
+                        <h3 className="font-semibold text-slate-800 text-lg">{row.category}</h3>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Ciclo completo</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {confirmDelete === row.category ? (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleDeleteCategory(row.category)} disabled={deletingCat === row.category}
+                              className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg font-medium hover:bg-red-700">
+                              {deletingCat === row.category ? '...' : 'Confirmar'}
+                            </button>
+                            <button onClick={() => setConfirmDelete('')}
+                              className="px-3 py-1.5 bg-slate-200 text-slate-600 text-xs rounded-lg font-medium">
+                              Nao
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => handleDeleteCategory(row.category)}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 text-xs rounded-lg font-medium hover:bg-red-100 border border-red-200">
+                            Excluir
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="px-6 py-3 bg-slate-50 flex items-center gap-6 flex-wrap">
+                      <StatPill label="Total" value={catStats.total} color="text-slate-700 bg-slate-200" />
+                      <StatPill label="Enviados" value={catStats.email1} color="text-blue-700 bg-blue-100" />
+                      <StatPill label="FUP1" value={catStats.fup1} color="text-indigo-700 bg-indigo-100" />
+                      <StatPill label="FUP2" value={catStats.fup2} color="text-purple-700 bg-purple-100" />
+                      <StatPill label="Respondidos" value={catStats.respondidos} color="text-green-700 bg-green-100" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
