@@ -79,6 +79,7 @@ export default function DashboardPage() {
   const [commSending, setCommSending] = useState(false);
   const [commMsg, setCommMsg] = useState('');
   const [commSender, setCommSender] = useState('');
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -319,7 +320,6 @@ export default function DashboardPage() {
           <h2 className="font-display text-lg font-bold text-slate-800 mb-3">Rotinas por Categoria</h2>
           <div className="space-y-3">
             {Object.entries(stats).filter(([cat, s]) => {
-              // Hide completed categories (Ciclo completo) from dashboard - they show in Resultados
               const pc = painel.find((p: any) => p.category === cat);
               const est = getEstado(s, pc?.ativo ?? false);
               return est.label !== 'Ciclo completo';
@@ -495,6 +495,59 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+
+            {/* Bases Finalizadas - colapsavel */}
+            {(() => {
+              const completedEntries = Object.entries(stats).filter(([cat, s]) => {
+                const pc = painel.find((p: any) => p.category === cat);
+                const est = getEstado(s, pc?.ativo ?? false);
+                return est.label === 'Ciclo completo';
+              });
+              if (completedEntries.length === 0) return null;
+              const totalResp = completedEntries.reduce((sum, [, s]) => sum + s.respondidos, 0);
+              const totalContatos = completedEntries.reduce((sum, [, s]) => sum + s.total, 0);
+              return (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowCompleted(!showCompleted)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Finalizadas ({completedEntries.length})</span>
+                      <span className="text-[10px] font-normal text-green-600">{totalContatos} contatos · {totalResp} respondidos</span>
+                    </div>
+                    <svg className={`w-4 h-4 transition-transform duration-200 ${showCompleted ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                  </button>
+                  {showCompleted && (
+                    <div className="mt-2 space-y-2">
+                      {completedEntries.map(([cat, s]) => {
+                        const taxaResp = s.email1 > 0 ? Math.round((s.respondidos / s.email1) * 100) : 0;
+                        return (
+                          <div key={cat} className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm text-slate-700 truncate">{cat}</span>
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Ciclo completo</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                {s.total} contatos
+                              </div>
+                            </div>
+                            <div className="flex gap-3 text-[10px] text-slate-500 shrink-0">
+                              <span>E1: <strong className="text-blue-600">{s.email1}</strong></span>
+                              <span>F1: <strong className="text-indigo-600">{s.fup1}</strong></span>
+                              <span>F2: <strong className="text-purple-600">{s.fup2}</strong></span>
+                              <span>Resp: <strong className="text-green-600">{s.respondidos}</strong></span>
+                              <span>Taxa: <strong className={taxaResp >= 10 ? 'text-green-600' : taxaResp >= 5 ? 'text-amber-600' : 'text-red-500'}>{taxaResp}%</strong></span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
