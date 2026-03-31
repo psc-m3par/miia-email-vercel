@@ -22,6 +22,9 @@ interface CategoryResult {
   taxaRespostas: number;
   taxaConversao: number;
   isComplete: boolean;
+  email1Pendentes: number;
+  fup1Aguardando: number;
+  fup2Aguardando: number;
 }
 
 export async function GET() {
@@ -102,6 +105,9 @@ export async function GET() {
         taxaRespostas,
         taxaConversao,
         isComplete,
+        email1Pendentes,
+        fup1Aguardando,
+        fup2Aguardando,
       });
     }
 

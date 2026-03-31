@@ -20,6 +20,9 @@ interface CategoryResult {
   taxaRespostas: number;
   taxaConversao: number;
   isComplete: boolean;
+  email1Pendentes: number;
+  fup1Aguardando: number;
+  fup2Aguardando: number;
 }
 
 const PIPELINE_BADGES: Record<string, string> = {
@@ -84,6 +87,10 @@ export default function ResultadosPage() {
   const [newStratName, setNewStratName] = useState('');
   const [newStratComment, setNewStratComment] = useState('');
   const [newStratCats, setNewStratCats] = useState<string[]>([]);
+  const [showAddToStrategy, setShowAddToStrategy] = useState<string | null>(null);
+  const [addStratCats, setAddStratCats] = useState<string[]>([]);
+  const [showPending, setShowPending] = useState(true);
+  const [showFinished, setShowFinished] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -131,6 +138,34 @@ export default function ResultadosPage() {
     saveStrategies(updated);
   };
 
+  const addToStrategy = (stratId: string) => {
+    if (addStratCats.length === 0) return;
+    const updated = strategies.map(s => {
+      if (s.id === stratId) {
+        const merged = Array.from(new Set([...s.categories, ...addStratCats]));
+        return { ...s, categories: merged };
+      }
+      return s;
+    });
+    setStrategies(updated);
+    saveStrategies(updated);
+    setAddStratCats([]);
+    setShowAddToStrategy(null);
+  };
+
+  const removeFromStrategy = (stratId: string, cat: string) => {
+    const updated = strategies.map(s => {
+      if (s.id === stratId) {
+        return { ...s, categories: s.categories.filter(c => c !== cat) };
+      }
+      return s;
+    });
+    // Remove strategy if empty
+    const filtered = updated.filter(s => s.categories.length > 0);
+    setStrategies(filtered);
+    saveStrategies(filtered);
+  };
+
   const getStrategyStats = (strat: Strategy) => {
     const cats = results.filter(r => strat.categories.includes(r.category));
     const total = cats.reduce((s, r) => s + r.totalContatos, 0);
@@ -146,11 +181,15 @@ export default function ResultadosPage() {
   };
 
   const completedResults = results.filter(r => r.isComplete);
+  const pendingResults = results.filter(r => !r.isComplete && r.totalContatos > 0);
   const categories = Array.from(new Set(completedResults.map(r => r.category)));
 
   // Hide categories that are part of a strategy
   const catsInStrategies = new Set(strategies.flatMap(s => s.categories));
   const unstrategizedResults = completedResults.filter(r => !catsInStrategies.has(r.category));
+
+  // Available bases to add to strategies (completed, not already in any strategy)
+  const availableForStrategy = completedResults.filter(r => !catsInStrategies.has(r.category));
 
   const displayResults = filterCat
     ? unstrategizedResults.filter(r => r.category === filterCat)
@@ -165,20 +204,10 @@ export default function ResultadosPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-slate-800">Resultados</h1>
           <p className="text-slate-400 text-xs mt-1">
-            Bases com ciclo completo ({completedResults.length} de {results.length} categorias)
+            {completedResults.length} bases finalizadas · {pendingResults.length} pendentes
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            value={filterCat}
-            onChange={e => setFilterCat(e.target.value)}
-            className="text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white"
-          >
-            <option value="">Todas as categorias</option>
-            {categories.filter(c => !catsInStrategies.has(c)).map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
           <button
             onClick={loadData}
             className="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200"
@@ -188,7 +217,60 @@ export default function ResultadosPage() {
         </div>
       </div>
 
-      {/* Estratégias */}
+      {/* Bases Pendentes */}
+      {pendingResults.length > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowPending(!showPending)}
+            className="w-full flex items-center justify-between px-5 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            <span>Bases Pendentes ({pendingResults.length})</span>
+            <svg className={`w-4 h-4 transition-transform duration-200 ${showPending ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          {showPending && (
+            <div className="mt-2 space-y-2">
+              {pendingResults.map(r => {
+                const totalSteps = r.totalContatos * 3; // E1 + FUP1 + FUP2 per contact
+                const doneSteps = r.email1Enviados + r.fup1Enviados + r.fup2Enviados + (r.bounced * 2); // bounced skip remaining
+                const progress = totalSteps > 0 ? Math.min(doneSteps / totalSteps, 1) : 0;
+                const pct = (progress * 100).toFixed(0);
+                let phase = 'Email 1';
+                if (r.email1Pendentes === 0 && r.fup1Aguardando > 0) phase = 'Aguardando FUP1';
+                else if (r.email1Pendentes === 0 && r.fup1Aguardando === 0 && r.fup2Aguardando > 0) phase = 'Aguardando FUP2';
+                else if (r.email1Pendentes > 0) phase = `Email 1 (${r.email1Pendentes} pendentes)`;
+
+                return (
+                  <div key={r.category} className="bg-white rounded-xl border border-slate-200 px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm text-slate-700 truncate">{r.category}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {r.totalContatos} contatos · {phase}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex gap-2 text-[10px] text-slate-500">
+                        <span>E1: {r.email1Enviados}</span>
+                        <span>F1: {r.fup1Enviados}</span>
+                        <span>F2: {r.fup2Enviados}</span>
+                        {r.respondidos.length > 0 && <span className="text-green-600 font-medium">{r.respondidos.length} resp</span>}
+                      </div>
+                      <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-medium text-amber-700 w-8 text-right">{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estrategias */}
       {strategies.length > 0 && (
         <div className="space-y-4 mb-6">
           {strategies.map(strat => {
@@ -198,12 +280,14 @@ export default function ResultadosPage() {
             const convPct = (st.taxaConv * 100).toFixed(1) + '%';
             const taxaResp = getTaxaColor(st.taxaResp);
             const taxaConv = getTaxaColor(st.taxaConv);
+            const isAddingTo = showAddToStrategy === strat.id;
+            const catsNotInThisStrat = availableForStrategy.filter(r => !strat.categories.includes(r.category));
             return (
               <div key={strat.id} className="bg-white rounded-xl border-2 border-miia-200 overflow-hidden">
                 <div className="px-5 py-4 bg-miia-50/50 border-b border-miia-100 flex items-center justify-between flex-wrap gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs bg-miia-100 text-miia-700 px-2 py-0.5 rounded-full font-medium">Estratégia</span>
+                      <span className="text-xs bg-miia-100 text-miia-700 px-2 py-0.5 rounded-full font-medium">Estrategia</span>
                       <h3 className="font-display text-base font-bold text-slate-800">{strat.name}</h3>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">{strat.categories.length} bases · {st.total} contatos</p>
@@ -211,10 +295,61 @@ export default function ResultadosPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaResp.bg} ${taxaResp.text}`}>{respPct} respostas</div>
-                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaConv.bg} ${taxaConv.text}`}>{convPct} conversão</div>
-                    <button onClick={() => deleteStrategy(strat.id)} className="text-slate-300 hover:text-red-500 text-xs ml-2" title="Deletar estratégia">🗑</button>
+                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaConv.bg} ${taxaConv.text}`}>{convPct} conversao</div>
+                    <button
+                      onClick={() => { setShowAddToStrategy(isAddingTo ? null : strat.id); setAddStratCats([]); }}
+                      className="text-miia-500 hover:text-miia-700 text-xs font-medium ml-2 px-2 py-1 rounded-lg hover:bg-miia-50"
+                      title="Adicionar bases"
+                    >
+                      + Bases
+                    </button>
+                    <button onClick={() => deleteStrategy(strat.id)} className="text-slate-300 hover:text-red-500 text-xs ml-1" title="Deletar estrategia">&#x1f5d1;</button>
                   </div>
                 </div>
+
+                {/* Add bases to strategy */}
+                {isAddingTo && (
+                  <div className="px-5 py-4 bg-miia-50/30 border-b border-miia-100">
+                    <p className="text-xs font-semibold text-slate-700 mb-2">Adicionar bases a esta estrategia:</p>
+                    {catsNotInThisStrat.length === 0 ? (
+                      <p className="text-xs text-slate-400">Nenhuma base disponivel para adicionar</p>
+                    ) : (
+                      <div className="space-y-1 max-h-36 overflow-y-auto mb-3">
+                        {catsNotInThisStrat.map(r => (
+                          <label key={r.category} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-white px-2 py-1.5 rounded-lg cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={addStratCats.includes(r.category)}
+                              onChange={e => {
+                                if (e.target.checked) setAddStratCats([...addStratCats, r.category]);
+                                else setAddStratCats(addStratCats.filter(c => c !== r.category));
+                              }}
+                              className="rounded border-slate-300 text-miia-500 focus:ring-miia-400"
+                            />
+                            <span className="text-xs">{r.category}</span>
+                            <span className="text-[10px] text-slate-400 ml-auto">{r.totalContatos} contatos · {((r.taxaRespostas || 0) * 100).toFixed(1)}% resp</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => addToStrategy(strat.id)}
+                        disabled={addStratCats.length === 0}
+                        className="px-4 py-1.5 bg-miia-500 text-white text-xs font-medium rounded-lg hover:bg-miia-600 disabled:opacity-50"
+                      >
+                        Adicionar ({addStratCats.length})
+                      </button>
+                      <button
+                        onClick={() => { setShowAddToStrategy(null); setAddStratCats([]); }}
+                        className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="px-5 py-4">
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                     <StatBox label="Total contatos" value={st.total} color="blue" />
@@ -242,7 +377,16 @@ export default function ResultadosPage() {
                           <div key={r.category} className="bg-slate-50 rounded-lg p-3">
                             <div className="flex justify-between items-center mb-2">
                               <span className="text-sm font-semibold text-slate-700">{r.category}</span>
-                              <span className="text-[10px] text-slate-400">{r.totalContatos} contatos · {rPct} resp · {cPct} conv</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-400">{r.totalContatos} contatos · {rPct} resp · {cPct} conv</span>
+                                <button
+                                  onClick={() => removeFromStrategy(strat.id, r.category)}
+                                  className="text-slate-300 hover:text-red-500 text-[10px]"
+                                  title="Remover da estrategia"
+                                >
+                                  &#x2715;
+                                </button>
+                              </div>
                             </div>
                             <div className="grid grid-cols-5 gap-2 text-center text-[10px]">
                               <div><div className="font-bold text-blue-600">{r.email1Enviados}</div>E1</div>
@@ -263,13 +407,13 @@ export default function ResultadosPage() {
         </div>
       )}
 
-      {/* Criar estratégia + Modal */}
+      {/* Criar estrategia + Modal */}
       <div className="mb-6 flex justify-end">
         <button
           onClick={() => { setShowCreateStrategy(true); setNewStratCats([]); setNewStratName(''); setNewStratComment(''); }}
           className="px-4 py-2 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 transition-colors"
         >
-          + Criar Estratégia
+          + Criar Estrategia
         </button>
       </div>
 
@@ -277,12 +421,12 @@ export default function ResultadosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-display font-bold text-lg text-slate-800">Nova Estratégia</h2>
-              <button onClick={() => setShowCreateStrategy(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+              <h2 className="font-display font-bold text-lg text-slate-800">Nova Estrategia</h2>
+              <button onClick={() => setShowCreateStrategy(false)} className="text-slate-400 hover:text-slate-600 text-xl">&#x2715;</button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Nome da estratégia</label>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Nome da estrategia</label>
                 <input
                   value={newStratName}
                   onChange={e => setNewStratName(e.target.value)}
@@ -291,11 +435,11 @@ export default function ResultadosPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Comentário (opcional)</label>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Comentario (opcional)</label>
                 <textarea
                   value={newStratComment}
                   onChange={e => setNewStratComment(e.target.value)}
-                  placeholder="Ex: Primeira rodada de prospecção focada em EdTechs"
+                  placeholder="Ex: Primeira rodada de prospeccao focada em EdTechs"
                   rows={2}
                   className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-none"
                 />
@@ -303,7 +447,7 @@ export default function ResultadosPage() {
               <div>
                 <label className="text-xs font-bold text-slate-700 mb-2 block">Selecione as bases ({newStratCats.length} selecionadas)</label>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {categories.map(cat => (
+                  {categories.filter(c => !catsInStrategies.has(c)).map(cat => (
                     <label key={cat} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 px-2 py-1.5 rounded-lg cursor-pointer">
                       <input
                         type="checkbox"
@@ -317,8 +461,8 @@ export default function ResultadosPage() {
                       {cat}
                     </label>
                   ))}
-                  {categories.length === 0 && (
-                    <p className="text-xs text-slate-400 py-2">Nenhuma base com ciclo completo disponível</p>
+                  {categories.filter(c => !catsInStrategies.has(c)).length === 0 && (
+                    <p className="text-xs text-slate-400 py-2">Nenhuma base com ciclo completo disponivel</p>
                   )}
                 </div>
               </div>
@@ -337,126 +481,157 @@ export default function ResultadosPage() {
         </div>
       )}
 
-      {/* Bases individuais */}
-      {displayResults.length === 0 && strategies.length === 0 ? (
+      {/* Bases acabadas (nao em estrategia) - agrupadas colapsavel */}
+      {displayResults.length > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowFinished(!showFinished)}
+            className="w-full flex items-center justify-between px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span>Bases Finalizadas sem Estrategia ({displayResults.length})</span>
+              <span className="text-[10px] font-normal text-slate-400">
+                {displayResults.reduce((s, r) => s + r.totalContatos, 0)} contatos · {displayResults.reduce((s, r) => s + r.respondidos.length, 0)} respondidos
+              </span>
+            </div>
+            <svg className={`w-4 h-4 transition-transform duration-200 ${showFinished ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          {showFinished && (
+            <div className="mt-2 space-y-4">
+              <div className="flex justify-end">
+                <select
+                  value={filterCat}
+                  onChange={e => setFilterCat(e.target.value)}
+                  className="text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-miia-400/50 bg-white"
+                >
+                  <option value="">Todas</option>
+                  {unstrategizedResults.map(r => (
+                    <option key={r.category} value={r.category}>{r.category}</option>
+                  ))}
+                </select>
+              </div>
+              {(filterCat ? displayResults.filter(r => r.category === filterCat) : displayResults).map(r => {
+                const taxaResp = getTaxaColor(r.taxaRespostas || 0);
+                const taxaConv = getTaxaColor(r.taxaConversao);
+                const isExpanded = expandedCats[r.category] || false;
+                const respPctStr = ((r.taxaRespostas || 0) * 100).toFixed(1) + '%';
+                const convPctStr = (r.taxaConversao * 100).toFixed(1) + '%';
+
+                return (
+                  <div
+                    key={r.category}
+                    className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+                  >
+                    {/* Header */}
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <h3 className="font-display text-base font-bold text-slate-800">
+                          {r.category}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {r.totalContatos} contatos na base
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaResp.bg} ${taxaResp.text}`}>
+                          {respPctStr} respostas
+                        </div>
+                        <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaConv.bg} ${taxaConv.text}`}>
+                          {convPctStr} conversao
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="px-5 py-4">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <StatBox label="E1 enviados" value={r.email1Enviados} color="blue" />
+                        <StatBox label="FUP1 enviados" value={r.fup1Enviados} color="indigo" />
+                        <StatBox label="FUP2 enviados" value={r.fup2Enviados} color="purple" />
+                        <StatBox label="Respondidos" value={r.respondidos.length} color="green" />
+                        <StatBox label="Bounced" value={r.bounced} color="red" />
+                      </div>
+                    </div>
+
+                    {/* Expandable respondidos */}
+                    {r.respondidos.length > 0 && (
+                      <div className="border-t border-slate-100">
+                        <button
+                          onClick={() => toggleExpanded(r.category)}
+                          className="w-full px-5 py-3 flex items-center justify-between text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                          <span>Ver respondidos ({r.respondidos.length})</span>
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-slate-50 border-b border-slate-100 border-t">
+                                  <th className="text-left px-5 py-2.5 text-slate-500 font-medium">Nome</th>
+                                  <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Empresa</th>
+                                  <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Email</th>
+                                  <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Pipeline</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {r.respondidos.map((resp, i) => (
+                                  <tr
+                                    key={i}
+                                    className="border-b border-slate-50 hover:bg-slate-50/50"
+                                  >
+                                    <td className="px-5 py-2.5 font-medium text-slate-700">
+                                      {resp.nome || '(sem nome)'}
+                                    </td>
+                                    <td className="px-3 py-2.5 text-slate-600">
+                                      {resp.empresa || '-'}
+                                    </td>
+                                    <td className="px-3 py-2.5 text-slate-500">{resp.email}</td>
+                                    <td className="px-3 py-2.5">
+                                      <span
+                                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${getPipelineBadgeClass(resp.pipeline)}`}
+                                      >
+                                        {getPipelineLabel(resp.pipeline)}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {completedResults.length === 0 && strategies.length === 0 && pendingResults.length === 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <div className="text-4xl mb-4 text-slate-300">--</div>
           <h2 className="font-display text-lg font-bold text-slate-600 mb-2">
-            Nenhuma base finalizada ainda
+            Nenhuma base ainda
           </h2>
           <p className="text-slate-400 text-sm max-w-md mx-auto">
             Os resultados aparecem aqui quando todas as rotinas de uma categoria forem concluidas
             (Email 1, FUP1 e FUP2 sem pendencias).
           </p>
-        </div>
-      ) : displayResults.length === 0 ? null : (
-        <div className="space-y-4">
-          {displayResults.map(r => {
-            const taxaResp = getTaxaColor(r.taxaRespostas || 0);
-            const taxaConv = getTaxaColor(r.taxaConversao);
-            const isExpanded = expandedCats[r.category] || false;
-            const respPctStr = ((r.taxaRespostas || 0) * 100).toFixed(1) + '%';
-            const convPctStr = (r.taxaConversao * 100).toFixed(1) + '%';
-
-            return (
-              <div
-                key={r.category}
-                className="bg-white rounded-xl border border-slate-200 overflow-hidden"
-              >
-                {/* Header */}
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <h3 className="font-display text-base font-bold text-slate-800">
-                      {r.category}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {r.totalContatos} contatos na base
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaResp.bg} ${taxaResp.text}`}>
-                      {respPctStr} respostas
-                    </div>
-                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${taxaConv.bg} ${taxaConv.text}`}>
-                      {convPctStr} conversao
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats grid */}
-                <div className="px-5 py-4">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <StatBox label="E1 enviados" value={r.email1Enviados} color="blue" />
-                    <StatBox label="FUP1 enviados" value={r.fup1Enviados} color="indigo" />
-                    <StatBox label="FUP2 enviados" value={r.fup2Enviados} color="purple" />
-                    <StatBox label="Respondidos" value={r.respondidos.length} color="green" />
-                    <StatBox label="Bounced" value={r.bounced} color="red" />
-                  </div>
-                </div>
-
-                {/* Expandable respondidos */}
-                {r.respondidos.length > 0 && (
-                  <div className="border-t border-slate-100">
-                    <button
-                      onClick={() => toggleExpanded(r.category)}
-                      className="w-full px-5 py-3 flex items-center justify-between text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      <span>Ver respondidos ({r.respondidos.length})</span>
-                      <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100 border-t">
-                              <th className="text-left px-5 py-2.5 text-slate-500 font-medium">Nome</th>
-                              <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Empresa</th>
-                              <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Email</th>
-                              <th className="text-left px-3 py-2.5 text-slate-500 font-medium">Pipeline</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {r.respondidos.map((resp, i) => (
-                              <tr
-                                key={i}
-                                className="border-b border-slate-50 hover:bg-slate-50/50"
-                              >
-                                <td className="px-5 py-2.5 font-medium text-slate-700">
-                                  {resp.nome || '(sem nome)'}
-                                </td>
-                                <td className="px-3 py-2.5 text-slate-600">
-                                  {resp.empresa || '-'}
-                                </td>
-                                <td className="px-3 py-2.5 text-slate-500">{resp.email}</td>
-                                <td className="px-3 py-2.5">
-                                  <span
-                                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${getPipelineBadgeClass(resp.pipeline)}`}
-                                  >
-                                    {getPipelineLabel(resp.pipeline)}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       )}
     </div>
