@@ -90,17 +90,28 @@ export default function TemplatesPage() {
   const [newTemplate, setNewTemplate] = useState<Template>({ category: '', assunto: '', corpo: '', fup1Assunto: '', fup1Corpo: '', fup2Assunto: '', fup2Corpo: '' });
   const [creating, setCreating] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
+  const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
+  const [showFinished, setShowFinished] = useState(false);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/sheets?type=templates').then(r => r.json()),
       fetch('/api/sheets?type=painel').then(r => r.json()),
-    ]).then(([tmplData, painelData]) => {
+      fetch('/api/resultados', { cache: 'no-store' }).then(r => r.json()),
+    ]).then(([tmplData, painelData, resultData]) => {
       if (Array.isArray(tmplData)) setTemplates(tmplData);
       if (Array.isArray(painelData)) {
         const tmplCats = Array.isArray(tmplData) ? tmplData.map((t: Template) => t.category) : [];
         const allCats = painelData.map((p: any) => p.category).filter((c: string) => !tmplCats.includes(c));
         setCategories(allCats);
+      }
+      if (resultData?.results) {
+        const done = new Set<string>(
+          resultData.results
+            .filter((r: any) => r.isComplete)
+            .map((r: any) => r.category)
+        );
+        setCompletedCats(done);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -190,22 +201,55 @@ export default function TemplatesPage() {
               </button>
             </div>
             <div className="p-2">
-              {templates.map((t, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelect(i)}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all mb-1 ${
-                    selected === i
-                      ? 'bg-miia-500 text-white shadow-md'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="font-medium">{t.category}</div>
-                  <div className={`text-xs mt-0.5 truncate ${selected === i ? 'text-white/60' : 'text-slate-400'}`}>
-                    {t.assunto}
-                  </div>
-                </button>
-              ))}
+              {templates.filter(t => !completedCats.has(t.category)).map((t, i) => {
+                const realIdx = templates.indexOf(t);
+                return (
+                  <button
+                    key={realIdx}
+                    onClick={() => handleSelect(realIdx)}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all mb-1 ${
+                      selected === realIdx
+                        ? 'bg-miia-500 text-white shadow-md'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="font-medium">{t.category}</div>
+                    <div className={`text-xs mt-0.5 truncate ${selected === realIdx ? 'text-white/60' : 'text-slate-400'}`}>
+                      {t.assunto}
+                    </div>
+                  </button>
+                );
+              })}
+              {templates.some(t => completedCats.has(t.category)) && (
+                <>
+                  <button
+                    onClick={() => setShowFinished(!showFinished)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 mt-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-50 transition-colors border border-dashed border-slate-200"
+                  >
+                    <span>Finalizadas ({templates.filter(t => completedCats.has(t.category)).length})</span>
+                    <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${showFinished ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                  </button>
+                  {showFinished && templates.filter(t => completedCats.has(t.category)).map(t => {
+                    const realIdx = templates.indexOf(t);
+                    return (
+                      <button
+                        key={realIdx}
+                        onClick={() => handleSelect(realIdx)}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all mb-1 ${
+                          selected === realIdx
+                            ? 'bg-miia-500 text-white shadow-md'
+                            : 'text-slate-500 hover:bg-slate-50 opacity-70'
+                        }`}
+                      >
+                        <div className="font-medium text-xs">{t.category}</div>
+                        <div className={`text-[10px] mt-0.5 truncate ${selected === realIdx ? 'text-white/60' : 'text-slate-400'}`}>
+                          {t.assunto}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </div>
         </div>
