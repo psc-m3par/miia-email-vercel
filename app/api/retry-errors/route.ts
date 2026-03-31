@@ -33,7 +33,7 @@ async function runRetryErrors(category?: string) {
       totalErros += comErro.length;
       if (comErro.length === 0) continue;
 
-      const lote = comErro.slice(0, 5);
+      const lote = comErro;
       let corrigidosCat = 0;
       const errosCat: string[] = [];
 
