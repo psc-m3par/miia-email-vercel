@@ -183,6 +183,7 @@ export default function ExtrairPage() {
   const [dragOver, setDragOver] = useState(false);
   const [onlyWithPhone, setOnlyWithPhone] = useState(true);
   const [uploadCategory, setUploadCategory] = useState('');
+  const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isExactMode = exactContacts !== null;
@@ -202,7 +203,7 @@ export default function ExtrairPage() {
       ? filteredExactContacts
       : contacts;
 
-  // Load categories and accounts
+  // Load categories, accounts, and completed bases
   useEffect(() => {
     fetch('/api/sheets?type=painel').then(r => r.json()).then(data => {
       if (Array.isArray(data)) {
@@ -214,6 +215,11 @@ export default function ExtrairPage() {
       const emails = arr.map((t: any) => t.email).filter(Boolean);
       setAccounts(emails);
       if (emails.length > 0) setGoogleAccount(emails[0]);
+    });
+    fetch('/api/resultados', { cache: 'no-store' }).then(r => r.json()).then(data => {
+      if (data?.results) {
+        setCompletedCats(new Set(data.results.filter((r: any) => r.isComplete).map((r: any) => r.category)));
+      }
     });
   }, []);
 
@@ -627,11 +633,31 @@ export default function ExtrairPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-xs font-bold text-slate-700">Categoria</h2>
-                  {selectedCats.length > 0 && <button onClick={() => setSelectedCats([])} className="text-[10px] text-slate-400 hover:text-slate-600">Limpar</button>}
+                  <div className="flex items-center gap-2">
+                    {completedCats.size > 0 && (
+                      <>
+                        <button
+                          onClick={() => setSelectedCats(allCategorias.filter(c => completedCats.has(c)))}
+                          className="text-[10px] text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Finalizadas ({allCategorias.filter(c => completedCats.has(c)).length})
+                        </button>
+                        <span className="text-slate-200">|</span>
+                        <button
+                          onClick={() => setSelectedCats(allCategorias.filter(c => !completedCats.has(c)))}
+                          className="text-[10px] text-amber-600 hover:text-amber-800 font-medium"
+                        >
+                          Ativas ({allCategorias.filter(c => !completedCats.has(c)).length})
+                        </button>
+                        <span className="text-slate-200">|</span>
+                      </>
+                    )}
+                    {selectedCats.length > 0 && <button onClick={() => setSelectedCats([])} className="text-[10px] text-slate-400 hover:text-slate-600">Limpar</button>}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {allCategorias.map(cat => (
-                    <Chip key={cat} label={cat} color="bg-miia-100 text-miia-700" selected={selectedCats.includes(cat)} onClick={() => toggleItem(selectedCats, setSelectedCats, cat)} />
+                    <Chip key={cat} label={cat} color={completedCats.has(cat) ? 'bg-green-100 text-green-700' : 'bg-miia-100 text-miia-700'} selected={selectedCats.includes(cat)} onClick={() => toggleItem(selectedCats, setSelectedCats, cat)} />
                   ))}
                 </div>
               </div>
