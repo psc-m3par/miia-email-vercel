@@ -10,6 +10,7 @@ interface PainelRow {
 
 interface CatStats {
   total: number; pendentes: number; email1: number; fup1: number; fup2: number; respondidos: number; erros: number;
+  e1Respondidos?: number; e1Bounced?: number; fup1Respondidos?: number; fup1Bounced?: number; semThread?: number;
 }
 
 export default function SettingsPage() {
