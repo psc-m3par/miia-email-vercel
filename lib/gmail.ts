@@ -1,15 +1,28 @@
 import { getValidAccessToken } from './tokens';
 
+function sanitizeEmail(email: string): string {
+  // Extract just the email address, stripping any extra data
+  const trimmed = email.trim();
+  // If it contains angle brackets like "Name <email@x.com>", extract the email
+  const angleMatch = trimmed.match(/<([^>]+)>/);
+  if (angleMatch) return angleMatch[1].trim();
+  // If it contains @ somewhere, extract the email-like part
+  const emailMatch = trimmed.match(/[\w.+-]+@[\w.-]+\.\w+/);
+  if (emailMatch) return emailMatch[0];
+  return trimmed;
+}
+
 function createRawEmail(from: string, to: string, subject: string, htmlBody: string, cc?: string, threadId?: string, messageId?: string): string {
+  const cleanTo = sanitizeEmail(to);
   const boundary = 'boundary_' + Date.now();
   let headers = [
     'From: ' + from,
-    'To: ' + to,
+    'To: ' + cleanTo,
     'Subject: =?UTF-8?B?' + Buffer.from(subject, 'utf-8').toString('base64') + '?=',
     'MIME-Version: 1.0',
     'Content-Type: multipart/alternative; boundary="' + boundary + '"',
   ];
-  if (cc) headers.push('Cc: ' + cc);
+  if (cc) headers.push('Cc: ' + sanitizeEmail(cc));
   if (messageId) headers.push('In-Reply-To: ' + messageId, 'References: ' + messageId);
 
   const body = [
