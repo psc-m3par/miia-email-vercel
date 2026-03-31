@@ -10,7 +10,7 @@ function getAuth() {
   });
 }
 
-function getSheets() {
+export function getSheets() {
   return google.sheets({ version: 'v4', auth: getAuth() });
 }
 
@@ -281,7 +281,7 @@ export async function readLogs(spreadsheetId?: string, limit = 150) {
   }
 }
 
-async function getSheetId(sheetName: string, spreadsheetId?: string): Promise<number | null> {
+export async function getSheetId(sheetName: string, spreadsheetId?: string): Promise<number | null> {
   const sheets = getSheets();
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: spreadsheetId || SPREADSHEET_ID });
   const sheet = spreadsheet.data.sheets?.find(
