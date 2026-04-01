@@ -92,17 +92,22 @@ export default function TemplatesPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
   const [showFinished, setShowFinished] = useState(false);
+  const [painelData, setPainelData] = useState<any[]>([]);
+  const [filterRemetente, setFilterRemetente] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<number>(-1);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/sheets?type=templates').then(r => r.json()),
       fetch('/api/sheets?type=painel').then(r => r.json()),
       fetch('/api/resultados', { cache: 'no-store' }).then(r => r.json()),
-    ]).then(([tmplData, painelData, resultData]) => {
+    ]).then(([tmplData, pData, resultData]) => {
       if (Array.isArray(tmplData)) setTemplates(tmplData);
-      if (Array.isArray(painelData)) {
+      if (Array.isArray(pData)) {
+        setPainelData(pData);
         const tmplCats = Array.isArray(tmplData) ? tmplData.map((t: Template) => t.category) : [];
-        const allCats = painelData.map((p: any) => p.category).filter((c: string) => !tmplCats.includes(c));
+        const allCats = pData.map((p: any) => p.category).filter((c: string) => !tmplCats.includes(c));
         setCategories(allCats);
       }
       if (resultData?.results) {
@@ -115,6 +120,37 @@ export default function TemplatesPage() {
       }
     }).finally(() => setLoading(false));
   }, []);
+
+  const remetentes = Array.from(new Set(painelData.map((p: any) => p.responsavel).filter(Boolean)));
+  const remetenteForCat = (cat: string) => painelData.find((p: any) => p.category === cat)?.responsavel || '';
+  const filteredTemplates = filterRemetente
+    ? templates.filter(t => remetenteForCat(t.category) === filterRemetente)
+    : templates;
+
+  const handleDeleteTemplate = async (idx: number) => {
+    if (confirmDelete !== idx) { setConfirmDelete(idx); return; }
+    setDeleting(true);
+    setMessage('');
+    try {
+      const cat = templates[idx].category;
+      const res = await fetch('/api/sheets', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: cat, deleteFromTemplates: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTemplates(templates.filter((_, i) => i !== idx));
+      setSelected(-1);
+      setEditing(null);
+      setMessage('Template "' + cat + '" excluido!');
+    } catch (e: any) {
+      setMessage('Erro: ' + e.message);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(-1);
+    }
+  };
 
   const handleSelect = (idx: number) => {
     setSelected(idx);
@@ -200,8 +236,20 @@ export default function TemplatesPage() {
                 + Novo
               </button>
             </div>
+            {remetentes.length > 1 && (
+              <div className="px-3 pt-2">
+                <select
+                  value={filterRemetente}
+                  onChange={e => { setFilterRemetente(e.target.value); setSelected(-1); setEditing(null); }}
+                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                >
+                  <option value="">Todos os remetentes</option>
+                  {remetentes.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            )}
             <div className="p-2">
-              {templates.filter(t => !completedCats.has(t.category)).map((t, i) => {
+              {filteredTemplates.filter(t => !completedCats.has(t.category)).map((t, i) => {
                 const realIdx = templates.indexOf(t);
                 return (
                   <button
@@ -220,16 +268,16 @@ export default function TemplatesPage() {
                   </button>
                 );
               })}
-              {templates.some(t => completedCats.has(t.category)) && (
+              {filteredTemplates.some(t => completedCats.has(t.category)) && (
                 <>
                   <button
                     onClick={() => setShowFinished(!showFinished)}
                     className="w-full flex items-center justify-between px-4 py-2.5 mt-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-50 transition-colors border border-dashed border-slate-200"
                   >
-                    <span>Finalizadas ({templates.filter(t => completedCats.has(t.category)).length})</span>
+                    <span>Finalizadas ({filteredTemplates.filter(t => completedCats.has(t.category)).length})</span>
                     <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${showFinished ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                   </button>
-                  {showFinished && templates.filter(t => completedCats.has(t.category)).map(t => {
+                  {showFinished && filteredTemplates.filter(t => completedCats.has(t.category)).map(t => {
                     const realIdx = templates.indexOf(t);
                     return (
                       <button
@@ -335,6 +383,26 @@ export default function TemplatesPage() {
                   className="px-6 py-2.5 bg-miia-500 text-white rounded-xl font-medium hover:bg-miia-600 disabled:opacity-50 shadow-lg shadow-miia-500/20">
                   {saving ? 'Salvando...' : 'Salvar alteracoes'}
                 </button>
+                <div className="ml-auto">
+                  {confirmDelete === selected ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-red-600 font-medium">Tem certeza?</span>
+                      <button onClick={() => handleDeleteTemplate(selected)} disabled={deleting}
+                        className="px-4 py-2 bg-red-600 text-white text-xs rounded-xl font-medium hover:bg-red-700 disabled:opacity-50">
+                        {deleting ? '...' : 'Confirmar'}
+                      </button>
+                      <button onClick={() => setConfirmDelete(-1)}
+                        className="px-4 py-2 bg-slate-200 text-slate-600 text-xs rounded-xl font-medium hover:bg-slate-300">
+                        Nao
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => handleDeleteTemplate(selected)}
+                      className="px-4 py-2 bg-red-50 text-red-600 text-xs rounded-xl font-medium hover:bg-red-100 border border-red-200">
+                      Excluir template
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

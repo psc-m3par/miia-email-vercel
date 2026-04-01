@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [creatingCat, setCreatingCat] = useState(false);
   const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
+  const [filterRemetente, setFilterRemetente] = useState('');
 
   const loadData = () => {
     setLoading(true);
@@ -272,6 +273,23 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {(() => {
+        const remetentes = Array.from(new Set(painel.map(p => p.responsavel).filter(Boolean)));
+        if (remetentes.length > 1) return (
+          <div className="mb-6">
+            <select
+              value={filterRemetente}
+              onChange={e => setFilterRemetente(e.target.value)}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+            >
+              <option value="">Todos os remetentes</option>
+              {remetentes.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+        );
+        return null;
+      })()}
+
       {showNewCat && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6">
           <h3 className="font-semibold text-green-800 mb-4">Criar Nova Category</h3>
@@ -300,7 +318,7 @@ export default function SettingsPage() {
       )}
 
       <div className="space-y-4">
-        {painel.filter((row) => !completedCats.has(row.category)).map((row) => {
+        {painel.filter((row) => !completedCats.has(row.category) && (!filterRemetente || row.responsavel === filterRemetente)).map((row) => {
           const idx = painel.indexOf(row);
           const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
           return (
@@ -412,18 +430,18 @@ export default function SettingsPage() {
       </div>
 
       {/* Bases Finalizadas - colapsavel */}
-      {painel.some(row => completedCats.has(row.category)) && (
+      {painel.some(row => completedCats.has(row.category) && (!filterRemetente || row.responsavel === filterRemetente)) && (
         <div className="mt-6">
           <button
             onClick={() => setShowCompleted(!showCompleted)}
             className="w-full flex items-center justify-between px-5 py-3 bg-green-50 border border-green-200 rounded-xl text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
           >
-            <span>Bases Finalizadas ({painel.filter(row => completedCats.has(row.category)).length})</span>
+            <span>Bases Finalizadas ({painel.filter(row => completedCats.has(row.category) && (!filterRemetente || row.responsavel === filterRemetente)).length})</span>
             <svg className={`w-4 h-4 transition-transform duration-200 ${showCompleted ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
           </button>
           {showCompleted && (
             <div className="mt-3 space-y-4">
-              {painel.filter(row => completedCats.has(row.category)).map((row) => {
+              {painel.filter(row => completedCats.has(row.category) && (!filterRemetente || row.responsavel === filterRemetente)).map((row) => {
                 const idx = painel.indexOf(row);
                 const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
                 return (
