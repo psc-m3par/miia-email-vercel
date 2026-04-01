@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readTeses, appendTese, updateTese, getAllSpreadsheetIds, appendSheet, writeSheet } from '@/lib/sheets';
+import { readTeses, appendTese, updateTese, getAllSpreadsheetIds, appendSheet, writeSheet, readPainel, readTemplates } from '@/lib/sheets';
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -123,34 +123,57 @@ export async function PUT(req: NextRequest) {
       const categoria = rest.categoria || tese.categoria;
       if (!categoria) return NextResponse.json({ error: 'Categoria é obrigatória' }, { status: 400 });
 
-      // Create category in Painel sheet
-      // Columns: category, responsavel, nomeRemetente, emailsHora, diasFup1, diasFup2, ativo, cc, ultimoEnvio, horaInicio, horaFim
-      await appendSheet('Painel!A:K', [[
-        categoria,
-        tese.senderEmail || tese.criadoPor || '',
-        tese.nomeRemetente || (tese.senderEmail ? tese.senderEmail.split('@')[0] : ''),
-        20,
-        3,
-        7,
-        'FALSE',
-        '',
-        '',
-        8,
-        21,
-      ]], sid);
+      // Check if category already exists in Painel (idempotent on retry)
+      const existingPainel = await readPainel(sid);
+      const painelExists = existingPainel.some(p => p.category.trim().toLowerCase() === categoria.trim().toLowerCase());
 
-      // Create template in Templates sheet
-      // Columns: category, assunto, corpo, fup1Assunto, fup1Corpo, fup2Assunto, fup2Corpo
-      await appendSheet('Templates!A:G', [[
-        categoria,
-        `Proposta para {{firstName}}`,
-        tese.template || tese.tese,
-        `Re: Proposta para {{firstName}}`,
-        `Olá {{firstName}}, gostaria de retomar nosso contato.`,
-        `Re: Proposta para {{firstName}}`,
-        `{{firstName}}, esta é nossa última tentativa de contato.`,
-      ]], sid);
+      if (!painelExists) {
+        await appendSheet('Painel!A:K', [[
+          categoria,
+          tese.senderEmail || tese.criadoPor || '',
+          tese.nomeRemetente || (tese.senderEmail ? tese.senderEmail.split('@')[0] : ''),
+          20,
+          3,
+          7,
+          'FALSE',
+          '',
+          '',
+          8,
+          21,
+        ]], sid);
+      }
 
+      // Check if template already exists (idempotent on retry)
+      const existingTemplates = await readTemplates(sid);
+      const templateExists = existingTemplates.some(t => t.category.trim().toLowerCase() === categoria.trim().toLowerCase());
+
+      if (!templateExists) {
+        // Retry once on failure — if this fails the tese stays un-approved so user can retry
+        try {
+          await appendSheet('Templates!A:G', [[
+            categoria,
+            `Proposta para {{firstName}}`,
+            tese.template || tese.tese,
+            `Re: Proposta para {{firstName}}`,
+            `Olá {{firstName}}, gostaria de retomar nosso contato.`,
+            `Re: Proposta para {{firstName}}`,
+            `{{firstName}}, esta é nossa última tentativa de contato.`,
+          ]], sid);
+        } catch (e) {
+          // Retry once
+          await appendSheet('Templates!A:G', [[
+            categoria,
+            `Proposta para {{firstName}}`,
+            tese.template || tese.tese,
+            `Re: Proposta para {{firstName}}`,
+            `Olá {{firstName}}, gostaria de retomar nosso contato.`,
+            `Re: Proposta para {{firstName}}`,
+            `{{firstName}}, esta é nossa última tentativa de contato.`,
+          ]], sid);
+        }
+      }
+
+      // Only mark as APROVADA after both Painel and Template are confirmed
       await updateTese(rowIndex, {
         status: 'APROVADA',
         categoria,
