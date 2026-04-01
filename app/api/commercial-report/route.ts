@@ -1,14 +1,25 @@
 import { NextResponse } from 'next/server';
-import { getDashboardStats, readContatos, readPainel, getAllSpreadsheetIds } from '@/lib/sheets';
+import { getDashboardStats, readContatos, readPainel, getAllSpreadsheetIds, FUP_CONFIG } from '@/lib/sheets';
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 function isComplete(s: any): boolean {
-  const semFup1 = s.email1 - s.respondidos - s.bounced - s.fup1;
-  const semFup2 = s.fup1 - (s.fup1Respondidos || 0) - (s.fup1Bounced || 0) - s.fup2;
-  return s.pendentes === 0 && s.total > 0 && semFup1 <= 0 && semFup2 <= 0;
+  // A category is complete when all contacts have reached the end of the funnel:
+  // no pending email1, and for each FUP stage, resolved >= need
+  if (s.pendentes > 0 || s.total === 0) return false;
+  let prev = s.email1;
+  for (const f of FUP_CONFIG) {
+    const fn = f.n;
+    const respondidos = s[`fup${fn}Respondidos`] || 0;
+    const bounced = s[`fup${fn}Bounced`] || 0;
+    const sent = s[`fup${fn}`] || 0;
+    const remaining = prev - respondidos - bounced - sent;
+    if (remaining > 0) return false;
+    prev = sent;
+  }
+  return true;
 }
 
 function pct(num: number, den: number): string {
@@ -57,17 +68,23 @@ export async function GET() {
       }
     }
 
+    // Sum all FUPs sent today
+    const hojeFupsTotal = FUP_CONFIG.reduce((sum, f) => sum + (totalGeral[`hojeFup${f.n}`] || 0), 0);
+
+    // Build FUP summary string
+    const fupSummary = FUP_CONFIG.map(f => `${totalGeral[`fup${f.n}`] || 0} FUP${f.n}`).join(', ');
+
     // Build report
     let text = `Pessoal, segue aqui o report comercial consolidado:\n\n`;
 
     // Atividade de hoje
-    text += `📧 Atividade de Hoje\n`;
-    text += `Hoje foram disparados ${totalGeral.hojeEmail1} emails iniciais, ${totalGeral.hojeFup1} follow-ups 1 e ${totalGeral.hojeFup2} follow-ups 2, totalizando ${totalGeral.hojeEmail1 + totalGeral.hojeFup1 + totalGeral.hojeFup2} envios no dia. `;
+    text += `Atividade de Hoje\n`;
+    text += `Hoje foram disparados ${totalGeral.hojeEmail1} emails iniciais e ${hojeFupsTotal} follow-ups, totalizando ${totalGeral.hojeEmail1 + hojeFupsTotal} envios no dia. `;
     text += `Temos ${totalGeral.respondidos} respostas acumuladas e ${totalGeral.pendentes} pendentes. `;
-    text += `No acumulado, a base total é de ${Object.values(stats).reduce((s: number, x: any) => s + x.total, 0)} contatos, dos quais ${totalGeral.email1} já receberam o primeiro email, ${totalGeral.fup1} o FUP1 e ${totalGeral.fup2} o FUP2.\n\n`;
+    text += `No acumulado, a base total é de ${Object.values(stats).reduce((s: number, x: any) => s + x.total, 0)} contatos, dos quais ${totalGeral.email1} já receberam o primeiro email, ${fupSummary}.\n\n`;
 
     // Pipeline comercial
-    text += `📊 Pipeline Comercial\n`;
+    text += `Pipeline Comercial\n`;
     const pipeTexts: string[] = [];
     if (pipelineCounts.NOVO > 0) pipeTexts.push(`${pipelineCounts.NOVO} novos`);
     if (pipelineCounts.CONVERSANDO > 0) pipeTexts.push(`${pipelineCounts.CONVERSANDO} em conversa`);
@@ -84,13 +101,14 @@ export async function GET() {
 
     // Bases ativas por categoria
     if (activeBases.length > 0) {
-      text += `📋 Bases Ativas por Categoria\n`;
+      text += `Bases Ativas por Categoria\n`;
       for (const cat of activeBases) {
         const s = stats[cat] as any;
         const taxaResp = pct(s.respondidos, s.email1);
         const taxaConv = pct(s.conversoes || 0, s.email1);
         const emailsPerResp = s.respondidos > 0 ? Math.round(s.email1 / s.respondidos) : 0;
-        text += `\n• ${cat} (${s.total} contatos): ${s.email1} emails enviados, ${s.fup1} FUP1, ${s.fup2} FUP2. `;
+        const fupCounts = FUP_CONFIG.map(f => `${s[`fup${f.n}`] || 0} FUP${f.n}`).filter(x => !x.startsWith('0 ')).join(', ');
+        text += `\n- ${cat} (${s.total} contatos): ${s.email1} emails enviados${fupCounts ? ', ' + fupCounts : ''}. `;
         text += `Taxa de respostas: ${taxaResp}, taxa de conversão: ${taxaConv}`;
         if (emailsPerResp > 0) text += `, ${emailsPerResp} emails/resposta`;
         text += `. `;
@@ -102,22 +120,22 @@ export async function GET() {
 
     // Bases com ciclo completo
     if (completedBases.length > 0) {
-      text += `✅ Bases com Ciclo Completo\n`;
+      text += `Bases com Ciclo Completo\n`;
       for (const cat of completedBases) {
         const s = stats[cat] as any;
         const taxaResp = pct(s.respondidos, s.email1);
         const taxaConv = pct(s.conversoes || 0, s.email1);
-        text += `\n• ${cat}: ${s.total} contatos prospectados, ${s.respondidos} respostas (${taxaResp}), ${s.conversoes || 0} conversões (${taxaConv}).`;
+        text += `\n- ${cat}: ${s.total} contatos prospectados, ${s.respondidos} respostas (${taxaResp}), ${s.conversoes || 0} conversões (${taxaConv}).`;
       }
       text += `\n\n`;
     }
 
     // Novas bases
     if (newBases.length > 0) {
-      text += `🆕 Novas Bases (Iniciando Envio)\n`;
+      text += `Novas Bases (Iniciando Envio)\n`;
       for (const cat of newBases) {
         const s = stats[cat] as any;
-        text += `\n• ${cat}: ${s.total} contatos, ${s.email1} enviados até agora`;
+        text += `\n- ${cat}: ${s.total} contatos, ${s.email1} enviados até agora`;
         if (s.bounced > 0) text += `, ${s.bounced} bounces`;
         if (s.respondidos > 0) text += `, ${s.respondidos} respostas`;
         text += `. Ainda no início do E1.`;

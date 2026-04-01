@@ -50,7 +50,7 @@ export async function appendSheet(range: string, values: any[][], spreadsheetId?
 }
 
 export async function readPainel(spreadsheetId?: string) {
-  const rows = await readSheet('Painel!A:K', spreadsheetId);
+  const rows = await readSheet('Painel!A:S', spreadsheetId);
   if (rows.length < 2) return [];
   return rows.slice(1).filter(r => r[0]).map((r, i) => ({
     rowIndex: i + 2,
@@ -65,11 +65,19 @@ export async function readPainel(spreadsheetId?: string) {
     ultimoEnvio: r[8] || '',
     horaInicio: parseInt(r[9]) || 0,
     horaFim: parseInt(r[10]) || 24,
+    diasFup3: parseInt(r[11]) || 2,
+    diasFup4: parseInt(r[12]) || 2,
+    diasFup5: parseInt(r[13]) || 2,
+    diasFup6: parseInt(r[14]) || 2,
+    diasFup7: parseInt(r[15]) || 2,
+    diasFup8: parseInt(r[16]) || 2,
+    diasFup9: parseInt(r[17]) || 2,
+    diasFup10: parseInt(r[18]) || 2,
   }));
 }
 
 export async function readTemplates(spreadsheetId?: string) {
-  const rows = await readSheet('Templates!A:G', spreadsheetId);
+  const rows = await readSheet('Templates!A:W', spreadsheetId);
   if (rows.length < 2) return [];
   return rows.slice(1).filter(r => r[0]).map(r => ({
     category: r[0] || '',
@@ -79,11 +87,27 @@ export async function readTemplates(spreadsheetId?: string) {
     fup1Corpo: r[4] || '',
     fup2Assunto: r[5] || '',
     fup2Corpo: r[6] || '',
+    fup3Assunto: r[7] || '',
+    fup3Corpo: r[8] || '',
+    fup4Assunto: r[9] || '',
+    fup4Corpo: r[10] || '',
+    fup5Assunto: r[11] || '',
+    fup5Corpo: r[12] || '',
+    fup6Assunto: r[13] || '',
+    fup6Corpo: r[14] || '',
+    fup7Assunto: r[15] || '',
+    fup7Corpo: r[16] || '',
+    fup8Assunto: r[17] || '',
+    fup8Corpo: r[18] || '',
+    fup9Assunto: r[19] || '',
+    fup9Corpo: r[20] || '',
+    fup10Assunto: r[21] || '',
+    fup10Corpo: r[22] || '',
   }));
 }
 
 export async function readContatos(spreadsheetId?: string) {
-  const rows = await readSheet('Contatos!A:N', spreadsheetId);
+  const rows = await readSheet('Contatos!A:V', spreadsheetId);
   if (rows.length < 2) return { headers: rows[0] || [], contacts: [] };
   const headers = rows[0];
   const contacts = rows.slice(1).map((r, i) => ({ r, actualRow: i + 2 })).filter(({ r }) => r[0] || r[3]).map(({ r, actualRow }) => ({
@@ -102,8 +126,43 @@ export async function readContatos(spreadsheetId?: string) {
     atendido: r[11] || '',
     pipeline: r[12] || '',
     nota: r[13] || '',
+    fup3Enviado: r[14] || '',
+    fup4Enviado: r[15] || '',
+    fup5Enviado: r[16] || '',
+    fup6Enviado: r[17] || '',
+    fup7Enviado: r[18] || '',
+    fup8Enviado: r[19] || '',
+    fup9Enviado: r[20] || '',
+    fup10Enviado: r[21] || '',
   }));
   return { headers, contacts };
+}
+
+// Centralized FUP configuration: maps FUP number to column letters and field names
+export const FUP_CONFIG = [
+  { n: 1, col: 'I', prevField: 'email1Enviado', curField: 'fup1Enviado', diasField: 'diasFup1', subjectField: 'fup1Assunto', bodyField: 'fup1Corpo' },
+  { n: 2, col: 'J', prevField: 'fup1Enviado', curField: 'fup2Enviado', diasField: 'diasFup2', subjectField: 'fup2Assunto', bodyField: 'fup2Corpo' },
+  { n: 3, col: 'O', prevField: 'fup2Enviado', curField: 'fup3Enviado', diasField: 'diasFup3', subjectField: 'fup3Assunto', bodyField: 'fup3Corpo' },
+  { n: 4, col: 'P', prevField: 'fup3Enviado', curField: 'fup4Enviado', diasField: 'diasFup4', subjectField: 'fup4Assunto', bodyField: 'fup4Corpo' },
+  { n: 5, col: 'Q', prevField: 'fup4Enviado', curField: 'fup5Enviado', diasField: 'diasFup5', subjectField: 'fup5Assunto', bodyField: 'fup5Corpo' },
+  { n: 6, col: 'R', prevField: 'fup5Enviado', curField: 'fup6Enviado', diasField: 'diasFup6', subjectField: 'fup6Assunto', bodyField: 'fup6Corpo' },
+  { n: 7, col: 'S', prevField: 'fup6Enviado', curField: 'fup7Enviado', diasField: 'diasFup7', subjectField: 'fup7Assunto', bodyField: 'fup7Corpo' },
+  { n: 8, col: 'T', prevField: 'fup7Enviado', curField: 'fup8Enviado', diasField: 'diasFup8', subjectField: 'fup8Assunto', bodyField: 'fup8Corpo' },
+  { n: 9, col: 'U', prevField: 'fup8Enviado', curField: 'fup9Enviado', diasField: 'diasFup9', subjectField: 'fup9Assunto', bodyField: 'fup9Corpo' },
+  { n: 10, col: 'V', prevField: 'fup9Enviado', curField: 'fup10Enviado', diasField: 'diasFup10', subjectField: 'fup10Assunto', bodyField: 'fup10Corpo' },
+] as const;
+
+// Helper: get all FUP column letters
+export const FUP_COLS = FUP_CONFIG.map(f => f.col);
+
+// Helper: check if any FUP field has a given status
+export function anyFupHasStatus(contact: any, status: string): boolean {
+  return FUP_CONFIG.some(f => (contact[f.curField] || '') === status);
+}
+
+// Helper: check if any FUP field includes a given substring
+export function anyFupIncludes(contact: any, substr: string): boolean {
+  return FUP_CONFIG.some(f => (contact[f.curField] || '').includes(substr));
 }
 
 export async function writePipeline(rowIndex: number, value: string, spreadsheetId?: string): Promise<void> {
@@ -135,17 +194,20 @@ export async function getDashboardStats() {
 
   const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const stats: Record<string, any> = {};
-  const emptyStats = {
-    total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0,
+  const emptyStats: Record<string, number> = {
+    total: 0, pendentes: 0, email1: 0,
     respondidos: 0, bounced: 0, erros: 0, semThread: 0,
-    hojeEmail1: 0, hojeFup1: 0, hojeFup2: 0,
-    // Per-stage breakdown
+    hojeEmail1: 0,
     e1Respondidos: 0, e1Bounced: 0,
-    fup1Respondidos: 0, fup1Bounced: 0,
-    fup2Respondidos: 0, fup2Bounced: 0,
-    // Conversion: contacts with pipeline REUNIAO or GANHO
     conversoes: 0,
   };
+  // Add per-FUP fields dynamically
+  for (const f of FUP_CONFIG) {
+    emptyStats[`fup${f.n}`] = 0;
+    emptyStats[`hojeFup${f.n}`] = 0;
+    emptyStats[`fup${f.n}Respondidos`] = 0;
+    emptyStats[`fup${f.n}Bounced`] = 0;
+  }
   let totalGeral = { ...emptyStats };
 
   for (const c of allContacts) {
@@ -155,36 +217,40 @@ export async function getDashboardStats() {
     stats[cat].total++; totalGeral.total++;
 
     const e1 = c.email1Enviado.toString();
-    const f1 = c.fup1Enviado.toString();
-    const f2 = c.fup2Enviado.toString();
 
     if (e1.startsWith('OK')) { stats[cat].email1++; totalGeral.email1++; }
     else if (e1.startsWith('ERRO')) { stats[cat].erros++; totalGeral.erros++; }
     else if (e1.startsWith('BOUNCE')) { stats[cat].e1Bounced++; totalGeral.e1Bounced++; stats[cat].bounced++; totalGeral.bounced++; }
     else { stats[cat].pendentes++; totalGeral.pendentes++; }
 
-    if (f1.startsWith('OK')) { stats[cat].fup1++; totalGeral.fup1++; }
-    if (f2.startsWith('OK')) { stats[cat].fup2++; totalGeral.fup2++; }
+    // Per-FUP stats
+    const fupVals = FUP_CONFIG.map(f => (c[f.curField] || '').toString());
+    for (let i = 0; i < FUP_CONFIG.length; i++) {
+      const fv = fupVals[i];
+      const fn = FUP_CONFIG[i].n;
+      if (fv.startsWith('OK')) { stats[cat][`fup${fn}`]++; totalGeral[`fup${fn}`]++; }
+      if (fv.includes(hoje)) { stats[cat][`hojeFup${fn}`]++; totalGeral[`hojeFup${fn}`]++; }
+    }
 
-    // Per-stage respondidos/bounced
-    // E1 stage: responded/bounced before FUP1 was sent (fup1Enviado = RESPONDIDO/BOUNCE)
+    // Per-stage respondidos/bounced: response at stage N means fupN was OK and fupN+1 is RESPONDIDO/BOUNCE
+    const f1 = fupVals[0]; // fup1Enviado
     if (f1 === 'RESPONDIDO') { stats[cat].e1Respondidos++; totalGeral.e1Respondidos++; }
     if (f1 === 'BOUNCE') { stats[cat].e1Bounced++; totalGeral.e1Bounced++; }
-    // FUP1 stage: FUP1 sent (OK), response before FUP2 (fup2 = RESPONDIDO/BOUNCE, not OK)
-    if (f1.startsWith('OK') && f2 === 'RESPONDIDO') { stats[cat].fup1Respondidos++; totalGeral.fup1Respondidos++; }
-    if (f1.startsWith('OK') && f2 === 'BOUNCE') { stats[cat].fup1Bounced++; totalGeral.fup1Bounced++; }
-    // FUP2 stage: hard to distinguish from FUP1 stage in current data model, tracked together above
+    for (let i = 0; i < FUP_CONFIG.length - 1; i++) {
+      const cur = fupVals[i];
+      const next = fupVals[i + 1];
+      const fn = FUP_CONFIG[i].n;
+      if (cur.startsWith('OK') && next === 'RESPONDIDO') { stats[cat][`fup${fn}Respondidos`]++; totalGeral[`fup${fn}Respondidos`]++; }
+      if (cur.startsWith('OK') && next === 'BOUNCE') { stats[cat][`fup${fn}Bounced`]++; totalGeral[`fup${fn}Bounced`]++; }
+    }
 
-    // Totals (backward compat)
-    if (f1 === 'RESPONDIDO' || f2 === 'RESPONDIDO') { stats[cat].respondidos++; totalGeral.respondidos++; }
-    if (f1 === 'BOUNCE' || f2 === 'BOUNCE') { stats[cat].bounced++; totalGeral.bounced++; }
-    // Conversion: pipeline is REUNIAO or GANHO
+    // Totals
+    if (anyFupHasStatus(c, 'RESPONDIDO')) { stats[cat].respondidos++; totalGeral.respondidos++; }
+    if (anyFupHasStatus(c, 'BOUNCE')) { stats[cat].bounced++; totalGeral.bounced++; }
     const pipe = (c.pipeline || '').toUpperCase();
     if (pipe === 'REUNIAO' || pipe === 'GANHO') { stats[cat].conversoes++; totalGeral.conversoes++; }
     if (e1.startsWith('OK') && !c.threadId) { stats[cat].semThread++; totalGeral.semThread++; }
     if (e1.includes(hoje)) { stats[cat].hojeEmail1++; totalGeral.hojeEmail1++; }
-    if (f1.includes(hoje)) { stats[cat].hojeFup1++; totalGeral.hojeFup1++; }
-    if (f2.includes(hoje)) { stats[cat].hojeFup2++; totalGeral.hojeFup2++; }
   }
 
   return { painel: allPainel, templates: allTemplates, stats, totalGeral, totalContatos: allContacts.length };

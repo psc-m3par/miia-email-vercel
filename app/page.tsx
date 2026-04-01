@@ -4,22 +4,42 @@ import { useState, useEffect, useCallback } from 'react';
 
 interface Stats {
   total: number; pendentes: number; email1: number; fup1: number; fup2: number;
+  fup3: number; fup4: number; fup5: number; fup6: number; fup7: number; fup8: number; fup9: number; fup10: number;
   respondidos: number; bounced: number; erros: number; semThread: number;
   hojeEmail1: number; hojeFup1: number; hojeFup2: number;
+  hojeFup3: number; hojeFup4: number; hojeFup5: number; hojeFup6: number; hojeFup7: number; hojeFup8: number; hojeFup9: number; hojeFup10: number;
   e1Respondidos: number; e1Bounced: number;
   fup1Respondidos: number; fup1Bounced: number;
   fup2Respondidos: number; fup2Bounced: number;
+  fup3Respondidos: number; fup3Bounced: number;
+  fup4Respondidos: number; fup4Bounced: number;
+  fup5Respondidos: number; fup5Bounced: number;
+  fup6Respondidos: number; fup6Bounced: number;
+  fup7Respondidos: number; fup7Bounced: number;
+  fup8Respondidos: number; fup8Bounced: number;
+  fup9Respondidos: number; fup9Bounced: number;
+  fup10Respondidos: number; fup10Bounced: number;
   conversoes: number;
 }
 
 interface FupForecast {
   fup1Aguardando: number; fup1ProximaData: string | null; fup1Prontos: number;
   fup2Aguardando: number; fup2ProximaData: string | null; fup2Prontos: number;
+  fup3Aguardando: number; fup3ProximaData: string | null; fup3Prontos: number;
+  fup4Aguardando: number; fup4ProximaData: string | null; fup4Prontos: number;
+  fup5Aguardando: number; fup5ProximaData: string | null; fup5Prontos: number;
+  fup6Aguardando: number; fup6ProximaData: string | null; fup6Prontos: number;
+  fup7Aguardando: number; fup7ProximaData: string | null; fup7Prontos: number;
+  fup8Aguardando: number; fup8ProximaData: string | null; fup8Prontos: number;
+  fup9Aguardando: number; fup9ProximaData: string | null; fup9Prontos: number;
+  fup10Aguardando: number; fup10ProximaData: string | null; fup10Prontos: number;
 }
 
 interface Contact {
   firstName: string; lastName: string; companyName: string; email: string;
   category: string; email1Enviado: string; fup1Enviado: string; fup2Enviado: string;
+  fup3Enviado: string; fup4Enviado: string; fup5Enviado: string; fup6Enviado: string;
+  fup7Enviado: string; fup8Enviado: string; fup9Enviado: string; fup10Enviado: string;
 }
 
 interface DashboardData {
@@ -41,6 +61,16 @@ function getEstado(s: Stats, ativo: boolean): { label: string; color: string } {
   if (semFup1 > 0) return { label: 'Aguardando FUP1', color: 'bg-indigo-100 text-indigo-700' };
   const semFup2 = s.fup1 - (s.fup1Respondidos || 0) - (s.fup1Bounced || 0) - s.fup2;
   if (semFup2 > 0) return { label: 'Aguardando FUP2', color: 'bg-purple-100 text-purple-700' };
+  // Check FUP3-10
+  const fupColors = ['bg-violet-100 text-violet-700', 'bg-fuchsia-100 text-fuchsia-700', 'bg-pink-100 text-pink-700', 'bg-rose-100 text-rose-700', 'bg-orange-100 text-orange-700', 'bg-amber-100 text-amber-700', 'bg-teal-100 text-teal-700', 'bg-cyan-100 text-cyan-700'];
+  const prevFups = [s.fup2, s.fup3, s.fup4, s.fup5, s.fup6, s.fup7, s.fup8, s.fup9];
+  const prevResp = [s.fup2Respondidos || 0, s.fup3Respondidos || 0, s.fup4Respondidos || 0, s.fup5Respondidos || 0, s.fup6Respondidos || 0, s.fup7Respondidos || 0, s.fup8Respondidos || 0, s.fup9Respondidos || 0];
+  const prevBounce = [s.fup2Bounced || 0, s.fup3Bounced || 0, s.fup4Bounced || 0, s.fup5Bounced || 0, s.fup6Bounced || 0, s.fup7Bounced || 0, s.fup8Bounced || 0, s.fup9Bounced || 0];
+  const currFups = [s.fup3, s.fup4, s.fup5, s.fup6, s.fup7, s.fup8, s.fup9, s.fup10];
+  for (let i = 0; i < 8; i++) {
+    const semFupN = (prevFups[i] || 0) - (prevResp[i] || 0) - (prevBounce[i] || 0) - (currFups[i] || 0);
+    if (semFupN > 0) return { label: `Aguardando FUP${i + 3}`, color: fupColors[i] };
+  }
   if (s.email1 > 0) return { label: 'Ciclo completo', color: 'bg-green-100 text-green-700' };
   return { label: 'Pronto', color: 'bg-slate-100 text-slate-500' };
 }
@@ -138,7 +168,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'painel', rowIndex: cat.rowIndex,
-        values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, ativo ? 'SIM' : 'NAO', cat.cc, cat.ultimoEnvio || '', cat.horaInicio ?? 8, cat.horaFim ?? 24],
+        values: [cat.category, cat.responsavel, cat.nomeRemetente, cat.emailsHora, cat.diasFup1, cat.diasFup2, ativo ? 'SIM' : 'NAO', cat.cc, cat.ultimoEnvio || '', cat.horaInicio ?? 8, cat.horaFim ?? 24, cat.diasFup3 ?? 2, cat.diasFup4 ?? 2, cat.diasFup5 ?? 2, cat.diasFup6 ?? 2, cat.diasFup7 ?? 2, cat.diasFup8 ?? 2, cat.diasFup9 ?? 2, cat.diasFup10 ?? 2],
       }),
     }).catch(() => {});
   };
@@ -280,16 +310,17 @@ export default function DashboardPage() {
           <BigMetric label="Emails enviados" value={totalGeral.hojeEmail1} />
           <BigMetric label="FUP1 enviados" value={totalGeral.hojeFup1} />
           <BigMetric label="FUP2 enviados" value={totalGeral.hojeFup2} />
+          <BigMetric label="FUP3-10 enviados" value={(totalGeral.hojeFup3 || 0) + (totalGeral.hojeFup4 || 0) + (totalGeral.hojeFup5 || 0) + (totalGeral.hojeFup6 || 0) + (totalGeral.hojeFup7 || 0) + (totalGeral.hojeFup8 || 0) + (totalGeral.hojeFup9 || 0) + (totalGeral.hojeFup10 || 0)} />
           <BigMetric label="Respondidos" value={totalGeral.respondidos} accent="green" />
-          <BigMetric label="Pendentes" value={totalGeral.pendentes} accent="amber" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
         <StatBox label="Total na base" value={totalGeral.total} color="slate" />
         <StatBox label="Email 1 enviado" value={totalGeral.email1} color="blue" />
         <StatBox label="FUP1 enviado" value={totalGeral.fup1} color="indigo" />
         <StatBox label="FUP2 enviado" value={totalGeral.fup2} color="purple" />
+        <StatBox label="FUP3-10 enviado" value={(totalGeral.fup3 || 0) + (totalGeral.fup4 || 0) + (totalGeral.fup5 || 0) + (totalGeral.fup6 || 0) + (totalGeral.fup7 || 0) + (totalGeral.fup8 || 0) + (totalGeral.fup9 || 0) + (totalGeral.fup10 || 0)} color="purple" />
         <StatBox label="Respondidos" value={totalGeral.respondidos} color="green" />
         <StatBox label="Erros" value={totalGeral.erros} color="red" />
       </div>
@@ -405,15 +436,43 @@ export default function DashboardPage() {
                     {(() => {
                       const fup2Pendentes = Math.max(0, s.fup1 - s.fup2 - s.fup1Respondidos - s.fup1Bounced);
                       return (
-                        <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1.5">
+                        <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1.5 border-b border-slate-50">
                           <span className="text-[10px] font-semibold text-purple-600 text-left">FUP2</span>
                           <span className="text-xs font-bold text-purple-600">{s.fup2}</span>
                           <span className={`text-xs font-bold ${fup2Pendentes > 0 ? 'text-amber-600' : 'text-slate-300'}`}>{fup2Pendentes}</span>
                           <span className={`text-xs font-bold ${s.fup2Respondidos > 0 ? 'text-green-600' : 'text-slate-300'}`}>{s.fup2Respondidos}</span>
                           <span className={`text-xs font-bold ${s.fup2Bounced > 0 ? 'text-red-500' : 'text-slate-300'}`}>{s.fup2Bounced}</span>
-                          <span className="text-xs text-slate-300">—</span>
+                          <span className="text-xs text-slate-300">--</span>
                         </div>
                       );
+                    })()}
+                    {/* FUP3-10 */}
+                    {(() => {
+                      const fupLabels = ['FUP3','FUP4','FUP5','FUP6','FUP7','FUP8','FUP9','FUP10'];
+                      const fupColors = ['text-violet-600','text-fuchsia-600','text-pink-600','text-rose-600','text-orange-600','text-amber-600','text-teal-600','text-cyan-600'];
+                      const fupValues = [s.fup3, s.fup4, s.fup5, s.fup6, s.fup7, s.fup8, s.fup9, s.fup10];
+                      const prevValues = [s.fup2, s.fup3, s.fup4, s.fup5, s.fup6, s.fup7, s.fup8, s.fup9];
+                      const prevResp = [s.fup2Respondidos || 0, s.fup3Respondidos || 0, s.fup4Respondidos || 0, s.fup5Respondidos || 0, s.fup6Respondidos || 0, s.fup7Respondidos || 0, s.fup8Respondidos || 0, s.fup9Respondidos || 0];
+                      const prevBounce = [s.fup2Bounced || 0, s.fup3Bounced || 0, s.fup4Bounced || 0, s.fup5Bounced || 0, s.fup6Bounced || 0, s.fup7Bounced || 0, s.fup8Bounced || 0, s.fup9Bounced || 0];
+                      const fupResp = [s.fup3Respondidos || 0, s.fup4Respondidos || 0, s.fup5Respondidos || 0, s.fup6Respondidos || 0, s.fup7Respondidos || 0, s.fup8Respondidos || 0, s.fup9Respondidos || 0, s.fup10Respondidos || 0];
+                      const fupBounce = [s.fup3Bounced || 0, s.fup4Bounced || 0, s.fup5Bounced || 0, s.fup6Bounced || 0, s.fup7Bounced || 0, s.fup8Bounced || 0, s.fup9Bounced || 0, s.fup10Bounced || 0];
+                      // Only show rows that have any activity
+                      const hasAny = fupValues.some(v => (v || 0) > 0);
+                      if (!hasAny) return null;
+                      return fupLabels.map((label, i) => {
+                        if ((fupValues[i] || 0) === 0 && (prevValues[i] || 0) === 0) return null;
+                        const pend = Math.max(0, (prevValues[i] || 0) - (fupValues[i] || 0) - (prevResp[i] || 0) - (prevBounce[i] || 0));
+                        return (
+                          <div key={label} className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] gap-1 text-center py-1.5 border-b border-slate-50">
+                            <span className={`text-[10px] font-semibold ${fupColors[i]} text-left`}>{label}</span>
+                            <span className={`text-xs font-bold ${fupColors[i]}`}>{fupValues[i] || 0}</span>
+                            <span className={`text-xs font-bold ${pend > 0 ? 'text-amber-600' : 'text-slate-300'}`}>{pend}</span>
+                            <span className={`text-xs font-bold ${fupResp[i] > 0 ? 'text-green-600' : 'text-slate-300'}`}>{fupResp[i]}</span>
+                            <span className={`text-xs font-bold ${fupBounce[i] > 0 ? 'text-red-500' : 'text-slate-300'}`}>{fupBounce[i]}</span>
+                            <span className="text-xs text-slate-300">--</span>
+                          </div>
+                        );
+                      });
                     })()}
                   </div>
 
@@ -421,9 +480,6 @@ export default function DashboardPage() {
                   {(() => {
                     const fc = fupForecast[cat];
                     if (!fc) return null;
-                    const hasFup1Info = fc.fup1Aguardando > 0 || fc.fup1Prontos > 0;
-                    const hasFup2Info = fc.fup2Aguardando > 0 || fc.fup2Prontos > 0;
-                    if (!hasFup1Info && !hasFup2Info) return null;
 
                     const formatProx = (isoDate: string | null) => {
                       if (!isoDate) return '';
@@ -433,36 +489,35 @@ export default function DashboardPage() {
                       return `em ${Math.ceil(diff / 24)}d`;
                     };
 
+                    const fupInfos = Array.from({ length: 10 }, (_, i) => {
+                      const n = i + 1;
+                      const aguardando = (fc as any)[`fup${n}Aguardando`] || 0;
+                      const prontos = (fc as any)[`fup${n}Prontos`] || 0;
+                      const proxData = (fc as any)[`fup${n}ProximaData`] || null;
+                      return { n, aguardando, prontos, proxData, hasInfo: aguardando > 0 || prontos > 0 };
+                    }).filter(f => f.hasInfo);
+
+                    if (fupInfos.length === 0) return null;
+
+                    const fupColorMap: Record<number, string> = { 1: 'text-indigo-600', 2: 'text-purple-600', 3: 'text-violet-600', 4: 'text-fuchsia-600', 5: 'text-pink-600', 6: 'text-rose-600', 7: 'text-orange-600', 8: 'text-amber-600', 9: 'text-teal-600', 10: 'text-cyan-600' };
+
                     return (
                       <div className="bg-indigo-50/50 rounded-lg px-3 py-2 mb-2 text-[10px]">
-                        <div className="font-semibold text-indigo-700 mb-1">Próximos FUPs</div>
-                        <div className="flex gap-4">
-                          {hasFup1Info && (
-                            <div>
-                              <span className="text-indigo-600 font-medium">FUP1:</span>{' '}
-                              {fc.fup1Prontos > 0 ? (
-                                <span className="text-green-600 font-semibold">{fc.fup1Prontos} pronto(s)</span>
+                        <div className="font-semibold text-indigo-700 mb-1">Proximos FUPs</div>
+                        <div className="flex gap-4 flex-wrap">
+                          {fupInfos.map(f => (
+                            <div key={f.n}>
+                              <span className={`${fupColorMap[f.n] || 'text-slate-600'} font-medium`}>FUP{f.n}:</span>{' '}
+                              {f.prontos > 0 ? (
+                                <span className="text-green-600 font-semibold">{f.prontos} pronto(s)</span>
                               ) : (
                                 <span className="text-slate-500">
-                                  {fc.fup1Aguardando} aguardando
-                                  {fc.fup1ProximaData && <> — próx {formatProx(fc.fup1ProximaData)}</>}
+                                  {f.aguardando} aguardando
+                                  {f.proxData && <> -- prox {formatProx(f.proxData)}</>}
                                 </span>
                               )}
                             </div>
-                          )}
-                          {hasFup2Info && (
-                            <div>
-                              <span className="text-purple-600 font-medium">FUP2:</span>{' '}
-                              {fc.fup2Prontos > 0 ? (
-                                <span className="text-green-600 font-semibold">{fc.fup2Prontos} pronto(s)</span>
-                              ) : (
-                                <span className="text-slate-500">
-                                  {fc.fup2Aguardando} aguardando
-                                  {fc.fup2ProximaData && <> — próx {formatProx(fc.fup2ProximaData)}</>}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          ))}
                         </div>
                       </div>
                     );
@@ -533,10 +588,13 @@ export default function DashboardPage() {
                                 {s.total} contatos
                               </div>
                             </div>
-                            <div className="flex gap-3 text-[10px] text-slate-500 shrink-0">
+                            <div className="flex gap-3 text-[10px] text-slate-500 shrink-0 flex-wrap">
                               <span>E1: <strong className="text-blue-600">{s.email1}</strong></span>
                               <span>F1: <strong className="text-indigo-600">{s.fup1}</strong></span>
                               <span>F2: <strong className="text-purple-600">{s.fup2}</strong></span>
+                              {((s.fup3 || 0) + (s.fup4 || 0) + (s.fup5 || 0) + (s.fup6 || 0) + (s.fup7 || 0) + (s.fup8 || 0) + (s.fup9 || 0) + (s.fup10 || 0)) > 0 && (
+                                <span>F3-10: <strong className="text-violet-600">{(s.fup3 || 0) + (s.fup4 || 0) + (s.fup5 || 0) + (s.fup6 || 0) + (s.fup7 || 0) + (s.fup8 || 0) + (s.fup9 || 0) + (s.fup10 || 0)}</strong></span>
+                              )}
                               <span>Resp: <strong className="text-green-600">{s.respondidos}</strong></span>
                               <span>Taxa: <strong className={taxaResp >= 10 ? 'text-green-600' : taxaResp >= 5 ? 'text-amber-600' : 'text-red-500'}>{taxaResp}%</strong></span>
                             </div>
@@ -620,9 +678,16 @@ export default function DashboardPage() {
                     const time = c.email1Enviado.replace('OK ', '');
                     let status = 'Email 1';
                     let statusColor = 'bg-blue-100 text-blue-700';
-                    if (c.fup2Enviado === 'RESPONDIDO') { status = 'Respondido'; statusColor = 'bg-green-100 text-green-700'; }
-                    else if (c.fup2Enviado && c.fup2Enviado.startsWith('OK')) { status = 'FUP2'; statusColor = 'bg-purple-100 text-purple-700'; }
-                    else if (c.fup1Enviado && c.fup1Enviado.startsWith('OK')) { status = 'FUP1'; statusColor = 'bg-indigo-100 text-indigo-700'; }
+                    // Check highest FUP stage
+                    const fupEnviados = [c.fup1Enviado, c.fup2Enviado, c.fup3Enviado, c.fup4Enviado, c.fup5Enviado, c.fup6Enviado, c.fup7Enviado, c.fup8Enviado, c.fup9Enviado, c.fup10Enviado];
+                    const fupNames = ['FUP1','FUP2','FUP3','FUP4','FUP5','FUP6','FUP7','FUP8','FUP9','FUP10'];
+                    const fupStatusColors = ['bg-indigo-100 text-indigo-700','bg-purple-100 text-purple-700','bg-violet-100 text-violet-700','bg-fuchsia-100 text-fuchsia-700','bg-pink-100 text-pink-700','bg-rose-100 text-rose-700','bg-orange-100 text-orange-700','bg-amber-100 text-amber-700','bg-teal-100 text-teal-700','bg-cyan-100 text-cyan-700'];
+                    if (fupEnviados.some(f => f === 'RESPONDIDO')) { status = 'Respondido'; statusColor = 'bg-green-100 text-green-700'; }
+                    else {
+                      for (let fi = 9; fi >= 0; fi--) {
+                        if (fupEnviados[fi] && fupEnviados[fi].startsWith('OK')) { status = fupNames[fi]; statusColor = fupStatusColors[fi]; break; }
+                      }
+                    }
                     return (
                       <div key={i} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50/50">
                         <div>

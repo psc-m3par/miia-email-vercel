@@ -5,7 +5,10 @@ import { useState, useEffect } from 'react';
 interface Contact {
   rowIndex: number; firstName: string; lastName: string; companyName: string;
   email: string; category: string; email1Enviado: string;
-  fup1Enviado: string; fup2Enviado: string; threadId: string;
+  fup1Enviado: string; fup2Enviado: string;
+  fup3Enviado: string; fup4Enviado: string; fup5Enviado: string; fup6Enviado: string;
+  fup7Enviado: string; fup8Enviado: string; fup9Enviado: string; fup10Enviado: string;
+  threadId: string;
 }
 
 interface PainelRow {
@@ -47,23 +50,34 @@ export default function ContactsPage() {
   };
 
   const getStatus = (c: Contact) => {
-    if (c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE') return 'bounce';
-    if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
-    if (c.fup2Enviado?.startsWith('OK')) return 'fup2';
-    if (c.fup1Enviado?.startsWith('OK')) return 'fup1';
+    const allFupEnviados = [c.fup1Enviado, c.fup2Enviado, c.fup3Enviado, c.fup4Enviado, c.fup5Enviado, c.fup6Enviado, c.fup7Enviado, c.fup8Enviado, c.fup9Enviado, c.fup10Enviado];
+    if (allFupEnviados.some(f => f === 'BOUNCE')) return 'bounce';
+    if (allFupEnviados.some(f => f === 'RESPONDIDO')) return 'respondido';
+    // Check from highest FUP down
+    for (let i = 9; i >= 0; i--) {
+      if (allFupEnviados[i]?.startsWith('OK')) return `fup${i + 1}`;
+    }
     if (c.email1Enviado?.startsWith('ERRO')) return 'erro';
     if (c.email1Enviado?.startsWith('OK')) return 'email1';
     return 'pendente';
   };
 
   const statusLabel: Record<string, { label: string; bg: string; text: string }> = {
-    pendente:   { label: 'Pendente',       bg: 'bg-slate-100',  text: 'text-slate-600' },
-    email1:     { label: 'Email 1',        bg: 'bg-blue-100',   text: 'text-blue-700' },
-    fup1:       { label: 'FUP1',           bg: 'bg-indigo-100', text: 'text-indigo-700' },
-    fup2:       { label: 'FUP2',           bg: 'bg-purple-100', text: 'text-purple-700' },
-    respondido: { label: 'Respondido',     bg: 'bg-green-100',  text: 'text-green-700' },
-    bounce:     { label: 'Não encontrado', bg: 'bg-orange-100', text: 'text-orange-700' },
-    erro:       { label: 'Erro',           bg: 'bg-red-100',    text: 'text-red-700' },
+    pendente:   { label: 'Pendente',       bg: 'bg-slate-100',   text: 'text-slate-600' },
+    email1:     { label: 'Email 1',        bg: 'bg-blue-100',    text: 'text-blue-700' },
+    fup1:       { label: 'FUP1',           bg: 'bg-indigo-100',  text: 'text-indigo-700' },
+    fup2:       { label: 'FUP2',           bg: 'bg-purple-100',  text: 'text-purple-700' },
+    fup3:       { label: 'FUP3',           bg: 'bg-violet-100',  text: 'text-violet-700' },
+    fup4:       { label: 'FUP4',           bg: 'bg-fuchsia-100', text: 'text-fuchsia-700' },
+    fup5:       { label: 'FUP5',           bg: 'bg-pink-100',    text: 'text-pink-700' },
+    fup6:       { label: 'FUP6',           bg: 'bg-rose-100',    text: 'text-rose-700' },
+    fup7:       { label: 'FUP7',           bg: 'bg-orange-100',  text: 'text-orange-700' },
+    fup8:       { label: 'FUP8',           bg: 'bg-amber-100',   text: 'text-amber-700' },
+    fup9:       { label: 'FUP9',           bg: 'bg-teal-100',    text: 'text-teal-700' },
+    fup10:      { label: 'FUP10',          bg: 'bg-cyan-100',    text: 'text-cyan-700' },
+    respondido: { label: 'Respondido',     bg: 'bg-green-100',   text: 'text-green-700' },
+    bounce:     { label: 'Nao encontrado', bg: 'bg-orange-100',  text: 'text-orange-700' },
+    erro:       { label: 'Erro',           bg: 'bg-red-100',     text: 'text-red-700' },
   };
 
   const filtered = contacts.filter(c => {

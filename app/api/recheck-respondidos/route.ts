@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readPainel, readContatos, writeSheet, appendLog, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readPainel, readContatos, writeSheet, appendLog, getAllSpreadsheetIds, FUP_CONFIG, anyFupIncludes } from '@/lib/sheets';
 import { checkReplies } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -26,8 +26,7 @@ export async function POST() {
 
       // Find all contacts marked as RESPONDIDO that have a threadId
       const respondidos = contacts.filter(c =>
-        c.threadId &&
-        (c.fup1Enviado.includes('RESPONDIDO') || c.fup2Enviado.includes('RESPONDIDO'))
+        c.threadId && anyFupIncludes(c, 'RESPONDIDO')
       );
 
       for (const contato of respondidos) {
@@ -47,29 +46,24 @@ export async function POST() {
 
         // If re-check detects it's actually a bounce, fix it
         if (result.hasReply && result.isBounce) {
-          // Combine both columns into a single write when possible
-          if (contato.fup1Enviado.includes('RESPONDIDO') && contato.fup2Enviado.includes('RESPONDIDO')) {
+          // Find all FUP columns with RESPONDIDO and write BOUNCE
+          const respondidoFups = FUP_CONFIG.filter(f =>
+            (contato[f.curField] || '').includes('RESPONDIDO')
+          );
+
+          for (const f of respondidoFups) {
             await writeSheet(
-              'Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex,
-              [['BOUNCE', 'BOUNCE']],
-              spreadsheetId
-            );
-          } else if (contato.fup1Enviado.includes('RESPONDIDO')) {
-            await writeSheet(
-              'Contatos!I' + contato.rowIndex,
-              [['BOUNCE']],
-              spreadsheetId
-            );
-          } else if (contato.fup2Enviado.includes('RESPONDIDO')) {
-            await writeSheet(
-              'Contatos!J' + contato.rowIndex,
+              `Contatos!${f.col}${contato.rowIndex}`,
               [['BOUNCE']],
               spreadsheetId
             );
           }
-          totalCorrigidos++;
-          // Longer pause after writes to avoid Sheets quota
-          await new Promise(r => setTimeout(r, 1500));
+
+          if (respondidoFups.length > 0) {
+            totalCorrigidos++;
+            // Longer pause after writes to avoid Sheets quota
+            await new Promise(r => setTimeout(r, 1500));
+          }
         } else {
           await new Promise(r => setTimeout(r, 200));
         }

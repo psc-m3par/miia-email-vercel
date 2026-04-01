@@ -15,6 +15,14 @@ interface CategoryResult {
   email1Enviados: number;
   fup1Enviados: number;
   fup2Enviados: number;
+  fup3Enviados: number;
+  fup4Enviados: number;
+  fup5Enviados: number;
+  fup6Enviados: number;
+  fup7Enviados: number;
+  fup8Enviados: number;
+  fup9Enviados: number;
+  fup10Enviados: number;
   respondidos: Respondido[];
   bounced: number;
   taxaRespostas: number;
@@ -23,6 +31,14 @@ interface CategoryResult {
   email1Pendentes: number;
   fup1Aguardando: number;
   fup2Aguardando: number;
+  fup3Aguardando: number;
+  fup4Aguardando: number;
+  fup5Aguardando: number;
+  fup6Aguardando: number;
+  fup7Aguardando: number;
+  fup8Aguardando: number;
+  fup9Aguardando: number;
+  fup10Aguardando: number;
 }
 
 const PIPELINE_BADGES: Record<string, string> = {
@@ -172,12 +188,13 @@ export default function ResultadosPage() {
     const e1 = cats.reduce((s, r) => s + r.email1Enviados, 0);
     const fup1 = cats.reduce((s, r) => s + r.fup1Enviados, 0);
     const fup2 = cats.reduce((s, r) => s + r.fup2Enviados, 0);
+    const fup3_10 = cats.reduce((s, r) => s + (r.fup3Enviados || 0) + (r.fup4Enviados || 0) + (r.fup5Enviados || 0) + (r.fup6Enviados || 0) + (r.fup7Enviados || 0) + (r.fup8Enviados || 0) + (r.fup9Enviados || 0) + (r.fup10Enviados || 0), 0);
     const resp = cats.reduce((s, r) => s + r.respondidos.length, 0);
     const bounced = cats.reduce((s, r) => s + r.bounced, 0);
     const conversoes = cats.reduce((s, r) => s + r.respondidos.filter(x => x.pipeline === 'REUNIAO' || x.pipeline === 'GANHO' || x.pipeline === 'AGUARDANDO_MATERIAIS').length, 0);
     const taxaResp = e1 > 0 ? resp / e1 : 0;
     const taxaConv = e1 > 0 ? conversoes / e1 : 0;
-    return { total, e1, fup1, fup2, resp, bounced, conversoes, taxaResp, taxaConv, cats };
+    return { total, e1, fup1, fup2, fup3_10, resp, bounced, conversoes, taxaResp, taxaConv, cats };
   };
 
   const completedResults = results.filter(r => r.isComplete);
@@ -230,14 +247,20 @@ export default function ResultadosPage() {
           {showPending && (
             <div className="mt-2 space-y-2">
               {pendingResults.map(r => {
-                const totalSteps = r.totalContatos * 3; // E1 + FUP1 + FUP2 per contact
-                const doneSteps = r.email1Enviados + r.fup1Enviados + r.fup2Enviados + (r.bounced * 2); // bounced skip remaining
+                const totalSteps = r.totalContatos * 11; // E1 + 10 FUPs per contact
+                const fup3_10Sum = (r.fup3Enviados || 0) + (r.fup4Enviados || 0) + (r.fup5Enviados || 0) + (r.fup6Enviados || 0) + (r.fup7Enviados || 0) + (r.fup8Enviados || 0) + (r.fup9Enviados || 0) + (r.fup10Enviados || 0);
+                const doneSteps = r.email1Enviados + r.fup1Enviados + r.fup2Enviados + fup3_10Sum + (r.bounced * 10); // bounced skip remaining
                 const progress = totalSteps > 0 ? Math.min(doneSteps / totalSteps, 1) : 0;
                 const pct = (progress * 100).toFixed(0);
                 let phase = 'Email 1';
-                if (r.email1Pendentes === 0 && r.fup1Aguardando > 0) phase = 'Aguardando FUP1';
-                else if (r.email1Pendentes === 0 && r.fup1Aguardando === 0 && r.fup2Aguardando > 0) phase = 'Aguardando FUP2';
-                else if (r.email1Pendentes > 0) phase = `Email 1 (${r.email1Pendentes} pendentes)`;
+                if (r.email1Pendentes > 0) phase = `Email 1 (${r.email1Pendentes} pendentes)`;
+                else if (r.fup1Aguardando > 0) phase = 'Aguardando FUP1';
+                else if (r.fup2Aguardando > 0) phase = 'Aguardando FUP2';
+                else {
+                  for (let n = 3; n <= 10; n++) {
+                    if ((r as any)[`fup${n}Aguardando`] > 0) { phase = `Aguardando FUP${n}`; break; }
+                  }
+                }
 
                 return (
                   <div key={r.category} className="bg-white rounded-xl border border-slate-200 px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
@@ -248,10 +271,11 @@ export default function ResultadosPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <div className="flex gap-2 text-[10px] text-slate-500">
+                      <div className="flex gap-2 text-[10px] text-slate-500 flex-wrap">
                         <span>E1: {r.email1Enviados}</span>
                         <span>F1: {r.fup1Enviados}</span>
                         <span>F2: {r.fup2Enviados}</span>
+                        {fup3_10Sum > 0 && <span>F3-10: {fup3_10Sum}</span>}
                         {r.respondidos.length > 0 && <span className="text-green-600 font-medium">{r.respondidos.length} resp</span>}
                       </div>
                       <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -356,6 +380,7 @@ export default function ResultadosPage() {
                     <StatBox label="E1 enviados" value={st.e1} color="blue" />
                     <StatBox label="FUP1" value={st.fup1} color="indigo" />
                     <StatBox label="FUP2" value={st.fup2} color="purple" />
+                    {st.fup3_10 > 0 && <StatBox label="FUP3-10" value={st.fup3_10} color="purple" />}
                     <StatBox label="Respondidos" value={st.resp} color="green" />
                     <StatBox label="Bounced" value={st.bounced} color="red" />
                   </div>
@@ -388,10 +413,11 @@ export default function ResultadosPage() {
                                 </button>
                               </div>
                             </div>
-                            <div className="grid grid-cols-5 gap-2 text-center text-[10px]">
+                            <div className="grid grid-cols-6 gap-2 text-center text-[10px]">
                               <div><div className="font-bold text-blue-600">{r.email1Enviados}</div>E1</div>
                               <div><div className="font-bold text-indigo-600">{r.fup1Enviados}</div>FUP1</div>
                               <div><div className="font-bold text-purple-600">{r.fup2Enviados}</div>FUP2</div>
+                              <div><div className="font-bold text-violet-600">{(r.fup3Enviados || 0) + (r.fup4Enviados || 0) + (r.fup5Enviados || 0) + (r.fup6Enviados || 0) + (r.fup7Enviados || 0) + (r.fup8Enviados || 0) + (r.fup9Enviados || 0) + (r.fup10Enviados || 0)}</div>F3-10</div>
                               <div><div className="font-bold text-green-600">{r.respondidos.length}</div>Resp</div>
                               <div><div className="font-bold text-red-500">{r.bounced}</div>Bounce</div>
                             </div>
@@ -544,10 +570,11 @@ export default function ResultadosPage() {
 
                     {/* Stats grid */}
                     <div className="px-5 py-4">
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                         <StatBox label="E1 enviados" value={r.email1Enviados} color="blue" />
                         <StatBox label="FUP1 enviados" value={r.fup1Enviados} color="indigo" />
                         <StatBox label="FUP2 enviados" value={r.fup2Enviados} color="purple" />
+                        <StatBox label="FUP3-10" value={(r.fup3Enviados || 0) + (r.fup4Enviados || 0) + (r.fup5Enviados || 0) + (r.fup6Enviados || 0) + (r.fup7Enviados || 0) + (r.fup8Enviados || 0) + (r.fup9Enviados || 0) + (r.fup10Enviados || 0)} color="purple" />
                         <StatBox label="Respondidos" value={r.respondidos.length} color="green" />
                         <StatBox label="Bounced" value={r.bounced} color="red" />
                       </div>
@@ -630,7 +657,7 @@ export default function ResultadosPage() {
           </h2>
           <p className="text-slate-400 text-sm max-w-md mx-auto">
             Os resultados aparecem aqui quando todas as rotinas de uma categoria forem concluidas
-            (Email 1, FUP1 e FUP2 sem pendencias).
+            (Email 1 e todos os FUPs sem pendencias).
           </p>
         </div>
       )}

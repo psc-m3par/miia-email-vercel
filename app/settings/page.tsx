@@ -6,10 +6,14 @@ interface PainelRow {
   category: string; responsavel: string; nomeRemetente: string;
   emailsHora: number; diasFup1: number; diasFup2: number;
   ativo: boolean; cc: string; ultimoEnvio: string; horaInicio: number; horaFim: number;
+  diasFup3: number; diasFup4: number; diasFup5: number; diasFup6: number;
+  diasFup7: number; diasFup8: number; diasFup9: number; diasFup10: number;
 }
 
 interface CatStats {
-  total: number; pendentes: number; email1: number; fup1: number; fup2: number; respondidos: number; erros: number;
+  total: number; pendentes: number; email1: number; fup1: number; fup2: number;
+  fup3: number; fup4: number; fup5: number; fup6: number; fup7: number; fup8: number; fup9: number; fup10: number;
+  respondidos: number; erros: number;
   e1Respondidos?: number; e1Bounced?: number; fup1Respondidos?: number; fup1Bounced?: number; semThread?: number;
 }
 
@@ -28,7 +32,9 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string>('');
   const [deletingCat, setDeletingCat] = useState<string>('');
   const [showNewCat, setShowNewCat] = useState(false);
-  const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20 });
+  const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20, diasFup3: 2, diasFup4: 2, diasFup5: 2, diasFup6: 2, diasFup7: 2, diasFup8: 2, diasFup9: 2, diasFup10: 2 });
+  const [showAdvancedFups, setShowAdvancedFups] = useState(false);
+  const [showAdvancedFupsIdx, setShowAdvancedFupsIdx] = useState<Record<number, boolean>>({});
   const [creatingCat, setCreatingCat] = useState(false);
   const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
@@ -82,7 +88,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           type: 'painel',
           rowIndex: idx + 2,
-          values: [r.category, r.responsavel, r.nomeRemetente, r.emailsHora, r.diasFup1, r.diasFup2, r.ativo ? 'SIM' : 'NAO', r.cc, r.ultimoEnvio || '', r.horaInicio ?? 8, r.horaFim ?? 20],
+          values: [r.category, r.responsavel, r.nomeRemetente, r.emailsHora, r.diasFup1, r.diasFup2, r.ativo ? 'SIM' : 'NAO', r.cc, r.ultimoEnvio || '', r.horaInicio ?? 8, r.horaFim ?? 20, r.diasFup3 ?? 2, r.diasFup4 ?? 2, r.diasFup5 ?? 2, r.diasFup6 ?? 2, r.diasFup7 ?? 2, r.diasFup8 ?? 2, r.diasFup9 ?? 2, r.diasFup10 ?? 2],
         }),
       });
       setMessage('Salvo: ' + r.category);
@@ -155,12 +161,12 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'painel',
-          values: [newCat.category, newCat.responsavel, newCat.nomeRemetente, newCat.emailsHora, newCat.diasFup1, newCat.diasFup2, newCat.ativo ? 'SIM' : 'NAO', newCat.cc, '', newCat.horaInicio, newCat.horaFim],
+          values: [newCat.category, newCat.responsavel, newCat.nomeRemetente, newCat.emailsHora, newCat.diasFup1, newCat.diasFup2, newCat.ativo ? 'SIM' : 'NAO', newCat.cc, '', newCat.horaInicio, newCat.horaFim, newCat.diasFup3, newCat.diasFup4, newCat.diasFup5, newCat.diasFup6, newCat.diasFup7, newCat.diasFup8, newCat.diasFup9, newCat.diasFup10],
         }),
       });
       setMessage('Category "' + newCat.category + '" criada!');
       setShowNewCat(false);
-      setNewCat({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20 });
+      setNewCat({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20, diasFup3: 2, diasFup4: 2, diasFup5: 2, diasFup6: 2, diasFup7: 2, diasFup8: 2, diasFup9: 2, diasFup10: 2 });
       loadData();
     } catch (e: any) {
       setMessage('Erro: ' + e.message);
@@ -304,6 +310,20 @@ export default function SettingsPage() {
             <SettingField label="Hora inicio (ex: 8)" value={newCat.horaInicio.toString()} onChange={v => setNewCat({...newCat, horaInicio: parseInt(v) || 0})} type="number" />
             <SettingField label="Hora fim (ex: 20)" value={newCat.horaFim.toString()} onChange={v => setNewCat({...newCat, horaFim: parseInt(v) || 24})} type="number" />
           </div>
+          <button
+            onClick={() => setShowAdvancedFups(!showAdvancedFups)}
+            className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700 mb-2"
+          >
+            Dias FUP 3-10
+            <svg className={`w-3 h-3 transition-transform ${showAdvancedFups ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          {showAdvancedFups && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 bg-slate-50 rounded-xl p-4">
+              {[3,4,5,6,7,8,9,10].map(n => (
+                <SettingField key={n} label={`Dias ate FUP${n}`} value={(newCat as any)[`diasFup${n}`]?.toString() || '2'} onChange={v => setNewCat({...newCat, [`diasFup${n}`]: parseInt(v) || 2})} type="number" />
+              ))}
+            </div>
+          )}
           <div className="flex gap-3">
             <button onClick={handleCreateCategory} disabled={creatingCat}
               className="px-6 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50">
@@ -320,7 +340,7 @@ export default function SettingsPage() {
       <div className="space-y-4">
         {painel.filter((row) => !completedCats.has(row.category) && (!filterRemetente || row.responsavel === filterRemetente)).map((row) => {
           const idx = painel.indexOf(row);
-          const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
+          const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, fup3: 0, fup4: 0, fup5: 0, fup6: 0, fup7: 0, fup8: 0, fup9: 0, fup10: 0, respondidos: 0, erros: 0 };
           return (
             <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -379,6 +399,9 @@ export default function SettingsPage() {
                 <StatPill label="Enviados" value={catStats.email1} color="text-blue-700 bg-blue-100" />
                 <StatPill label="FUP1" value={catStats.fup1} color="text-indigo-700 bg-indigo-100" />
                 <StatPill label="FUP2" value={catStats.fup2} color="text-purple-700 bg-purple-100" />
+                {(catStats.fup3 + catStats.fup4 + catStats.fup5 + catStats.fup6 + catStats.fup7 + catStats.fup8 + catStats.fup9 + catStats.fup10) > 0 && (
+                  <StatPill label="FUP3-10" value={catStats.fup3 + catStats.fup4 + catStats.fup5 + catStats.fup6 + catStats.fup7 + catStats.fup8 + catStats.fup9 + catStats.fup10} color="text-violet-700 bg-violet-100" />
+                )}
                 <StatPill label="Respondidos" value={catStats.respondidos} color="text-green-700 bg-green-100" />
                 {catStats.erros > 0 && <StatPill label="Erros" value={catStats.erros} color="text-red-700 bg-red-100" />}
                 <div className="ml-auto">
@@ -424,6 +447,22 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+              <div className="px-6 pb-4">
+                <button
+                  onClick={() => setShowAdvancedFupsIdx(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                  className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700"
+                >
+                  Dias FUP 3-10
+                  <svg className={`w-3 h-3 transition-transform ${showAdvancedFupsIdx[idx] ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+                {showAdvancedFupsIdx[idx] && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 bg-slate-50 rounded-xl p-4">
+                    {[3,4,5,6,7,8,9,10].map(n => (
+                      <SettingField key={n} label={`Dias ate FUP${n}`} value={((row as any)[`diasFup${n}`] ?? 2).toString()} onChange={v => updateField(idx, `diasFup${n}` as keyof PainelRow, parseInt(v) || 2)} type="number" />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -443,7 +482,7 @@ export default function SettingsPage() {
             <div className="mt-3 space-y-4">
               {painel.filter(row => completedCats.has(row.category) && (!filterRemetente || row.responsavel === filterRemetente)).map((row) => {
                 const idx = painel.indexOf(row);
-                const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, respondidos: 0, erros: 0 };
+                const catStats = stats[row.category] || { total: 0, pendentes: 0, email1: 0, fup1: 0, fup2: 0, fup3: 0, fup4: 0, fup5: 0, fup6: 0, fup7: 0, fup8: 0, fup9: 0, fup10: 0, respondidos: 0, erros: 0 };
                 return (
                   <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -476,6 +515,9 @@ export default function SettingsPage() {
                       <StatPill label="Enviados" value={catStats.email1} color="text-blue-700 bg-blue-100" />
                       <StatPill label="FUP1" value={catStats.fup1} color="text-indigo-700 bg-indigo-100" />
                       <StatPill label="FUP2" value={catStats.fup2} color="text-purple-700 bg-purple-100" />
+                      {(catStats.fup3 + catStats.fup4 + catStats.fup5 + catStats.fup6 + catStats.fup7 + catStats.fup8 + catStats.fup9 + catStats.fup10) > 0 && (
+                        <StatPill label="FUP3-10" value={catStats.fup3 + catStats.fup4 + catStats.fup5 + catStats.fup6 + catStats.fup7 + catStats.fup8 + catStats.fup9 + catStats.fup10} color="text-violet-700 bg-violet-100" />
+                      )}
                       <StatPill label="Respondidos" value={catStats.respondidos} color="text-green-700 bg-green-100" />
                     </div>
                   </div>

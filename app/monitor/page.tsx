@@ -11,13 +11,22 @@ interface LogEntry {
   detalhes: string;
 }
 
-const ROTINAS = ['Email 1', 'FUP1', 'FUP2', 'Check Replies'];
+const ROTINAS = ['Email 1', 'FUP1', 'FUP2', 'FUP3', 'FUP4', 'FUP5', 'FUP6', 'FUP7', 'FUP8', 'FUP9', 'FUP10', 'Check Replies'];
 
 const ROTINA_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  'Email 1':      { bg: 'bg-blue-50',   text: 'text-blue-700',   dot: 'bg-blue-500' },
-  'FUP1':         { bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
-  'FUP2':         { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
-  'Check Replies':{ bg: 'bg-green-50',  text: 'text-green-700',  dot: 'bg-green-500' },
+  'Email 1':      { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-500' },
+  'FUP1':         { bg: 'bg-indigo-50',  text: 'text-indigo-700',  dot: 'bg-indigo-500' },
+  'FUP2':         { bg: 'bg-purple-50',  text: 'text-purple-700',  dot: 'bg-purple-500' },
+  'FUP3':         { bg: 'bg-violet-50',  text: 'text-violet-700',  dot: 'bg-violet-500' },
+  'FUP4':         { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', dot: 'bg-fuchsia-500' },
+  'FUP5':         { bg: 'bg-pink-50',    text: 'text-pink-700',    dot: 'bg-pink-500' },
+  'FUP6':         { bg: 'bg-rose-50',    text: 'text-rose-700',    dot: 'bg-rose-500' },
+  'FUP7':         { bg: 'bg-orange-50',  text: 'text-orange-700',  dot: 'bg-orange-500' },
+  'FUP8':         { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-500' },
+  'FUP9':         { bg: 'bg-teal-50',    text: 'text-teal-700',    dot: 'bg-teal-500' },
+  'FUP10':        { bg: 'bg-cyan-50',    text: 'text-cyan-700',    dot: 'bg-cyan-500' },
+  'FUP3-10':      { bg: 'bg-violet-50',  text: 'text-violet-700',  dot: 'bg-violet-500' },
+  'Check Replies':{ bg: 'bg-green-50',   text: 'text-green-700',   dot: 'bg-green-500' },
 };
 
 // Calcula quando a rotina vai rodar para uma categoria
@@ -122,7 +131,7 @@ export default function MonitorPage() {
         res = await fetch('/api/send-emails', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) });
         const d = await res.json();
         setResultado({ key, ok: true, msg: d.enviados > 0 ? `${d.enviados} email(s) enviado(s)` : d.pulados?.[0] || 'Nenhum pendente' });
-      } else if (rotina === 'FUP1' || rotina === 'FUP2') {
+      } else if (rotina.startsWith('FUP')) {
         res = await fetch('/api/send-fups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) });
         const d = await res.json();
         setResultado({ key, ok: true, msg: d.fups > 0 ? `${d.fups} FUP(s) enviado(s)` : d.pulados?.[0] || 'Nenhum FUP pendente no prazo' });
@@ -185,8 +194,8 @@ export default function MonitorPage() {
   if (loading) return (
     <div className="max-w-6xl mx-auto animate-pulse">
       <div className="h-8 bg-slate-200 rounded w-48 mb-8" />
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 bg-slate-200 rounded-xl" />)}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        {[1,2,3,4,5].map(i => <div key={i} className="h-28 bg-slate-200 rounded-xl" />)}
       </div>
       <div className="h-96 bg-slate-200 rounded-xl" />
     </div>
@@ -216,6 +225,22 @@ export default function MonitorPage() {
         const totalFup2 = allFc.reduce((s, f) => s + (f.fup2Ok || 0), 0);
         const totalFup2Aguardando = allFc.reduce((s, f) => s + (f.fup2Aguardando || 0), 0);
         const totalFup2Prontos = allFc.reduce((s, f) => s + (f.fup2Prontos || 0), 0);
+        // FUP3-10 aggregates
+        const totalFup3_10 = allFc.reduce((s, f) => {
+          let sum = 0;
+          for (let n = 3; n <= 10; n++) sum += (f[`fup${n}Ok`] || 0);
+          return s + sum;
+        }, 0);
+        const totalFup3_10Aguardando = allFc.reduce((s, f) => {
+          let sum = 0;
+          for (let n = 3; n <= 10; n++) sum += (f[`fup${n}Aguardando`] || 0);
+          return s + sum;
+        }, 0);
+        const totalFup3_10Prontos = allFc.reduce((s, f) => {
+          let sum = 0;
+          for (let n = 3; n <= 10; n++) sum += (f[`fup${n}Prontos`] || 0);
+          return s + sum;
+        }, 0);
         const totalMonitorados = allFc.reduce((s, f) => s + (f.checkReplyTargets || 0), 0);
         const totalRespondidos = allFc.reduce((s, f) => s + (f.respondidos || 0), 0);
         const totalBounced = allFc.reduce((s, f) => s + (f.bounced || 0), 0);
@@ -225,6 +250,7 @@ export default function MonitorPage() {
         const hojeEmail1 = logsHoje.filter(l => l.rotina === 'Email 1').reduce((s, l) => s + l.quantidade, 0);
         const hojeFup1 = logsHoje.filter(l => l.rotina === 'FUP1').reduce((s, l) => s + l.quantidade, 0);
         const hojeFup2 = logsHoje.filter(l => l.rotina === 'FUP2').reduce((s, l) => s + l.quantidade, 0);
+        const hojeFup3_10 = logsHoje.filter(l => l.rotina.startsWith('FUP') && !['FUP1','FUP2'].includes(l.rotina)).reduce((s, l) => s + l.quantidade, 0);
         const hojeReplies = logsHoje.filter(l => l.rotina === 'Check Replies').length;
 
         // Last log per rotina (for timestamp)
@@ -276,6 +302,19 @@ export default function MonitorPage() {
                   : null,
           },
           {
+            rotina: 'FUP3-10',
+            mainValue: logsHoje.filter(l => l.rotina.startsWith('FUP') && !['FUP1','FUP2'].includes(l.rotina)).length,
+            mainLabel: 'execucoes hoje',
+            extra: hojeFup3_10 > 0 ? `${hojeFup3_10} enviados` : null,
+            status: totalFup3_10Prontos > 0
+              ? { text: `${totalFup3_10Prontos} pronto(s) · ${totalFup3_10} total`, color: 'text-green-600' }
+              : totalFup3_10Aguardando > 0
+                ? { text: `${totalFup3_10Aguardando} aguardando · ${totalFup3_10} enviados`, color: 'text-amber-600' }
+                : totalFup3_10 > 0
+                  ? { text: `Esgotado · ${totalFup3_10} enviados`, color: 'text-green-600' }
+                  : null,
+          },
+          {
             rotina: 'Check Replies',
             mainValue: execHoje('Check Replies'),
             mainLabel: 'execuções hoje',
@@ -287,7 +326,7 @@ export default function MonitorPage() {
         ];
 
         return (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {cards.map(card => {
               const c = ROTINA_COLORS[card.rotina] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-400' };
               const lastLog = lastLogPerRotina[card.rotina];
@@ -341,12 +380,20 @@ export default function MonitorPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left py-2.5 px-4 text-slate-500 font-medium">Categoria</th>
-                  <th className="text-center py-2.5 px-4 text-slate-400 font-medium">Status</th>
-                  <th className="text-center py-2.5 px-4 text-blue-600 font-medium">Email 1</th>
-                  <th className="text-center py-2.5 px-4 text-indigo-600 font-medium">FUP1</th>
-                  <th className="text-center py-2.5 px-4 text-purple-600 font-medium">FUP2</th>
-                  <th className="text-center py-2.5 px-4 text-green-600 font-medium">Check Replies</th>
+                  <th className="text-left py-2.5 px-4 text-slate-500 font-medium whitespace-nowrap">Categoria</th>
+                  <th className="text-center py-2.5 px-4 text-slate-400 font-medium whitespace-nowrap">Status</th>
+                  <th className="text-center py-2.5 px-4 text-blue-600 font-medium whitespace-nowrap">Email 1</th>
+                  <th className="text-center py-2.5 px-4 text-indigo-600 font-medium whitespace-nowrap">FUP1</th>
+                  <th className="text-center py-2.5 px-4 text-purple-600 font-medium whitespace-nowrap">FUP2</th>
+                  <th className="text-center py-2.5 px-4 text-violet-600 font-medium whitespace-nowrap">FUP3</th>
+                  <th className="text-center py-2.5 px-4 text-fuchsia-600 font-medium whitespace-nowrap">FUP4</th>
+                  <th className="text-center py-2.5 px-4 text-pink-600 font-medium whitespace-nowrap">FUP5</th>
+                  <th className="text-center py-2.5 px-4 text-rose-600 font-medium whitespace-nowrap">FUP6</th>
+                  <th className="text-center py-2.5 px-4 text-orange-600 font-medium whitespace-nowrap">FUP7</th>
+                  <th className="text-center py-2.5 px-4 text-amber-600 font-medium whitespace-nowrap">FUP8</th>
+                  <th className="text-center py-2.5 px-4 text-teal-600 font-medium whitespace-nowrap">FUP9</th>
+                  <th className="text-center py-2.5 px-4 text-cyan-600 font-medium whitespace-nowrap">FUP10</th>
+                  <th className="text-center py-2.5 px-4 text-green-600 font-medium whitespace-nowrap">Check Replies</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,13 +408,13 @@ export default function MonitorPage() {
 
                   const ForecastLabel = ({ rotina }: { rotina: string }) => {
                     if (!forecast) return null;
-                    const isFup1 = rotina === 'FUP1';
-                    const isFup2 = rotina === 'FUP2';
-                    if (!isFup1 && !isFup2) return null;
+                    const fupMatch = rotina.match(/^FUP(\d+)$/);
+                    if (!fupMatch) return null;
+                    const fupN = fupMatch[1];
 
-                    const aguardando = isFup1 ? forecast.fup1Aguardando : forecast.fup2Aguardando;
-                    const prontos = isFup1 ? forecast.fup1Prontos : forecast.fup2Prontos;
-                    const proxData = isFup1 ? forecast.fup1ProximaData : forecast.fup2ProximaData;
+                    const aguardando = forecast[`fup${fupN}Aguardando`] || 0;
+                    const prontos = forecast[`fup${fupN}Prontos`] || 0;
+                    const proxData = forecast[`fup${fupN}ProximaData`] || null;
 
                     if (aguardando === 0 && prontos === 0) return null;
 
@@ -404,13 +451,14 @@ export default function MonitorPage() {
                       if (forecast.email1Pendentes === 0 && forecast.email1Ok > 0)
                         return { text: `esgotado (${forecast.email1Ok})`, color: 'text-green-600' };
                     }
-                    if (rotina === 'FUP1') {
-                      if (forecast.fup1Aguardando === 0 && forecast.fup1Prontos === 0 && forecast.fup1Ok > 0)
-                        return { text: `esgotado (${forecast.fup1Ok})`, color: 'text-green-600' };
-                    }
-                    if (rotina === 'FUP2') {
-                      if (forecast.fup2Aguardando === 0 && forecast.fup2Prontos === 0 && forecast.fup2Ok > 0)
-                        return { text: `esgotado (${forecast.fup2Ok})`, color: 'text-green-600' };
+                    const fupMatch = rotina.match(/^FUP(\d+)$/);
+                    if (fupMatch) {
+                      const n = fupMatch[1];
+                      const aguardando = forecast[`fup${n}Aguardando`] || 0;
+                      const prontos = forecast[`fup${n}Prontos`] || 0;
+                      const ok = forecast[`fup${n}Ok`] || 0;
+                      if (aguardando === 0 && prontos === 0 && ok > 0)
+                        return { text: `esgotado (${ok})`, color: 'text-green-600' };
                     }
                     if (rotina === 'Check Replies') {
                       if (forecast.checkReplyTargets > 0)
@@ -476,6 +524,14 @@ export default function MonitorPage() {
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="Email 1" color="text-blue-600" /></td>
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP1" color="text-indigo-600" /></td>
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP2" color="text-purple-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP3" color="text-violet-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP4" color="text-fuchsia-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP5" color="text-pink-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP6" color="text-rose-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP7" color="text-orange-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP8" color="text-amber-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP9" color="text-teal-600" /></td>
+                      <td className="py-3 px-4 text-center"><ForceBtn rotina="FUP10" color="text-cyan-600" /></td>
                       <td className="py-3 px-4 text-center"><ForceBtn rotina="Check Replies" color="text-green-600" /></td>
                     </tr>
                   );

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readContatos, readPainel, getAllSpreadsheetIds, writeAtendido, writePipeline, writeNota } from '@/lib/sheets';
+import { readContatos, readPainel, getAllSpreadsheetIds, writeAtendido, writePipeline, writeNota, anyFupHasStatus } from '@/lib/sheets';
 import { getFullThread } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       for (const p of painel) painelMap[p.category] = { responsavel: p.responsavel, nomeRemetente: p.nomeRemetente };
 
       for (const c of contacts) {
-        const isRespondido = c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO';
+        const isRespondido = anyFupHasStatus(c, 'RESPONDIDO');
         if (!isRespondido) continue;
         respondidos.push({
           rowIndex: c.rowIndex,

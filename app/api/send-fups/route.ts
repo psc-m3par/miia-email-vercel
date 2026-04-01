@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readTemplates, readContatos, readSheet, writeSheet, getAllSpreadsheetIds, appendLog } from '@/lib/sheets';
+import { readPainel, readTemplates, readContatos, readSheet, writeSheet, getAllSpreadsheetIds, appendLog, FUP_CONFIG, anyFupIncludes } from '@/lib/sheets';
 import { sendReply, checkReplies } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -67,169 +67,120 @@ async function runSendFups(category?: string, force = false) {
       const hojeSpDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(hoje);
       let enviadosCat = 0;
 
-      // Diagnóstico detalhado para filtro de FUP1
       const catContacts = contacts.filter(c => c.category.normalize('NFC') === cat.category.normalize('NFC'));
-      const comOk = catContacts.filter(c => c.email1Enviado.startsWith('OK'));
-      const semFup1 = comOk.filter(c => !c.fup1Enviado);
-      const comThread = semFup1.filter(c => c.threadId);
-      const comDias = comThread.filter(c => {
-        const dataEnvio = c.email1Enviado.replace('OK ', '');
-        const diffDias = Math.floor((hoje.getTime() - new Date(dataEnvio).getTime()) / 86400000);
-        return diffDias >= (cat.diasFup1 || 3);
-      });
 
-      const prontosFup1 = comDias;
+      // Build eligible lists and diagnostics for each FUP
+      const fupEligible: { fupConfig: typeof FUP_CONFIG[number]; prontos: typeof catContacts; diag: string }[] = [];
 
-      // Diagnóstico detalhado para filtro de FUP2
-      const comFup1Ok = catContacts.filter(c => c.fup1Enviado.startsWith('OK'));
-      const semFup2 = comFup1Ok.filter(c => !c.fup2Enviado);
-      const semFup2ComThread = semFup2.filter(c => c.threadId);
-      const semRespondido = semFup2ComThread.filter(c => !c.fup1Enviado.includes('RESPONDIDO'));
-      const comDiasFup2 = semRespondido.filter(c => {
-        const dataFup1 = c.fup1Enviado.replace('OK ', '');
-        const diffDias = Math.floor((hoje.getTime() - new Date(dataFup1).getTime()) / 86400000);
-        return diffDias >= (cat.diasFup2 || 7);
-      });
+      for (const fupConfig of FUP_CONFIG) {
+        const defaultDias = fupConfig.n <= 2 ? (fupConfig.n === 1 ? 3 : 7) : 7;
 
-      const prontosFup2 = comDiasFup2;
+        const comPrevOk = catContacts.filter(c => ((c as any)[fupConfig.prevField] || '').startsWith('OK'));
+        const semCur = comPrevOk.filter(c => !(c as any)[fupConfig.curField]);
+        const comThread = semCur.filter(c => c.threadId);
+        const semRespondido = comThread.filter(c => !anyFupIncludes(c, 'RESPONDIDO'));
+        const comDias = semRespondido.filter(c => {
+          const dataEnvio = ((c as any)[fupConfig.prevField] || '').replace('OK ', '');
+          const diffDias = Math.floor((hoje.getTime() - new Date(dataEnvio).getTime()) / 86400000);
+          return diffDias >= ((cat as any)[fupConfig.diasField] || defaultDias);
+        });
 
-      if (prontosFup1.length === 0 && prontosFup2.length === 0) {
-        const diagFup1 = `FUP1: ${catContacts.length} total, ${comOk.length} c/OK, ${semFup1.length} s/fup1, ${comThread.length} c/thread, ${comDias.length} c/dias>=${cat.diasFup1 || 3}`;
-        const diagFup2 = `FUP2: ${comFup1Ok.length} c/fup1OK, ${semFup2.length} s/fup2, ${semFup2ComThread.length} c/thread, ${semRespondido.length} s/resp, ${comDiasFup2.length} c/dias>=${cat.diasFup2 || 7}`;
-        pulados.push(`"${cat.category}" sem elegíveis: ${diagFup1} | ${diagFup2}`);
-        // Só loga na planilha quando forçado (POST), não no scheduler automático
+        const diasUsed = (cat as any)[fupConfig.diasField] || defaultDias;
+        const diag = `FUP${fupConfig.n}: ${catContacts.length} total, ${comPrevOk.length} c/prevOK, ${semCur.length} s/cur, ${comThread.length} c/thread, ${semRespondido.length} s/resp, ${comDias.length} c/dias>=${diasUsed}`;
+
+        fupEligible.push({ fupConfig, prontos: comDias, diag });
+      }
+
+      const totalEligible = fupEligible.reduce((sum, f) => sum + f.prontos.length, 0);
+      if (totalEligible === 0) {
+        const diagAll = fupEligible.map(f => f.diag).join(' | ');
+        pulados.push(`"${cat.category}" sem elegíveis: ${diagAll}`);
         if (force) {
-          await appendLog('FUP1', cat.category, 0, 'ok', diagFup1, spreadsheetId);
-          await appendLog('FUP2', cat.category, 0, 'ok', diagFup2, spreadsheetId);
+          for (const f of fupEligible) {
+            await appendLog('FUP' + f.fupConfig.n, cat.category, 0, 'ok', f.diag, spreadsheetId);
+          }
         }
         continue;
       }
 
-      for (const contato of prontosFup1) {
-        if (enviadosCat >= limite) break;
+      // Track how many were sent per FUP for logging
+      const sentPerFup: Record<number, number> = {};
+      for (const fupConfig of FUP_CONFIG) sentPerFup[fupConfig.n] = 0;
 
-        // Guard: re-verificar se fup1 já foi enviado (previne duplicatas entre execuções)
-        try {
-          const cellCheck = await readSheet('Contatos!I' + contato.rowIndex, spreadsheetId);
-          if (cellCheck[0]?.[0]) {
-            continue; // Já tem valor em fup1Enviado, pular
-          }
-        } catch { /* se falhar a leitura, continua normalmente */ }
+      for (const { fupConfig, prontos } of fupEligible) {
+        for (const contato of prontos) {
+          if (enviadosCat >= limite) break;
 
-        const replyCheck = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
-        if (replyCheck.hasReply) {
-          await writeSheet(
-            'Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex,
-            [['RESPONDIDO', 'RESPONDIDO']],
-            spreadsheetId
-          );
-          continue;
-        }
+          // Guard: re-verificar se a célula já foi preenchida (previne duplicatas entre execuções)
+          try {
+            const cellCheck = await readSheet('Contatos!' + fupConfig.col + contato.rowIndex, spreadsheetId);
+            if (cellCheck[0]?.[0]) {
+              continue; // Já tem valor, pular
+            }
+          } catch { /* se falhar a leitura, continua normalmente */ }
 
-        const assunto = (template.fup1Assunto || template.assunto)
-          .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
-          .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
-          .replace(/\[Category\]/gi, cat.category)
-          .replace(/\r?\n/g, ' ').trim();
-
-        const corpoFup1Raw = template.fup1Corpo
-          .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
-          .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
-          .replace(/\[Category\]/gi, cat.category);
-        const htmlBodyFup1 = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6"><p>${corpoFup1Raw.replace(/\r\n/g, '\n').replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p></div>`;
-
-        const result = await sendReply(
-          cat.responsavel, contato.email, assunto, htmlBodyFup1,
-          contato.threadId, contato.threadId,
-          cat.cc, spreadsheetId, cat.nomeRemetente
-        );
-
-        const hojeStr = hojeSpDate;
-        try {
-          await writeSheet(
-            'Contatos!I' + contato.rowIndex,
-            [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
-            spreadsheetId
-          );
-        } catch (writeErr: any) {
-          await appendLog('FUP1', cat.category, 0, 'erro',
-            `WRITE FALHOU row ${contato.rowIndex} ${contato.email}: ${writeErr.message}`, spreadsheetId);
-        }
-        if (result.success) { totalFups++; enviadosCat++; }
-        await new Promise(r => setTimeout(r, 500));
-      }
-
-      for (const contato of prontosFup2) {
-        if (enviadosCat >= limite) break;
-
-        // Guard: re-verificar se fup2 já foi enviado
-        try {
-          const cellCheck2 = await readSheet('Contatos!J' + contato.rowIndex, spreadsheetId);
-          if (cellCheck2[0]?.[0]) {
+          // Check for replies before sending
+          const replyCheck = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
+          if (replyCheck.hasReply) {
+            // Mark current FUP and ALL subsequent FUP columns as RESPONDIDO
+            const fupIdx = FUP_CONFIG.findIndex(f => f.n === fupConfig.n);
+            for (let i = fupIdx; i < FUP_CONFIG.length; i++) {
+              const subsequentCol = FUP_CONFIG[i].col;
+              await writeSheet(
+                'Contatos!' + subsequentCol + contato.rowIndex,
+                [['RESPONDIDO']],
+                spreadsheetId
+              );
+            }
             continue;
           }
-        } catch { /* continua normalmente */ }
 
-        const replyCheck2 = await checkReplies(cat.responsavel, contato.threadId, spreadsheetId);
-        if (replyCheck2.hasReply) {
-          await writeSheet(
-            'Contatos!J' + contato.rowIndex,
-            [['RESPONDIDO']],
-            spreadsheetId
+          const assunto = ((template as any)[fupConfig.subjectField] || template.assunto)
+            .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
+            .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
+            .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+            .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+            .replace(/\[Category\]/gi, cat.category)
+            .replace(/\r?\n/g, ' ').trim();
+
+          const corpoRaw = ((template as any)[fupConfig.bodyField] || '')
+            .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
+            .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
+            .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
+            .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
+            .replace(/\[Category\]/gi, cat.category);
+          const htmlBody = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6"><p>${corpoRaw.replace(/\r\n/g, '\n').replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p></div>`;
+
+          const result = await sendReply(
+            cat.responsavel, contato.email, assunto, htmlBody,
+            contato.threadId, contato.threadId,
+            cat.cc, spreadsheetId, cat.nomeRemetente
           );
-          continue;
+
+          const hojeStr = hojeSpDate;
+          try {
+            await writeSheet(
+              'Contatos!' + fupConfig.col + contato.rowIndex,
+              [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
+              spreadsheetId
+            );
+          } catch (writeErr: any) {
+            await appendLog('FUP' + fupConfig.n, cat.category, 0, 'erro',
+              `WRITE FALHOU row ${contato.rowIndex} ${contato.email}: ${writeErr.message}`, spreadsheetId);
+          }
+          if (result.success) { totalFups++; enviadosCat++; sentPerFup[fupConfig.n]++; }
+          await new Promise(r => setTimeout(r, 500));
         }
-
-        const assunto = (template.fup2Assunto || template.assunto)
-          .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
-          .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
-          .replace(/\[Category\]/gi, cat.category)
-          .replace(/\r?\n/g, ' ').trim();
-
-        const corpoFup2Raw = template.fup2Corpo
-          .replace(/\{firstName\}|\[First Name\]/gi, contato.firstName)
-          .replace(/\{lastName\}|\[Last Name\]/gi, contato.lastName)
-          .replace(/\{companyName\}|\[Company\]/gi, contato.companyName)
-          .replace(/\[Sender Name\]/gi, cat.nomeRemetente)
-          .replace(/\[Category\]/gi, cat.category);
-        const htmlBodyFup2 = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6"><p>${corpoFup2Raw.replace(/\r\n/g, '\n').replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p></div>`;
-
-        const result = await sendReply(
-          cat.responsavel, contato.email, assunto, htmlBodyFup2,
-          contato.threadId, contato.threadId,
-          cat.cc, spreadsheetId, cat.nomeRemetente
-        );
-
-        const hojeStr = hojeSpDate;
-        try {
-          await writeSheet(
-            'Contatos!J' + contato.rowIndex,
-            [[result.success ? 'OK ' + hojeStr : 'ERRO ' + hojeStr + ': ' + result.error]],
-            spreadsheetId
-          );
-        } catch (writeErr: any) {
-          await appendLog('FUP2', cat.category, 0, 'erro',
-            `WRITE FALHOU row ${contato.rowIndex} ${contato.email}: ${writeErr.message}`, spreadsheetId);
-        }
-        if (result.success) { totalFups++; enviadosCat++; }
-        await new Promise(r => setTimeout(r, 500));
       }
 
-      const fup1Sent = Math.min(prontosFup1.length, enviadosCat);
-      const fup2Sent = enviadosCat - fup1Sent;
-      await appendLog('FUP1', cat.category, fup1Sent, 'ok',
-        fup1Sent > 0 ? `${fup1Sent} FUP1(s) enviados` : `${prontosFup1.length} verificados, nenhum pendente no prazo`,
-        spreadsheetId);
-      if (prontosFup2.length > 0 || fup2Sent > 0) {
-        await appendLog('FUP2', cat.category, fup2Sent, 'ok',
-          fup2Sent > 0 ? `${fup2Sent} FUP2(s) enviados` : `${prontosFup2.length} verificados, nenhum pendente no prazo`,
-          spreadsheetId);
+      // Log results per FUP
+      for (const { fupConfig, prontos } of fupEligible) {
+        const sent = sentPerFup[fupConfig.n];
+        if (prontos.length > 0 || sent > 0) {
+          await appendLog('FUP' + fupConfig.n, cat.category, sent, 'ok',
+            sent > 0 ? `${sent} FUP${fupConfig.n}(s) enviados` : `${prontos.length} verificados, nenhum pendente no prazo`,
+            spreadsheetId);
+        }
       }
     }
   }

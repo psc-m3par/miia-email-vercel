@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readContatos, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readContatos, getAllSpreadsheetIds, FUP_CONFIG, anyFupHasStatus } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
 
 // Determinar status de resposta de cada contato
 function getStatus(c: any): string {
-  if (c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO') return 'respondido';
-  if (c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE' || c.email1Enviado.startsWith('BOUNCE')) return 'bounced';
-  if (c.email1Enviado.startsWith('ERRO') || c.fup1Enviado.startsWith('ERRO') || c.fup2Enviado.startsWith('ERRO')) return 'erro';
-  if (c.fup2Enviado.startsWith('OK')) return 'fup2_enviado';
-  if (c.fup1Enviado.startsWith('OK')) return 'fup1_enviado';
+  if (anyFupHasStatus(c, 'RESPONDIDO')) return 'respondido';
+  if (anyFupHasStatus(c, 'BOUNCE') || c.email1Enviado.startsWith('BOUNCE')) return 'bounced';
+  if (c.email1Enviado.startsWith('ERRO') || FUP_CONFIG.some(f => (c[f.curField] || '').startsWith('ERRO'))) return 'erro';
+  // Check from highest FUP down to find the latest sent stage
+  for (let i = FUP_CONFIG.length - 1; i >= 0; i--) {
+    const f = FUP_CONFIG[i];
+    if ((c[f.curField] || '').startsWith('OK')) return `fup${f.n}_enviado`;
+  }
   if (c.email1Enviado.startsWith('OK')) return 'email1_enviado';
   if (!c.email1Enviado) return 'pendente';
   return 'outro';

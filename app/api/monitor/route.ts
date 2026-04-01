@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readLogs, readPainel, readContatos, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readLogs, readPainel, readContatos, getAllSpreadsheetIds, FUP_CONFIG, anyFupHasStatus, anyFupIncludes } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,98 +16,72 @@ export async function GET() {
 
     const hoje = new Date();
 
-    // Previsão de FUPs por categoria
-    const fupForecast: Record<string, {
-      fup1Aguardando: number;
-      fup1ProximaData: string | null;
-      fup1Prontos: number;
-      fup2Aguardando: number;
-      fup2ProximaData: string | null;
-      fup2Prontos: number;
-      totalCat: number;
-      email1Ok: number;
-      email1Pendentes: number;
-      fup1Ok: number;
-      fup1Respondido: number;
-      fup2Ok: number;
-      respondidos: number;
-      bounced: number;
-      checkReplyTargets: number;
-    }> = {};
+    // Build dynamic type for fupForecast
+    const fupForecast: Record<string, any> = {};
 
     for (const cat of painel) {
       const catContacts = contacts.filter(c =>
         c.category.normalize('NFC') === cat.category.normalize('NFC')
       );
 
-      // FUP1: contatos com OK email1, sem fup1, com thread
-      const candidatosFup1 = catContacts.filter(c =>
-        c.email1Enviado.startsWith('OK') && !c.fup1Enviado && c.threadId
-      );
-      const diasFup1 = cat.diasFup1 || 3;
-      let fup1ProximaData: string | null = null;
-      let fup1Prontos = 0;
+      const forecast: any = {};
 
-      for (const c of candidatosFup1) {
-        const dataEnvio = c.email1Enviado.replace('OK ', '');
-        const elegivel = new Date(new Date(dataEnvio).getTime() + diasFup1 * 86400000);
-        if (elegivel <= hoje) {
-          fup1Prontos++;
-        } else if (!fup1ProximaData || elegivel.toISOString() < fup1ProximaData) {
-          fup1ProximaData = elegivel.toISOString();
+      // Per-FUP forecast using FUP_CONFIG loop
+      for (const f of FUP_CONFIG) {
+        const diasKey = f.diasField as keyof typeof cat;
+        const dias = (cat as any)[diasKey] || 3;
+
+        const candidatos = catContacts.filter(c => {
+          const prev = (c[f.prevField] || '').toString();
+          const cur = (c[f.curField] || '').toString();
+          return prev.startsWith('OK') && !cur && c.threadId;
+        });
+
+        let proximaData: string | null = null;
+        let prontos = 0;
+
+        for (const c of candidatos) {
+          const prevVal = (c[f.prevField] || '').toString();
+          const dataEnvio = prevVal.replace('OK ', '');
+          const elegivel = new Date(new Date(dataEnvio).getTime() + dias * 86400000);
+          if (elegivel <= hoje) {
+            prontos++;
+          } else if (!proximaData || elegivel.toISOString() < proximaData) {
+            proximaData = elegivel.toISOString();
+          }
         }
-      }
 
-      // FUP2: contatos com OK fup1, sem fup2, com thread, sem RESPONDIDO
-      const candidatosFup2 = catContacts.filter(c =>
-        c.fup1Enviado.startsWith('OK') && !c.fup2Enviado && c.threadId &&
-        !c.fup1Enviado.includes('RESPONDIDO')
-      );
-      const diasFup2 = cat.diasFup2 || 7;
-      let fup2ProximaData: string | null = null;
-      let fup2Prontos = 0;
-
-      for (const c of candidatosFup2) {
-        const dataFup1 = c.fup1Enviado.replace('OK ', '');
-        const elegivel = new Date(new Date(dataFup1).getTime() + diasFup2 * 86400000);
-        if (elegivel <= hoje) {
-          fup2Prontos++;
-        } else if (!fup2ProximaData || elegivel.toISOString() < fup2ProximaData) {
-          fup2ProximaData = elegivel.toISOString();
-        }
+        forecast[`fup${f.n}Aguardando`] = candidatos.length;
+        forecast[`fup${f.n}ProximaData`] = proximaData;
+        forecast[`fup${f.n}Prontos`] = prontos;
       }
 
       // Contagens gerais para status
       const totalCat = catContacts.length;
       const email1Ok = catContacts.filter(c => c.email1Enviado.startsWith('OK')).length;
-      const email1Bounce = catContacts.filter(c => c.email1Enviado.startsWith('BOUNCE')).length;
       const email1Pendentes = catContacts.filter(c => (!c.email1Enviado || c.email1Enviado.startsWith('ERRO')) && c.email).length;
-      const fup1Ok = catContacts.filter(c => c.fup1Enviado.startsWith('OK')).length;
-      const fup1Respondido = catContacts.filter(c => c.fup1Enviado === 'RESPONDIDO').length;
-      const fup2Ok = catContacts.filter(c => c.fup2Enviado.startsWith('OK')).length;
-      const fup2Respondido = catContacts.filter(c => c.fup2Enviado === 'RESPONDIDO').length;
-      const respondidos = catContacts.filter(c => c.fup1Enviado === 'RESPONDIDO' || c.fup2Enviado === 'RESPONDIDO').length;
-      const bounced = catContacts.filter(c => c.email1Enviado.startsWith('BOUNCE') || c.fup1Enviado === 'BOUNCE' || c.fup2Enviado === 'BOUNCE').length;
+
+      // Per-FUP Ok counts
+      for (const f of FUP_CONFIG) {
+        forecast[`fup${f.n}Ok`] = catContacts.filter(c => (c[f.curField] || '').startsWith('OK')).length;
+        forecast[`fup${f.n}Respondido`] = catContacts.filter(c => (c[f.curField] || '') === 'RESPONDIDO').length;
+      }
+
+      const respondidos = catContacts.filter(c => anyFupHasStatus(c, 'RESPONDIDO')).length;
+      const bounced = catContacts.filter(c =>
+        c.email1Enviado.startsWith('BOUNCE') || anyFupHasStatus(c, 'BOUNCE')
+      ).length;
       const checkReplyTargets = catContacts.filter(c =>
         c.email1Enviado.startsWith('OK') && c.threadId &&
-        !c.fup1Enviado.includes('RESPONDIDO') && !c.fup2Enviado.includes('RESPONDIDO') &&
-        !c.fup1Enviado.includes('BOUNCE') && !c.fup2Enviado.includes('BOUNCE')
+        !anyFupIncludes(c, 'RESPONDIDO') &&
+        !anyFupIncludes(c, 'BOUNCE')
       ).length;
 
       fupForecast[cat.category] = {
-        fup1Aguardando: candidatosFup1.length,
-        fup1ProximaData,
-        fup1Prontos,
-        fup2Aguardando: candidatosFup2.length,
-        fup2ProximaData,
-        fup2Prontos,
-        // Extra stats for monitor status
+        ...forecast,
         totalCat,
         email1Ok,
         email1Pendentes,
-        fup1Ok,
-        fup1Respondido,
-        fup2Ok,
         respondidos,
         bounced,
         checkReplyTargets,

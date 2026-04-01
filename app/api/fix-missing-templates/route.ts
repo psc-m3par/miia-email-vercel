@@ -29,7 +29,7 @@ export async function GET() {
       const corpo = tese?.template || tese?.tese || `Proposta para {{firstName}} - ${p.category}`;
 
       try {
-        await appendSheet('Templates!A:G', [[
+        await appendSheet('Templates!A:W', [[
           p.category,
           `Proposta para {{firstName}}`,
           corpo,
@@ -37,6 +37,22 @@ export async function GET() {
           `Olá {{firstName}}, gostaria de retomar nosso contato.`,
           `Re: Proposta para {{firstName}}`,
           `{{firstName}}, esta é nossa última tentativa de contato.`,
+          `{{firstName}}, viu meu último email?`,
+          `{{firstName}}, viu meu último email?`,
+          `{{firstName}}, faz sentido uma conversa rápida?`,
+          `{{firstName}}, faz sentido uma conversa rápida?`,
+          `{{firstName}}, só subindo isso na caixa de entrada.`,
+          `{{firstName}}, só subindo isso na caixa de entrada.`,
+          `{{firstName}}, ainda faz sentido conversar sobre isso?`,
+          `{{firstName}}, ainda faz sentido conversar sobre isso?`,
+          `{{firstName}}, me avisa se preferir que eu volte em outro momento.`,
+          `{{firstName}}, me avisa se preferir que eu volte em outro momento.`,
+          `{{firstName}}, última tentativa por aqui.`,
+          `{{firstName}}, última tentativa por aqui.`,
+          `{{firstName}}, estou interpretando o silêncio como 'agora não'. Se mudar, estou por aqui.`,
+          `{{firstName}}, estou interpretando o silêncio como 'agora não'. Se mudar, estou por aqui.`,
+          `{{firstName}}, vou parar por aqui. Se fizer sentido no futuro, é só responder esse email.`,
+          `{{firstName}}, vou parar por aqui. Se fizer sentido no futuro, é só responder esse email.`,
         ]], sid);
         results.push({ category: p.category, status: 'created', template: corpo.slice(0, 100) + '...' });
       } catch (e: any) {

@@ -128,18 +128,26 @@ export async function PUT(req: NextRequest) {
       const painelExists = existingPainel.some(p => p.category.trim().toLowerCase() === categoria.trim().toLowerCase());
 
       if (!painelExists) {
-        await appendSheet('Painel!A:K', [[
+        await appendSheet('Painel!A:S', [[
           categoria,
           tese.senderEmail || tese.criadoPor || '',
           tese.nomeRemetente || (tese.senderEmail ? tese.senderEmail.split('@')[0] : ''),
-          20,
-          3,
-          7,
-          'FALSE',
-          '',
-          '',
-          8,
-          21,
+          20,    // emailsHora
+          3,     // diasFup1
+          7,     // diasFup2
+          'FALSE', // ativo
+          '',    // cc
+          '',    // ultimoEnvio
+          8,     // horaInicio
+          21,    // horaFim
+          2,     // diasFup3
+          2,     // diasFup4
+          2,     // diasFup5
+          2,     // diasFup6
+          2,     // diasFup7
+          2,     // diasFup8
+          2,     // diasFup9
+          2,     // diasFup10
         ]], sid);
       }
 
@@ -148,28 +156,37 @@ export async function PUT(req: NextRequest) {
       const templateExists = existingTemplates.some(t => t.category.trim().toLowerCase() === categoria.trim().toLowerCase());
 
       if (!templateExists) {
+        const templateRow = [
+          categoria,
+          `Proposta para {{firstName}}`,
+          tese.template || tese.tese,
+          `Re: Proposta para {{firstName}}`,
+          `Olá {{firstName}}, gostaria de retomar nosso contato.`,
+          `Re: Proposta para {{firstName}}`,
+          `{{firstName}}, esta é nossa última tentativa de contato.`,
+          `{{firstName}}, viu meu último email?`,
+          `{{firstName}}, viu meu último email?`,
+          `{{firstName}}, faz sentido uma conversa rápida?`,
+          `{{firstName}}, faz sentido uma conversa rápida?`,
+          `{{firstName}}, só subindo isso na caixa de entrada.`,
+          `{{firstName}}, só subindo isso na caixa de entrada.`,
+          `{{firstName}}, ainda faz sentido conversar sobre isso?`,
+          `{{firstName}}, ainda faz sentido conversar sobre isso?`,
+          `{{firstName}}, me avisa se preferir que eu volte em outro momento.`,
+          `{{firstName}}, me avisa se preferir que eu volte em outro momento.`,
+          `{{firstName}}, última tentativa por aqui.`,
+          `{{firstName}}, última tentativa por aqui.`,
+          `{{firstName}}, estou interpretando o silêncio como 'agora não'. Se mudar, estou por aqui.`,
+          `{{firstName}}, estou interpretando o silêncio como 'agora não'. Se mudar, estou por aqui.`,
+          `{{firstName}}, vou parar por aqui. Se fizer sentido no futuro, é só responder esse email.`,
+          `{{firstName}}, vou parar por aqui. Se fizer sentido no futuro, é só responder esse email.`,
+        ];
         // Retry once on failure — if this fails the tese stays un-approved so user can retry
         try {
-          await appendSheet('Templates!A:G', [[
-            categoria,
-            `Proposta para {{firstName}}`,
-            tese.template || tese.tese,
-            `Re: Proposta para {{firstName}}`,
-            `Olá {{firstName}}, gostaria de retomar nosso contato.`,
-            `Re: Proposta para {{firstName}}`,
-            `{{firstName}}, esta é nossa última tentativa de contato.`,
-          ]], sid);
+          await appendSheet('Templates!A:W', [templateRow], sid);
         } catch (e) {
           // Retry once
-          await appendSheet('Templates!A:G', [[
-            categoria,
-            `Proposta para {{firstName}}`,
-            tese.template || tese.tese,
-            `Re: Proposta para {{firstName}}`,
-            `Olá {{firstName}}, gostaria de retomar nosso contato.`,
-            `Re: Proposta para {{firstName}}`,
-            `{{firstName}}, esta é nossa última tentativa de contato.`,
-          ]], sid);
+          await appendSheet('Templates!A:W', [templateRow], sid);
         }
       }
 

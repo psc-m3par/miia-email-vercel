@@ -9,7 +9,15 @@ const STATUS_OPTIONS = [
   { key: 'email1_enviado', label: 'E1 enviado (sem resposta)', color: 'bg-blue-100 text-blue-700' },
   { key: 'fup1_enviado', label: 'FUP1 enviado (sem resposta)', color: 'bg-indigo-100 text-indigo-700' },
   { key: 'fup2_enviado', label: 'FUP2 enviado (sem resposta)', color: 'bg-purple-100 text-purple-700' },
-  { key: 'pendente', label: 'Pendente (não enviado)', color: 'bg-amber-100 text-amber-700' },
+  { key: 'fup3_enviado', label: 'FUP3 enviado (sem resposta)', color: 'bg-violet-100 text-violet-700' },
+  { key: 'fup4_enviado', label: 'FUP4 enviado (sem resposta)', color: 'bg-fuchsia-100 text-fuchsia-700' },
+  { key: 'fup5_enviado', label: 'FUP5 enviado (sem resposta)', color: 'bg-pink-100 text-pink-700' },
+  { key: 'fup6_enviado', label: 'FUP6 enviado (sem resposta)', color: 'bg-rose-100 text-rose-700' },
+  { key: 'fup7_enviado', label: 'FUP7 enviado (sem resposta)', color: 'bg-orange-100 text-orange-700' },
+  { key: 'fup8_enviado', label: 'FUP8 enviado (sem resposta)', color: 'bg-amber-100 text-amber-700' },
+  { key: 'fup9_enviado', label: 'FUP9 enviado (sem resposta)', color: 'bg-teal-100 text-teal-700' },
+  { key: 'fup10_enviado', label: 'FUP10 enviado (sem resposta)', color: 'bg-cyan-100 text-cyan-700' },
+  { key: 'pendente', label: 'Pendente (nao enviado)', color: 'bg-amber-100 text-amber-700' },
 ];
 
 const PIPE_OPTIONS = [
@@ -29,6 +37,14 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   email1_enviado: { label: 'E1', color: 'bg-blue-100 text-blue-700' },
   fup1_enviado: { label: 'FUP1', color: 'bg-indigo-100 text-indigo-700' },
   fup2_enviado: { label: 'FUP2', color: 'bg-purple-100 text-purple-700' },
+  fup3_enviado: { label: 'FUP3', color: 'bg-violet-100 text-violet-700' },
+  fup4_enviado: { label: 'FUP4', color: 'bg-fuchsia-100 text-fuchsia-700' },
+  fup5_enviado: { label: 'FUP5', color: 'bg-pink-100 text-pink-700' },
+  fup6_enviado: { label: 'FUP6', color: 'bg-rose-100 text-rose-700' },
+  fup7_enviado: { label: 'FUP7', color: 'bg-orange-100 text-orange-700' },
+  fup8_enviado: { label: 'FUP8', color: 'bg-amber-100 text-amber-700' },
+  fup9_enviado: { label: 'FUP9', color: 'bg-teal-100 text-teal-700' },
+  fup10_enviado: { label: 'FUP10', color: 'bg-cyan-100 text-cyan-700' },
   pendente: { label: 'Pendente', color: 'bg-amber-100 text-amber-700' },
 };
 

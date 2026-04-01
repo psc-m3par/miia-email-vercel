@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDashboardStats, readConfig, writeConfig, getAllSpreadsheetIds } from '@/lib/sheets';
+import { getDashboardStats, readConfig, writeConfig, getAllSpreadsheetIds, FUP_CONFIG } from '@/lib/sheets';
 import { sendEmail } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -34,14 +34,19 @@ export async function GET() {
     timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
-  const catRows = Object.entries(stats).map(([cat, s]: [string, any]) => `
+  // Sum all FUPs sent today
+  const hojeFupsTotal = FUP_CONFIG.reduce((sum, f) => sum + (totalGeral[`hojeFup${f.n}`] || 0), 0);
+
+  const catRows = Object.entries(stats).map(([cat, s]: [string, any]) => {
+    const hojeFups = FUP_CONFIG.reduce((sum, f) => sum + (s[`hojeFup${f.n}`] || 0), 0);
+    return `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#1e293b">${cat}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#2563eb">${s.hojeEmail1}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#4f46e5">${s.hojeFup1}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#7c3aed">${s.hojeFup2}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#4f46e5">${hojeFups}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#16a34a;font-weight:bold">${s.respondidos}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   const htmlBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc;padding:24px">
@@ -56,7 +61,7 @@ export async function GET() {
         <div style="font-size:11px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.05em">Emails 1</div>
       </div>
       <div style="flex:1;background:#eef2ff;border-radius:12px;padding:16px;text-align:center">
-        <div style="font-size:32px;font-weight:700;color:#4f46e5">${totalGeral.hojeFup1 + totalGeral.hojeFup2}</div>
+        <div style="font-size:32px;font-weight:700;color:#4f46e5">${hojeFupsTotal}</div>
         <div style="font-size:11px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.05em">FUPs</div>
       </div>
       <div style="flex:1;background:#f0fdf4;border-radius:12px;padding:16px;text-align:center">
@@ -70,8 +75,7 @@ export async function GET() {
         <tr style="background:#f1f5f9">
           <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:600">Categoria</th>
           <th style="padding:10px 12px;text-align:center;color:#2563eb;font-weight:600">Email 1</th>
-          <th style="padding:10px 12px;text-align:center;color:#4f46e5;font-weight:600">FUP1</th>
-          <th style="padding:10px 12px;text-align:center;color:#7c3aed;font-weight:600">FUP2</th>
+          <th style="padding:10px 12px;text-align:center;color:#4f46e5;font-weight:600">FUPs</th>
           <th style="padding:10px 12px;text-align:center;color:#16a34a;font-weight:600">Respondidos</th>
         </tr>
       </thead>

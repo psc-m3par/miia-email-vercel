@@ -56,11 +56,11 @@ export async function POST(req: NextRequest) {
     const spreadsheetId = responsavel ? getSpreadsheetIdForResponsavel(responsavel) : undefined;
 
     if (type === 'painel') {
-      await appendSheet('Painel!A:K', [values], spreadsheetId);
+      await appendSheet('Painel!A:S', [values], spreadsheetId);
       return NextResponse.json({ success: true });
     }
     if (type === 'templates') {
-      await appendSheet('Templates!A:G', [values], spreadsheetId);
+      await appendSheet('Templates!A:W', [values], spreadsheetId);
       return NextResponse.json({ success: true });
     }
 
@@ -94,12 +94,12 @@ export async function PUT(req: NextRequest) {
     }
 
     if (type === 'painel') {
-      const range = 'Painel!A' + rowIndex + ':K' + rowIndex;
+      const range = 'Painel!A' + rowIndex + ':S' + rowIndex;
       await writeSheet(range, [values], spreadsheetId);
       return NextResponse.json({ success: true });
     }
     if (type === 'templates') {
-      const range = 'Templates!A' + rowIndex + ':G' + rowIndex;
+      const range = 'Templates!A' + rowIndex + ':W' + rowIndex;
       await writeSheet(range, [values], spreadsheetId);
       return NextResponse.json({ success: true });
     }

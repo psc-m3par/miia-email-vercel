@@ -3,7 +3,8 @@
     "app/api/send-emails/route.ts": { "maxDuration": 60 },
     "app/api/send-fups/route.ts": { "maxDuration": 60 },
     "app/api/check-replies/route.ts": { "maxDuration": 300 },
-    "app/api/fix-missing-templates/route.ts": { "maxDuration": 60 }
+    "app/api/fix-missing-templates/route.ts": { "maxDuration": 60 },
+    "app/api/migrate-10fups/route.ts": { "maxDuration": 60 }
   },
   "crons": [
     { "path": "/api/send-emails", "schedule": "0 * * * *" },

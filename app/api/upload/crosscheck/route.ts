@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readContatos, readClientes, getAllSpreadsheetIds } from '@/lib/sheets';
+import { readContatos, readClientes, getAllSpreadsheetIds, FUP_CONFIG } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,11 @@ export async function POST(req: NextRequest) {
     for (const c of existingContatos) {
       const email = c.email.toLowerCase().trim();
       if (email) {
-        const status = c.fup2Enviado ? 'FUP2' : c.fup1Enviado ? 'FUP1' : c.email1Enviado ? 'E1' : 'pendente';
+        // Check from fup10 down to fup1 for the highest stage reached
+        let status = c.email1Enviado ? 'E1' : 'pendente';
+        for (const f of FUP_CONFIG) {
+          if (c[f.curField]) status = `FUP${f.n}`;
+        }
         contatosEmailMap.set(email, { category: c.category, status });
       }
     }

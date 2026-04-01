@@ -10,7 +10,25 @@ interface Template {
   fup1Corpo: string;
   fup2Assunto: string;
   fup2Corpo: string;
+  fup3Assunto: string;
+  fup3Corpo: string;
+  fup4Assunto: string;
+  fup4Corpo: string;
+  fup5Assunto: string;
+  fup5Corpo: string;
+  fup6Assunto: string;
+  fup6Corpo: string;
+  fup7Assunto: string;
+  fup7Corpo: string;
+  fup8Assunto: string;
+  fup8Corpo: string;
+  fup9Assunto: string;
+  fup9Corpo: string;
+  fup10Assunto: string;
+  fup10Corpo: string;
 }
+
+const FUP_COLORS = ['indigo', 'purple', 'violet', 'fuchsia', 'pink', 'rose', 'orange', 'amber', 'teal', 'cyan'] as const;
 
 function AIPanel({ category, onApply }: { category: string; onApply: (t: Partial<Template>) => void }) {
   const [prompt, setPrompt] = useState('');
@@ -87,7 +105,9 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [showNew, setShowNew] = useState(false);
-  const [newTemplate, setNewTemplate] = useState<Template>({ category: '', assunto: '', corpo: '', fup1Assunto: '', fup1Corpo: '', fup2Assunto: '', fup2Corpo: '' });
+  const [newTemplate, setNewTemplate] = useState<Template>({ category: '', assunto: '', corpo: '', fup1Assunto: '', fup1Corpo: '', fup2Assunto: '', fup2Corpo: '', fup3Assunto: '', fup3Corpo: '', fup4Assunto: '', fup4Corpo: '', fup5Assunto: '', fup5Corpo: '', fup6Assunto: '', fup6Corpo: '', fup7Assunto: '', fup7Corpo: '', fup8Assunto: '', fup8Corpo: '', fup9Assunto: '', fup9Corpo: '', fup10Assunto: '', fup10Corpo: '' });
+  const [collapsedFups, setCollapsedFups] = useState<Record<number, boolean>>({});
+  const toggleFupCollapse = (n: number) => setCollapsedFups(prev => ({ ...prev, [n]: !prev[n] }));
   const [creating, setCreating] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
@@ -170,7 +190,7 @@ export default function TemplatesPage() {
         body: JSON.stringify({
           type: 'templates',
           rowIndex: selected + 2,
-          values: [editing.category, editing.assunto, editing.corpo, editing.fup1Assunto, editing.fup1Corpo, editing.fup2Assunto, editing.fup2Corpo],
+          values: [editing.category, editing.assunto, editing.corpo, editing.fup1Assunto, editing.fup1Corpo, editing.fup2Assunto, editing.fup2Corpo, editing.fup3Assunto, editing.fup3Corpo, editing.fup4Assunto, editing.fup4Corpo, editing.fup5Assunto, editing.fup5Corpo, editing.fup6Assunto, editing.fup6Corpo, editing.fup7Assunto, editing.fup7Corpo, editing.fup8Assunto, editing.fup8Corpo, editing.fup9Assunto, editing.fup9Corpo, editing.fup10Assunto, editing.fup10Corpo],
         }),
       });
       if (!res.ok) throw new Error('Falha ao salvar');
@@ -198,14 +218,14 @@ export default function TemplatesPage() {
         body: JSON.stringify({
           type: 'templates',
           rowIndex: rowIndex,
-          values: [newTemplate.category, newTemplate.assunto, newTemplate.corpo, newTemplate.fup1Assunto, newTemplate.fup1Corpo, newTemplate.fup2Assunto, newTemplate.fup2Corpo],
+          values: [newTemplate.category, newTemplate.assunto, newTemplate.corpo, newTemplate.fup1Assunto, newTemplate.fup1Corpo, newTemplate.fup2Assunto, newTemplate.fup2Corpo, newTemplate.fup3Assunto, newTemplate.fup3Corpo, newTemplate.fup4Assunto, newTemplate.fup4Corpo, newTemplate.fup5Assunto, newTemplate.fup5Corpo, newTemplate.fup6Assunto, newTemplate.fup6Corpo, newTemplate.fup7Assunto, newTemplate.fup7Corpo, newTemplate.fup8Assunto, newTemplate.fup8Corpo, newTemplate.fup9Assunto, newTemplate.fup9Corpo, newTemplate.fup10Assunto, newTemplate.fup10Corpo],
         }),
       });
       if (!res.ok) throw new Error('Falha ao criar');
       setTemplates([...templates, { ...newTemplate }]);
       setMessage('Template criado para "' + newTemplate.category + '"!');
       setShowNew(false);
-      setNewTemplate({ category: '', assunto: '', corpo: '', fup1Assunto: '', fup1Corpo: '', fup2Assunto: '', fup2Corpo: '' });
+      setNewTemplate({ category: '', assunto: '', corpo: '', fup1Assunto: '', fup1Corpo: '', fup2Assunto: '', fup2Corpo: '', fup3Assunto: '', fup3Corpo: '', fup4Assunto: '', fup4Corpo: '', fup5Assunto: '', fup5Corpo: '', fup6Assunto: '', fup6Corpo: '', fup7Assunto: '', fup7Corpo: '', fup8Assunto: '', fup8Corpo: '', fup9Assunto: '', fup9Corpo: '', fup10Assunto: '', fup10Corpo: '' });
       setCategories(categories.filter(c => c !== newTemplate.category));
     } catch (e: any) {
       setMessage('Erro: ' + e.message);
@@ -335,14 +355,32 @@ export default function TemplatesPage() {
                 <Field label="Assunto" value={newTemplate.assunto} onChange={v => setNewTemplate({...newTemplate, assunto: v})} />
                 <Field label="Corpo" value={newTemplate.corpo} onChange={v => setNewTemplate({...newTemplate, corpo: v})} textarea />
               </Section>
-              <Section title="Follow-up 1" color="indigo">
-                <Field label="Assunto" value={newTemplate.fup1Assunto} onChange={v => setNewTemplate({...newTemplate, fup1Assunto: v})} />
-                <Field label="Corpo" value={newTemplate.fup1Corpo} onChange={v => setNewTemplate({...newTemplate, fup1Corpo: v})} textarea />
-              </Section>
-              <Section title="Follow-up 2" color="purple">
-                <Field label="Assunto" value={newTemplate.fup2Assunto} onChange={v => setNewTemplate({...newTemplate, fup2Assunto: v})} />
-                <Field label="Corpo" value={newTemplate.fup2Corpo} onChange={v => setNewTemplate({...newTemplate, fup2Corpo: v})} textarea />
-              </Section>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+                const assuntoKey = `fup${n}Assunto` as keyof Template;
+                const corpoKey = `fup${n}Corpo` as keyof Template;
+                const color = FUP_COLORS[n - 1];
+                const isCollapsible = n >= 3;
+                const isCollapsed = isCollapsible && !collapsedFups[n];
+                return (
+                  <div key={n}>
+                    {isCollapsible ? (
+                      <button
+                        onClick={() => toggleFupCollapse(n)}
+                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-medium border mb-3 cursor-pointer hover:opacity-80 bg-${color}-50 text-${color}-700 border-${color}-200`}
+                      >
+                        Follow-up {n}
+                        <svg className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                      </button>
+                    ) : null}
+                    {isCollapsible && isCollapsed ? null : (
+                      <Section title={isCollapsible ? '' : `Follow-up ${n}`} color={color}>
+                        <Field label="Assunto" value={newTemplate[assuntoKey]} onChange={v => setNewTemplate({...newTemplate, [assuntoKey]: v})} />
+                        <Field label="Corpo" value={newTemplate[corpoKey]} onChange={v => setNewTemplate({...newTemplate, [corpoKey]: v})} textarea />
+                      </Section>
+                    )}
+                  </div>
+                );
+              })}
               <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100">
                 <button onClick={handleCreate} disabled={creating}
                   className="px-6 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50">
@@ -370,14 +408,32 @@ export default function TemplatesPage() {
                 <Field label="Assunto" value={editing.assunto} onChange={v => setEditing({ ...editing, assunto: v })} />
                 <Field label="Corpo" value={editing.corpo} onChange={v => setEditing({ ...editing, corpo: v })} textarea />
               </Section>
-              <Section title="Follow-up 1" color="indigo">
-                <Field label="Assunto" value={editing.fup1Assunto} onChange={v => setEditing({ ...editing, fup1Assunto: v })} />
-                <Field label="Corpo" value={editing.fup1Corpo} onChange={v => setEditing({ ...editing, fup1Corpo: v })} textarea />
-              </Section>
-              <Section title="Follow-up 2" color="purple">
-                <Field label="Assunto" value={editing.fup2Assunto} onChange={v => setEditing({ ...editing, fup2Assunto: v })} />
-                <Field label="Corpo" value={editing.fup2Corpo} onChange={v => setEditing({ ...editing, fup2Corpo: v })} textarea />
-              </Section>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+                const assuntoKey = `fup${n}Assunto` as keyof Template;
+                const corpoKey = `fup${n}Corpo` as keyof Template;
+                const color = FUP_COLORS[n - 1];
+                const isCollapsible = n >= 3;
+                const isCollapsed = isCollapsible && !collapsedFups[n];
+                return (
+                  <div key={n}>
+                    {isCollapsible ? (
+                      <button
+                        onClick={() => toggleFupCollapse(n)}
+                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-medium border mb-3 cursor-pointer hover:opacity-80 bg-${color}-50 text-${color}-700 border-${color}-200`}
+                      >
+                        Follow-up {n}
+                        <svg className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                      </button>
+                    ) : null}
+                    {isCollapsible && isCollapsed ? null : (
+                      <Section title={isCollapsible ? '' : `Follow-up ${n}`} color={color}>
+                        <Field label="Assunto" value={editing[assuntoKey]} onChange={v => setEditing({ ...editing, [assuntoKey]: v })} />
+                        <Field label="Corpo" value={editing[corpoKey]} onChange={v => setEditing({ ...editing, [corpoKey]: v })} textarea />
+                      </Section>
+                    )}
+                  </div>
+                );
+              })}
               <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100">
                 <button onClick={handleSave} disabled={saving}
                   className="px-6 py-2.5 bg-miia-500 text-white rounded-xl font-medium hover:bg-miia-600 disabled:opacity-50 shadow-lg shadow-miia-500/20">
@@ -422,12 +478,22 @@ function Section({ title, color, children }: { title: string; color: string; chi
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
     indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
+    violet: 'bg-violet-50 text-violet-700 border-violet-200',
+    fuchsia: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+    pink: 'bg-pink-50 text-pink-700 border-pink-200',
+    rose: 'bg-rose-50 text-rose-700 border-rose-200',
+    orange: 'bg-orange-50 text-orange-700 border-orange-200',
+    amber: 'bg-amber-50 text-amber-700 border-amber-200',
+    teal: 'bg-teal-50 text-teal-700 border-teal-200',
+    cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200',
   };
   return (
     <div className="mb-6">
-      <div className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium border mb-3 ${colors[color]}`}>
-        {title}
-      </div>
+      {title && (
+        <div className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium border mb-3 ${colors[color] || colors.blue}`}>
+          {title}
+        </div>
+      )}
       <div className="space-y-3">{children}</div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPainel, readContatos, writeSheet, writePipeline, getAllSpreadsheetIds, appendLog, readTeses, updateTese, appendSheet } from '@/lib/sheets';
+import { readPainel, readContatos, writeSheet, writePipeline, getAllSpreadsheetIds, appendLog, readTeses, updateTese, appendSheet, FUP_CONFIG, anyFupHasStatus, anyFupIncludes } from '@/lib/sheets';
 import { checkReplies, sendEmail, getReplyText } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -36,10 +36,8 @@ async function runCheckReplies(category?: string) {
         c.category.normalize('NFC') === cat.category.normalize('NFC') &&
         c.email1Enviado.startsWith('OK') &&
         c.threadId &&
-        !c.fup1Enviado.includes('RESPONDIDO') &&
-        !c.fup2Enviado.includes('RESPONDIDO') &&
-        !c.fup1Enviado.includes('BOUNCE') &&
-        !c.fup2Enviado.includes('BOUNCE')
+        !anyFupHasStatus(c, 'RESPONDIDO') &&
+        !anyFupIncludes(c, 'BOUNCE')
       );
 
       let respondidosCat = 0;
@@ -61,24 +59,25 @@ async function runCheckReplies(category?: string) {
             const marcador = result.isBounce ? 'BOUNCE' : 'RESPONDIDO';
             const isBlacklist = !result.isBounce && result.isUnsubscribe;
 
-            if (!contato.fup1Enviado) {
-              await writeSheet(
-                'Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex,
-                [[marcador, marcador]],
-                spreadsheetId
-              );
-            } else if (contato.fup1Enviado.startsWith('OK') && !contato.fup2Enviado) {
-              await writeSheet(
-                'Contatos!J' + contato.rowIndex,
-                [[marcador]],
-                spreadsheetId
-              );
-            } else if (contato.fup2Enviado.startsWith('OK')) {
-              await writeSheet(
-                'Contatos!J' + contato.rowIndex,
-                [[marcador]],
-                spreadsheetId
-              );
+            // Find the latest FUP that was sent (starts with 'OK'), then mark
+            // that FUP column and ALL subsequent FUP columns as RESPONDIDO/BOUNCE.
+            let latestSentIdx = -1;
+            for (let i = FUP_CONFIG.length - 1; i >= 0; i--) {
+              const val = (contato[FUP_CONFIG[i].curField] || '').toString();
+              if (val.startsWith('OK')) { latestSentIdx = i; break; }
+            }
+
+            if (latestSentIdx === -1) {
+              // No FUP sent yet — mark FUP1 (col I) and all subsequent
+              for (const f of FUP_CONFIG) {
+                await writeSheet('Contatos!' + f.col + contato.rowIndex, [[marcador]], spreadsheetId);
+              }
+            } else {
+              // Mark from the NEXT FUP column onward (and include current if it's the last sent)
+              // Actually mark the current sent FUP column too, plus all subsequent
+              for (let i = latestSentIdx; i < FUP_CONFIG.length; i++) {
+                await writeSheet('Contatos!' + FUP_CONFIG[i].col + contato.rowIndex, [[marcador]], spreadsheetId);
+              }
             }
 
             if (!result.isBounce) {
@@ -226,7 +225,7 @@ async function runCheckReplies(category?: string) {
 
         const respondidosR = contactsR.filter(c =>
           c.threadId &&
-          (c.fup1Enviado.includes('RESPONDIDO') || c.fup2Enviado.includes('RESPONDIDO'))
+          anyFupHasStatus(c, 'RESPONDIDO')
         );
 
         for (const contato of respondidosR) {
@@ -242,12 +241,12 @@ async function runCheckReplies(category?: string) {
           recheckVerificados++;
 
           if (result.hasReply && result.isBounce) {
-            if (contato.fup1Enviado.includes('RESPONDIDO') && contato.fup2Enviado.includes('RESPONDIDO')) {
-              await writeSheet('Contatos!I' + contato.rowIndex + ':J' + contato.rowIndex, [['BOUNCE', 'BOUNCE']], spreadsheetId);
-            } else if (contato.fup1Enviado.includes('RESPONDIDO')) {
-              await writeSheet('Contatos!I' + contato.rowIndex, [['BOUNCE']], spreadsheetId);
-            } else if (contato.fup2Enviado.includes('RESPONDIDO')) {
-              await writeSheet('Contatos!J' + contato.rowIndex, [['BOUNCE']], spreadsheetId);
+            // Replace RESPONDIDO with BOUNCE in all FUP columns that have it
+            for (const f of FUP_CONFIG) {
+              const val = (contato[f.curField] || '').toString();
+              if (val.includes('RESPONDIDO')) {
+                await writeSheet('Contatos!' + f.col + contato.rowIndex, [['BOUNCE']], spreadsheetId);
+              }
             }
             recheckCorrigidos++;
             await new Promise(r => setTimeout(r, 1500));
