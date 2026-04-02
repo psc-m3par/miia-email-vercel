@@ -116,6 +116,9 @@ export default function TemplatesPage() {
   const [filterRemetente, setFilterRemetente] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<number>(-1);
   const [deleting, setDeleting] = useState(false);
+  const [showMasterTpl, setShowMasterTpl] = useState(false);
+  const [masterFups, setMasterFups] = useState<Record<string, string>>({});
+  const [applyingMasterTpl, setApplyingMasterTpl] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -244,6 +247,91 @@ export default function TemplatesPage() {
         <h1 className="font-display text-3xl font-bold text-slate-800">Templates</h1>
         <p className="text-slate-500 mt-1">Edite os templates de email por category</p>
         {message && <p className="text-sm mt-2 bg-white border border-slate-200 rounded-xl px-4 py-2 inline-block">{message}</p>}
+      </div>
+
+      {/* Template Master - aplica FUPs em todas as categorias */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowMasterTpl(!showMasterTpl)}
+          className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900 flex items-center gap-2"
+        >
+          {showMasterTpl ? '▲' : '▼'} Template Master (FUPs)
+        </button>
+        {showMasterTpl && (
+          <div className="mt-3 bg-slate-800 rounded-2xl p-6">
+            <p className="text-xs text-slate-400 mb-4">Edite os templates de FUP aqui e aplique em todas as categorias ativas de uma vez. Deixe em branco os que nao quer alterar.</p>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                <div key={n} className="bg-slate-700/50 rounded-xl p-4">
+                  <h4 className="text-xs font-semibold text-slate-300 mb-2">FUP {n}</h4>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] text-slate-400 mb-0.5 block">Assunto</label>
+                      <input
+                        type="text"
+                        value={masterFups[`fup${n}Assunto`] || ''}
+                        onChange={e => setMasterFups({ ...masterFups, [`fup${n}Assunto`]: e.target.value })}
+                        placeholder="Deixe vazio para nao alterar"
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 mb-0.5 block">Corpo</label>
+                      <textarea
+                        value={masterFups[`fup${n}Corpo`] || ''}
+                        onChange={e => setMasterFups({ ...masterFups, [`fup${n}Corpo`]: e.target.value })}
+                        placeholder="Deixe vazio para nao alterar"
+                        rows={3}
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-miia-400/50 resize-y font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 items-center mt-4 pt-4 border-t border-slate-700">
+              <button
+                disabled={applyingMasterTpl}
+                onClick={async () => {
+                  const filledFields = Object.entries(masterFups).filter(([, v]) => v.trim());
+                  if (filledFields.length === 0) { setMessage('Preencha ao menos um campo de FUP'); return; }
+                  if (!confirm('Aplicar templates de FUP em TODAS as categorias ativas? Campos vazios nao serao alterados.')) return;
+                  setApplyingMasterTpl(true);
+                  setMessage('Aplicando templates master...');
+                  let count = 0;
+                  const activeCats = painelData.filter((p: any) => p.ativo).map((p: any) => p.category);
+                  for (let i = 0; i < templates.length; i++) {
+                    if (!activeCats.includes(templates[i].category)) continue;
+                    const updated = { ...templates[i] };
+                    for (const [field, value] of filledFields) {
+                      (updated as any)[field] = value;
+                    }
+                    try {
+                      await fetch('/api/sheets', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          type: 'templates',
+                          rowIndex: i + 2,
+                          values: [updated.category, updated.assunto, updated.corpo, updated.fup1Assunto, updated.fup1Corpo, updated.fup2Assunto, updated.fup2Corpo, updated.fup3Assunto, updated.fup3Corpo, updated.fup4Assunto, updated.fup4Corpo, updated.fup5Assunto, updated.fup5Corpo, updated.fup6Assunto, updated.fup6Corpo, updated.fup7Assunto, updated.fup7Corpo, updated.fup8Assunto, updated.fup8Corpo, updated.fup9Assunto, updated.fup9Corpo, updated.fup10Assunto, updated.fup10Corpo],
+                        }),
+                      });
+                      templates[i] = updated;
+                      count++;
+                    } catch {}
+                  }
+                  setTemplates([...templates]);
+                  setApplyingMasterTpl(false);
+                  setMessage(count + ' templates atualizados com FUPs master.');
+                }}
+                className="px-6 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 disabled:opacity-50"
+              >
+                {applyingMasterTpl ? 'Aplicando...' : 'Aplicar em todas ativas'}
+              </button>
+              <span className="text-[10px] text-slate-500">{painelData.filter((p: any) => p.ativo).length} categorias ativas</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-6">
