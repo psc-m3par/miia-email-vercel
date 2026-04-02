@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { readContatos, getAllSpreadsheetIds, getSheets } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // Parse corrupted field: "Name;LastName;Company;OrigCategory;status;;email@domain.com"
 function parseCorrupted(raw: string) {
