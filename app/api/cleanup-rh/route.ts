@@ -34,21 +34,27 @@ export async function GET() {
     c.category.normalize('NFC') === fupCatName.normalize('NFC')
   );
 
-  // Match by email OR by checking if any RH email appears inside the contact's fields
-  // (handles corrupted imports where all fields are in one cell)
-  const matchesRH = (c: any) => {
-    const emailLower = (c.email || '').toLowerCase().trim();
-    if (emailLower && rhEmails.has(emailLower)) return true;
-    // Check if any RH email appears in firstName/lastName/email/companyName (corrupted data)
-    const allFields = [c.firstName, c.lastName, c.companyName, c.email].join(' ').toLowerCase();
-    for (const rhEmail of Array.from(rhEmails)) {
-      if (allFields.includes(rhEmail)) return true;
-    }
-    return false;
+  // Data is corrupted: all fields contain the full row like "Name;;Company;Category;status;;email@domain.com"
+  // Extract the real email from any field, and check if original category contains "RH"
+  const extractInfo = (c: any) => {
+    const raw = (c.firstName || c.email || '').toString();
+    const emailMatch = raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const realEmail = emailMatch ? emailMatch[0].toLowerCase() : '';
+    const parts = raw.split(';');
+    // Format: Name;LastName;Company;OriginalCategory;status;;email
+    const origCategory = parts[3] || '';
+    return { realEmail, origCategory, raw };
   };
 
-  const toRemove = fupContacts.filter(matchesRH);
-  const toKeep = fupContacts.filter(c => !matchesRH(c));
+  const toRemove = fupContacts.filter(c => {
+    const info = extractInfo(c);
+    // Match by email in RH set OR by original category being "RH Grandes empresas"
+    return rhEmails.has(info.realEmail) || info.origCategory.trim() === 'RH Grandes empresas';
+  });
+  const toKeep = fupContacts.filter(c => {
+    const info = extractInfo(c);
+    return !rhEmails.has(info.realEmail) && info.origCategory.trim() !== 'RH Grandes empresas';
+  });
 
   return NextResponse.json({
     rhEmailsCount: rhEmails.size,
@@ -56,8 +62,14 @@ export async function GET() {
     fupTotal: fupContacts.length,
     toRemoveCount: toRemove.length,
     toKeepCount: toKeep.length,
-    toRemovePreview: toRemove.slice(0, 10).map(c => ({ email: c.email, name: c.firstName + ' ' + c.lastName, row: c.rowIndex })),
-    sampleFupContact: fupContacts.slice(0, 3).map(c => ({ firstName: c.firstName, lastName: c.lastName, email: c.email, company: c.companyName })),
+    toRemovePreview: toRemove.slice(0, 15).map(c => {
+      const info = extractInfo(c);
+      return { realEmail: info.realEmail, origCategory: info.origCategory, row: c.rowIndex };
+    }),
+    sampleFupData: fupContacts.slice(0, 5).map(c => {
+      const info = extractInfo(c);
+      return { realEmail: info.realEmail, origCategory: info.origCategory, raw: info.raw.slice(0, 80) };
+    }),
     note: 'Use POST para executar a limpeza',
   });
 }
@@ -85,22 +97,21 @@ export async function POST() {
     return NextResponse.json({ error: 'Categoria FUP nao encontrada' }, { status: 400 });
   }
 
-  const rhEmailArr = Array.from(rhEmails);
-  const matchesRH = (c: any) => {
-    const emailLower = (c.email || '').toLowerCase().trim();
-    if (emailLower && rhEmails.has(emailLower)) return true;
-    const allFields = [c.firstName, c.lastName, c.companyName, c.email].join(' ').toLowerCase();
-    for (const rhEmail of rhEmailArr) {
-      if (allFields.includes(rhEmail)) return true;
-    }
-    return false;
+  const extractInfo = (c: any) => {
+    const raw = (c.firstName || c.email || '').toString();
+    const emailMatch = raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const realEmail = emailMatch ? emailMatch[0].toLowerCase() : '';
+    const parts = raw.split(';');
+    const origCategory = parts[3] || '';
+    return { realEmail, origCategory };
   };
 
   const rowsToDelete = contacts
-    .filter(c =>
-      c.category.normalize('NFC') === fupCatName.normalize('NFC') &&
-      matchesRH(c)
-    )
+    .filter(c => {
+      if (c.category.normalize('NFC') !== fupCatName.normalize('NFC')) return false;
+      const info = extractInfo(c);
+      return rhEmails.has(info.realEmail) || info.origCategory.trim() === 'RH Grandes empresas';
+    })
     .map(c => c.rowIndex)
     .sort((a, b) => b - a);
 
