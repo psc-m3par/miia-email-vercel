@@ -22,7 +22,10 @@ function isCorrupted(c: any): boolean {
   return raw.includes(';') && raw.includes('@');
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const execute = url.searchParams.get('execute') === 'true';
+
   const allIds = getAllSpreadsheetIds();
   const spreadsheetId = allIds[0];
   const { contacts } = await readContatos(spreadsheetId);
@@ -32,24 +35,57 @@ export async function GET() {
   );
 
   const corrupted = fupContacts.filter(isCorrupted);
-  const clean = fupContacts.filter(c => !isCorrupted(c));
 
-  const preview = corrupted.slice(0, 10).map(c => {
-    const parsed = parseCorrupted(c.firstName);
-    return {
-      row: c.rowIndex,
-      before: { firstName: c.firstName.slice(0, 60), email: c.email.slice(0, 40) },
-      after: parsed,
-    };
-  });
+  if (!execute) {
+    const clean = fupContacts.filter(c => !isCorrupted(c));
+    const preview = corrupted.slice(0, 10).map(c => {
+      const parsed = parseCorrupted(c.firstName);
+      return {
+        row: c.rowIndex,
+        before: { firstName: c.firstName.slice(0, 60), email: c.email.slice(0, 40) },
+        after: parsed,
+      };
+    });
+    return NextResponse.json({
+      category: fupContacts[0]?.category || 'not found',
+      totalFup: fupContacts.length,
+      corrupted: corrupted.length,
+      alreadyClean: clean.length,
+      preview,
+      note: 'Adicione ?execute=true na URL para executar a correcao',
+    });
+  }
+
+  // Execute the fix
+  if (corrupted.length === 0) {
+    return NextResponse.json({ fixed: 0, message: 'Nenhum contato corrompido encontrado' });
+  }
+
+  let fixed = 0;
+  const errors: string[] = [];
+
+  for (const c of corrupted) {
+    try {
+      const parsed = parseCorrupted(c.firstName);
+      await writeSheet(
+        'Contatos!A' + c.rowIndex + ':D' + c.rowIndex,
+        [[parsed.firstName, parsed.lastName, parsed.companyName, parsed.email]],
+        spreadsheetId
+      );
+      fixed++;
+      if (fixed % 20 === 0) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (e: any) {
+      errors.push('Row ' + c.rowIndex + ': ' + e.message);
+    }
+  }
 
   return NextResponse.json({
-    category: fupContacts[0]?.category || 'not found',
-    totalFup: fupContacts.length,
-    corrupted: corrupted.length,
-    alreadyClean: clean.length,
-    preview,
-    note: 'POST para corrigir os dados na planilha',
+    fixed,
+    total: corrupted.length,
+    errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+    message: fixed + '/' + corrupted.length + ' contatos corrigidos na planilha',
   });
 }
 
