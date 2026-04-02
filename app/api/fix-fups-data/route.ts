@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readContatos, getAllSpreadsheetIds, writeSheet } from '@/lib/sheets';
+import { readContatos, getAllSpreadsheetIds, getSheets } from '@/lib/sheets';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -56,36 +56,33 @@ export async function GET(req: Request) {
     });
   }
 
-  // Execute the fix
+  // Execute the fix using batchUpdate for speed
   if (corrupted.length === 0) {
     return NextResponse.json({ fixed: 0, message: 'Nenhum contato corrompido encontrado' });
   }
 
-  let fixed = 0;
-  const errors: string[] = [];
+  const sheets = getSheets();
+  const data = corrupted.map(c => {
+    const parsed = parseCorrupted(c.firstName);
+    return {
+      range: 'Contatos!A' + c.rowIndex + ':D' + c.rowIndex,
+      values: [[parsed.firstName, parsed.lastName, parsed.companyName, parsed.email]],
+    };
+  });
 
-  for (const c of corrupted) {
-    try {
-      const parsed = parseCorrupted(c.firstName);
-      await writeSheet(
-        'Contatos!A' + c.rowIndex + ':D' + c.rowIndex,
-        [[parsed.firstName, parsed.lastName, parsed.companyName, parsed.email]],
-        spreadsheetId
-      );
-      fixed++;
-      if (fixed % 20 === 0) {
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    } catch (e: any) {
-      errors.push('Row ' + c.rowIndex + ': ' + e.message);
-    }
+  try {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: 'USER_ENTERED', data },
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 
   return NextResponse.json({
-    fixed,
+    fixed: corrupted.length,
     total: corrupted.length,
-    errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
-    message: fixed + '/' + corrupted.length + ' contatos corrigidos na planilha',
+    message: corrupted.length + ' contatos corrigidos na planilha',
   });
 }
 
