@@ -35,6 +35,12 @@ export default function SettingsPage() {
   const [newCat, setNewCat] = useState({ category: '', responsavel: '', nomeRemetente: '', emailsHora: 20, diasFup1: 3, diasFup2: 7, ativo: true, cc: '', horaInicio: 8, horaFim: 20, diasFup3: 2, diasFup4: 2, diasFup5: 2, diasFup6: 2, diasFup7: 2, diasFup8: 2, diasFup9: 2, diasFup10: 2 });
   const [showAdvancedFups, setShowAdvancedFups] = useState(false);
   const [showAdvancedFupsIdx, setShowAdvancedFupsIdx] = useState<Record<number, boolean>>({});
+  const [showMaster, setShowMaster] = useState(false);
+  const [masterDias, setMasterDias] = useState({ diasFup1: 3, diasFup2: 7, diasFup3: 2, diasFup4: 2, diasFup5: 2, diasFup6: 2, diasFup7: 2, diasFup8: 2, diasFup9: 2, diasFup10: 2 });
+  const [masterEmailsHora, setMasterEmailsHora] = useState(20);
+  const [masterHoraInicio, setMasterHoraInicio] = useState(8);
+  const [masterHoraFim, setMasterHoraFim] = useState(20);
+  const [applyingMaster, setApplyingMaster] = useState(false);
   const [creatingCat, setCreatingCat] = useState(false);
   const [completedCats, setCompletedCats] = useState<Set<string>>(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
@@ -295,6 +301,78 @@ export default function SettingsPage() {
         );
         return null;
       })()}
+
+      {/* Painel Master */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowMaster(!showMaster)}
+          className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900 flex items-center gap-2"
+        >
+          {showMaster ? '▲' : '▼'} Painel Master
+        </button>
+        {showMaster && (
+          <div className="mt-3 bg-slate-800 rounded-2xl p-6 text-white">
+            <p className="text-xs text-slate-400 mb-4">Altere valores aqui e aplique em todas as categorias ativas de uma vez.</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Emails/Hora</label>
+                <input type="number" value={masterEmailsHora} onChange={e => setMasterEmailsHora(parseInt(e.target.value) || 20)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Hora inicio</label>
+                <input type="number" min={0} max={23} value={masterHoraInicio} onChange={e => setMasterHoraInicio(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Hora fim</label>
+                <input type="number" min={1} max={24} value={masterHoraFim} onChange={e => setMasterHoraFim(parseInt(e.target.value) || 24)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                <div key={n}>
+                  <label className="text-xs text-slate-400 mb-1 block">Dias FUP{n}</label>
+                  <input type="number" value={(masterDias as any)[`diasFup${n}`]}
+                    onChange={e => setMasterDias({ ...masterDias, [`diasFup${n}`]: parseInt(e.target.value) || 2 })}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-miia-400/50" />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 items-center">
+              <button
+                disabled={applyingMaster}
+                onClick={async () => {
+                  if (!confirm('Aplicar estes valores em TODAS as categorias ativas?')) return;
+                  setApplyingMaster(true);
+                  setMessage('Aplicando master...');
+                  let count = 0;
+                  for (let i = 0; i < painel.length; i++) {
+                    if (!painel[i].ativo) continue;
+                    const updated = {
+                      ...painel[i],
+                      emailsHora: masterEmailsHora,
+                      horaInicio: masterHoraInicio,
+                      horaFim: masterHoraFim,
+                      ...masterDias,
+                    };
+                    await saveRow(i, updated);
+                    count++;
+                  }
+                  setApplyingMaster(false);
+                  setMessage(count + ' categorias atualizadas com valores master.');
+                  loadData();
+                }}
+                className="px-6 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 disabled:opacity-50"
+              >
+                {applyingMaster ? 'Aplicando...' : 'Aplicar em todas ativas'}
+              </button>
+              <span className="text-[10px] text-slate-500">Aplica em {painel.filter(p => p.ativo).length} categorias ativas</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {showNewCat && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6">
