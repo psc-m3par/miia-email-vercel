@@ -259,7 +259,30 @@ export default function TemplatesPage() {
         </button>
         {showMasterTpl && (
           <div className="mt-3 bg-slate-800 rounded-2xl p-6">
-            <p className="text-xs text-slate-400 mb-4">Edite os templates de FUP aqui e aplique em todas as categorias de uma vez. Deixe em branco os que nao quer alterar.</p>
+            <div className="flex items-center gap-3 mb-4">
+              <label className="text-xs text-slate-400">Copiar FUPs de:</label>
+              <select
+                onChange={e => {
+                  const src = templates.find(t => t.category === e.target.value);
+                  if (!src) return;
+                  const loaded: Record<string, string> = {};
+                  for (let n = 1; n <= 10; n++) {
+                    const a = (src as any)[`fup${n}Assunto`] || '';
+                    const c = (src as any)[`fup${n}Corpo`] || '';
+                    if (a) loaded[`fup${n}Assunto`] = a;
+                    if (c) loaded[`fup${n}Corpo`] = c;
+                  }
+                  setMasterFups(loaded);
+                  setMessage('FUPs carregados de "' + src.category + '"');
+                }}
+                className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-miia-400/50"
+                defaultValue=""
+              >
+                <option value="">Selecionar categoria...</option>
+                {templates.map(t => <option key={t.category} value={t.category}>{t.category}</option>)}
+              </select>
+            </div>
+            <p className="text-xs text-slate-400 mb-4">Edite os FUPs abaixo e aplique em todas as categorias. Deixe em branco os que nao quer alterar.</p>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
               {[1,2,3,4,5,6,7,8,9,10].map(n => (
                 <div key={n} className="bg-slate-700/50 rounded-xl p-4">
