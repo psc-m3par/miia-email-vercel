@@ -259,11 +259,28 @@ export default function TemplatesPage() {
         </button>
         {showMasterTpl && (
           <div className="mt-3 bg-slate-800 rounded-2xl p-6">
-            <p className="text-xs text-slate-400 mb-4">Edite os templates de FUP aqui e aplique em todas as categorias ativas de uma vez. Deixe em branco os que nao quer alterar.</p>
+            <p className="text-xs text-slate-400 mb-4">Edite os templates de FUP aqui e aplique em todas as categorias de uma vez. Deixe em branco os que nao quer alterar.</p>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
               {[1,2,3,4,5,6,7,8,9,10].map(n => (
                 <div key={n} className="bg-slate-700/50 rounded-xl p-4">
-                  <h4 className="text-xs font-semibold text-slate-300 mb-2">FUP {n}</h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-slate-300">FUP {n}</h4>
+                    {n > 1 && (
+                      <button
+                        onClick={() => {
+                          const prev = n - 1;
+                          setMasterFups(f => ({
+                            ...f,
+                            [`fup${n}Assunto`]: f[`fup${prev}Assunto`] || '',
+                            [`fup${n}Corpo`]: f[`fup${prev}Corpo`] || '',
+                          }));
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-white px-2 py-0.5 rounded border border-slate-600 hover:border-slate-400 transition-colors"
+                      >
+                        Copiar FUP {n - 1}
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <div>
                       <label className="text-[10px] text-slate-400 mb-0.5 block">Assunto</label>
@@ -295,13 +312,11 @@ export default function TemplatesPage() {
                 onClick={async () => {
                   const filledFields = Object.entries(masterFups).filter(([, v]) => v.trim());
                   if (filledFields.length === 0) { setMessage('Preencha ao menos um campo de FUP'); return; }
-                  if (!confirm('Aplicar templates de FUP em TODAS as categorias ativas? Campos vazios nao serao alterados.')) return;
+                  if (!confirm('Aplicar templates de FUP em TODAS as ' + templates.length + ' categorias? Campos vazios nao serao alterados.')) return;
                   setApplyingMasterTpl(true);
                   setMessage('Aplicando templates master...');
                   let count = 0;
-                  const activeCats = painelData.filter((p: any) => p.ativo).map((p: any) => p.category);
                   for (let i = 0; i < templates.length; i++) {
-                    if (!activeCats.includes(templates[i].category)) continue;
                     const updated = { ...templates[i] };
                     for (const [field, value] of filledFields) {
                       (updated as any)[field] = value;
@@ -326,9 +341,9 @@ export default function TemplatesPage() {
                 }}
                 className="px-6 py-2.5 bg-miia-500 text-white rounded-xl text-sm font-semibold hover:bg-miia-600 disabled:opacity-50"
               >
-                {applyingMasterTpl ? 'Aplicando...' : 'Aplicar em todas ativas'}
+                {applyingMasterTpl ? 'Aplicando...' : 'Aplicar em todas (' + templates.length + ')'}
               </button>
-              <span className="text-[10px] text-slate-500">{painelData.filter((p: any) => p.ativo).length} categorias ativas</span>
+              <span className="text-[10px] text-slate-500">Aplica em todas as {templates.length} categorias</span>
             </div>
           </div>
         )}
